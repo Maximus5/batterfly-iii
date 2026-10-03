@@ -84,6 +84,7 @@
     <string name="action_save">Сохранить</string>
     <string name="rule_no_monitored_apps">Нет приложений для мониторинга — сначала выберите в разделе «Приложения для мониторинга».</string>
     <string name="rule_pattern_example_label">Пример</string>
+    <string name="rule_pattern_example_label_title_anchored">Пример (привязка к заголовку)</string>
     <string name="rule_validation_failed">Сначала исправьте</string>
     <string name="rule_delete_confirm_title">Удалить это правило?</string>
 

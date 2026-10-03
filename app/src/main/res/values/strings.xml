@@ -84,6 +84,7 @@
     <string name="action_save">Save</string>
     <string name="rule_no_monitored_apps">No monitored apps yet - pick some in Monitored apps first.</string>
     <string name="rule_pattern_example_label">Example</string>
+    <string name="rule_pattern_example_label_title_anchored">Example (anchored to title)</string>
     <string name="rule_validation_failed">Fix these first</string>
     <string name="rule_delete_confirm_title">Delete this rule?</string>
 

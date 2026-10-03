@@ -194,13 +194,13 @@ Single `:app` module, packages under
     the rule editor - a derived query over this same table, newest
     first, one entry per distinct pattern; no separate library table.
     Still no built-in/canned patterns *in this table* - but
-    `RuleEditFragment.showPatternPicker` always appends one hardcoded
-    illustrative example (`EXAMPLE_PATTERN`, labeled "Example") after
-    whatever's actually saved, so the very first rule a user ever
+    `RuleEditFragment.showPatternPicker` always appends two hardcoded
+    illustrative examples (`EXAMPLE_PATTERN`/`EXAMPLE_PATTERN_TITLE_ANCHORED`)
+    after whatever's actually saved, so the very first rule a user ever
     creates isn't a blank textarea with zero clue about named-group
-    syntax, and it stays available as a syntax reference even once real
-    rules exist (it used to be an empty-state-only fallback; removed
-    once any real rule existed, which the user flagged as the example
+    syntax, and they stay available as a syntax reference even once real
+    rules exist (used to be an empty-state-only fallback; removed once
+    any real rule existed, which the user flagged as the example
     disappearing right when they'd want to compare against it).
     `EXAMPLE_PATTERN`'s `currency` group accepts `[A-Z]{3}` *or*
     `[€£$]` (banks print symbols far more than ISO codes, same reason
@@ -210,6 +210,26 @@ Single `:app` module, packages under
     a notification's sentence-ending "." isn't part of the merchant
     name (real example: "...at Shop 9012 Markt GmbH-Zw." was capturing the
     period into `counterparty` before this).
+    `EXAMPLE_PATTERN_TITLE_ANCHORED` is the second example, added after a
+    real rule hit a classic regex pitfall head-on: a *greedy* `.*`
+    between a literal title anchor and the amount group
+    (`Zahlung erfolgreich\s*.*(?<amount>[\d.,]+)`) backtracks from the
+    *end* of the string, so the amount group is tried starting as late
+    as possible first - against "...45,30 € an Shop 5678 GmbH
+    gezahlt.", that settled for `amount="0"` (just the last digit of
+    "45,30"), which `parseAmount` then rejects (`signum() > 0`), landing
+    as a silent `AMOUNT_UNPARSABLE` rather than a visibly wrong capture.
+    The fix pattern uses `[^\d]*` instead - it can't overshoot past the
+    number it's skipping to, since it stops at the *first* digit
+    regardless of which one that is - and the example also demonstrates
+    `(?:gezahlt)?` before the optional trailing period, so a known
+    trailing verb doesn't end up inside `counterparty` (the same
+    "sentence words leaking into a lazy capture group" class of problem
+    as the trailing-period fix above, different symptom). Both pitfalls
+    and the fix are covered by `NamedGroupMatcherTest` (regex-engine
+    level, not UI-level - this is a property of Java's backtracking
+    semantics, nothing `rules`/`ui` can special-case around; the fix has
+    to live in the pattern itself).
     `RulesDb.getInstance(context)` is the one shared instance (same
     reasoning as `MessageHistoryDb.getInstance`).
     `DB_VERSION` has been bumped three times already as the rule shape
@@ -324,9 +344,9 @@ Single `:app` module, packages under
       first (label, app, kind), then a divider, then the regex
       section: the regex field itself, then three left-aligned
       link-style buttons in one row *below* it, in this order - "pick
-      existing" (every saved rule's distinct regex, *plus* one
-      hardcoded illustrative example always appended at the end
-      regardless of how many real ones already exist - it's a syntax
+      existing" (every saved rule's distinct regex, *plus* two
+      hardcoded illustrative examples always appended at the end
+      regardless of how many real ones already exist - they're a syntax
       reminder, not just an empty-state filler, see `RulesDb` below;
       each list item shows its label on one line and the *full* regex
       on the next - not truncated - so it's shown in full before being

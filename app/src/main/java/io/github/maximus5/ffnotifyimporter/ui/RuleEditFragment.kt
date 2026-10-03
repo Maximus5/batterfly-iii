@@ -316,12 +316,15 @@ class RuleEditFragment : Fragment() {
     private fun showPatternPicker() {
         val context = requireContext()
         val saved = rulesDb.distinctPatterns()
-        // The illustrative example is always offered too, not just when nothing's saved yet -
-        // it's a handy syntax reminder regardless of how many real rules already exist.
-        // distinctBy guards against listing it twice if a saved regex happens to match it
+        // The illustrative examples are always offered too, not just when nothing's saved yet -
+        // they're a handy syntax reminder regardless of how many real rules already exist.
+        // distinctBy guards against listing one twice if a saved regex happens to match it
         // verbatim.
-        val regexes = (saved + (EXAMPLE_PATTERN to getString(R.string.rule_pattern_example_label)))
-            .distinctBy { it.first }
+        val examples = listOf(
+            EXAMPLE_PATTERN to getString(R.string.rule_pattern_example_label),
+            EXAMPLE_PATTERN_TITLE_ANCHORED to getString(R.string.rule_pattern_example_label_title_anchored),
+        )
+        val regexes = (saved + examples).distinctBy { it.first }
         // Full regex shown right here in the list, label above it - not truncated to one line,
         // since a cut-off regex is too easy to misread (and previously looked like a rendering
         // glitch). Seeing it in full here, before tapping, is the "shown before applying" step -
@@ -409,6 +412,16 @@ class RuleEditFragment : Fragment() {
         // demonstrate the named-group syntax, not meant to match anything real.
         private const val EXAMPLE_PATTERN =
             """(?<amount>[\d.,]+)\s*(?<currency>[A-Z]{3}|[€£$]).*?(?:at|bei)\s+(?<counterparty>.+?)\.?$"""
+
+        // Second example, anchored to a literal title instead of starting at the amount - real
+        // case that caught a classic regex pitfall: a *greedy* `.*` before the amount group lets
+        // the engine settle for matching just the last digit of a multi-digit number (whatever
+        // satisfies the rest of the pattern first), instead of the full number. `[^\d]*` here
+        // only skips non-digits, so it can't overshoot past the number it's looking for. The
+        // trailing `(?:gezahlt)?` is why counterparty doesn't end up swallowing the sentence's
+        // closing verb along with the merchant name.
+        private const val EXAMPLE_PATTERN_TITLE_ANCHORED =
+            """Zahlung erfolgreich[^\d]*(?<amount>[\d.,]+)\s*(?<currency>[A-Z]{3}|[€£$]).*?(?:an)\s+(?<counterparty>.+?)\s*(?:gezahlt)?\.?$"""
 
         fun newInstance(ruleId: String?): RuleEditFragment = RuleEditFragment().apply {
             arguments = Bundle().apply { putString(ARG_RULE_ID, ruleId) }

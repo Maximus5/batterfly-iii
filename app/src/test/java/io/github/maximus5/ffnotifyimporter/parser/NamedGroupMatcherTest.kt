@@ -45,6 +45,37 @@ class NamedGroupMatcherTest {
     }
 
     @Test
+    fun `a greedy dot before the amount group can capture only its last digit, not the whole number`() {
+        // Classic pitfall, found via a real rule: greedy `.*` backtracks from the end of the
+        // string, so the amount group is tried starting as LATE as possible first - here that
+        // means it settles for "0" (just the last digit of "45,30"), since everything after it
+        // still lets the rest of the pattern succeed. The engine never even tries "45,30".
+        val pattern =
+            """Zahlung erfolgreich\s*.*(?<amount>[\d.,]+)\s*(?<currency>[A-Z]{3}|[€£$]).*?(?:an)\s+(?<counterparty>.+?)\.?$"""
+        val combined = "Zahlung erfolgreich\nSie haben 45,30 € an Shop 5678 GmbH gezahlt."
+
+        val groups = extractGroups(pattern, combined)
+
+        assertEquals("0", groups?.get("amount"))
+    }
+
+    @Test
+    fun `a non-digit character class instead of a greedy dot fixes the pitfall and keeps the verb out of counterparty`() {
+        // RuleEditFragment.EXAMPLE_PATTERN_TITLE_ANCHORED, verbatim - the fix for the test above:
+        // [^\d]* can't overshoot past the number it's skipping to (it stops at the first digit,
+        // whichever digit that is), and (?:gezahlt)? before the optional trailing period stops
+        // the lazy counterparty group from swallowing the sentence's closing verb.
+        val pattern = """Zahlung erfolgreich[^\d]*(?<amount>[\d.,]+)\s*(?<currency>[A-Z]{3}|[€£$]).*?(?:an)\s+(?<counterparty>.+?)\s*(?:gezahlt)?\.?$"""
+        val combined = "Zahlung erfolgreich\nSie haben 45,30 € an Shop 5678 GmbH gezahlt."
+
+        val groups = extractGroups(pattern, combined)
+
+        assertEquals("45,30", groups?.get("amount"))
+        assertEquals("€", groups?.get("currency"))
+        assertEquals("Shop 5678 GmbH", groups?.get("counterparty"))
+    }
+
+    @Test
     fun `omits a declared group that matched but captured nothing`() {
         val pattern = """(?<amount>\d+)(?<currency>EUR)?"""
         val groups = extractGroups(pattern, "42")
