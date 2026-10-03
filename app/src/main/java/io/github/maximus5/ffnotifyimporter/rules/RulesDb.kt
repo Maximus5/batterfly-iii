@@ -24,6 +24,8 @@ class RulesDb(context: Context) : SQLiteOpenHelper(context, DB_NAME, null, DB_VE
                 $COL_KIND TEXT NOT NULL,
                 $COL_SOURCE_ACCOUNT_NAME TEXT NOT NULL,
                 $COL_DESTINATION_ACCOUNT_NAME TEXT NOT NULL,
+                $COL_SOURCE_ACCOUNT_ID TEXT,
+                $COL_DESTINATION_ACCOUNT_ID TEXT,
                 $COL_HOME_CURRENCY TEXT NOT NULL,
                 $COL_PATTERN TEXT NOT NULL,
                 $COL_DESCRIPTION_TEMPLATE TEXT NOT NULL,
@@ -157,6 +159,8 @@ class RulesDb(context: Context) : SQLiteOpenHelper(context, DB_NAME, null, DB_VE
         put(COL_KIND, kind.name)
         put(COL_SOURCE_ACCOUNT_NAME, sourceAccountName)
         put(COL_DESTINATION_ACCOUNT_NAME, destinationAccountName)
+        put(COL_SOURCE_ACCOUNT_ID, sourceAccountId)
+        put(COL_DESTINATION_ACCOUNT_ID, destinationAccountId)
         put(COL_HOME_CURRENCY, homeCurrency)
         put(COL_PATTERN, pattern)
         put(COL_DESCRIPTION_TEMPLATE, descriptionTemplate)
@@ -169,6 +173,10 @@ class RulesDb(context: Context) : SQLiteOpenHelper(context, DB_NAME, null, DB_VE
 
     private fun Cursor.toRule(): ParseRule {
         fun str(col: String) = getString(getColumnIndexOrThrow(col))
+        fun strOrNull(col: String): String? {
+            val index = getColumnIndexOrThrow(col)
+            return if (isNull(index)) null else getString(index)
+        }
         return ParseRule(
             id = str(COL_ID),
             label = str(COL_LABEL),
@@ -176,6 +184,8 @@ class RulesDb(context: Context) : SQLiteOpenHelper(context, DB_NAME, null, DB_VE
             kind = RuleKind.valueOf(str(COL_KIND)),
             sourceAccountName = str(COL_SOURCE_ACCOUNT_NAME),
             destinationAccountName = str(COL_DESTINATION_ACCOUNT_NAME),
+            sourceAccountId = strOrNull(COL_SOURCE_ACCOUNT_ID),
+            destinationAccountId = strOrNull(COL_DESTINATION_ACCOUNT_ID),
             homeCurrency = str(COL_HOME_CURRENCY),
             pattern = str(COL_PATTERN),
             descriptionTemplate = str(COL_DESCRIPTION_TEMPLATE),
@@ -188,7 +198,11 @@ class RulesDb(context: Context) : SQLiteOpenHelper(context, DB_NAME, null, DB_VE
 
     companion object {
         private const val DB_NAME = "rules.db"
-        private const val DB_VERSION = 5 // v5: source/destination_account_name are macro templates now (NOT NULL)
+        // v5: source/destination_account_name are macro templates now (NOT NULL)
+        // v6: added nullable source/destination_account_id (Firefly account ID, set only when
+        // the corresponding name was picked from FireflyApiClient.listAssetAccounts() - see
+        // ParseRule's KDoc)
+        private const val DB_VERSION = 6
         private const val TABLE = "rules"
         private const val COL_ID = "id"
         private const val COL_LABEL = "label"
@@ -196,6 +210,8 @@ class RulesDb(context: Context) : SQLiteOpenHelper(context, DB_NAME, null, DB_VE
         private const val COL_KIND = "kind"
         private const val COL_SOURCE_ACCOUNT_NAME = "source_account_name"
         private const val COL_DESTINATION_ACCOUNT_NAME = "destination_account_name"
+        private const val COL_SOURCE_ACCOUNT_ID = "source_account_id"
+        private const val COL_DESTINATION_ACCOUNT_ID = "destination_account_id"
         private const val COL_HOME_CURRENCY = "home_currency"
         private const val COL_PATTERN = "pattern"
         private const val COL_DESCRIPTION_TEMPLATE = "description_template"

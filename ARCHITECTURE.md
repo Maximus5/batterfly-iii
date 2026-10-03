@@ -257,13 +257,16 @@ Single `:app` module, packages under
     to live in the pattern itself).
     `RulesDb.getInstance(context)` is the one shared instance (same
     reasoning as `MessageHistoryDb.getInstance`).
-    `DB_VERSION` has been bumped three times already as the rule shape
+    `DB_VERSION` has been bumped five times already as the rule shape
     settled (2: `account_name`/`counterparty_account_name` columns ->
     `source_account_name`/`destination_account_name`; 3: added
     `category_template`/`tags_template`; 4: dropped
-    `decimal_separator` - see `parseAmount` above) - `onUpgrade` just
-    drops and recreates the table, fine for a personal,
-    not-yet-relied-upon rules list; revisit if that's ever not true.
+    `decimal_separator` - see `parseAmount` above; 5:
+    source/destination_account_name became `NOT NULL`; 6: added
+    nullable `source_account_id`/`destination_account_id`, see
+    `ParseRule`'s KDoc) - `onUpgrade` just drops and recreates the
+    table, fine for a personal, not-yet-relied-upon rules list; revisit
+    if that's ever not true.
     Not unit tested - like `MessageHistoryDb`, it's thin glue over real
     `SQLiteOpenHelper`/Android framework classes that don't run under
     plain JVM unit tests.
@@ -571,7 +574,27 @@ Single `:app` module, packages under
       network call on every picker tap) rather than failing the whole
       screen when Firefly isn't configured yet, this just falls back to
       a Toast and leaves the field free-typeable - the rule can still be
-      drafted and fixed up once a connection exists.
+      drafted and fixed up once a connection exists. The picker is
+      `setSingleChoiceItems`, not `setItems` - pre-selects (radio mark)
+      whichever account already matches the field's current text, so
+      reopening it shows what's already there at a glance instead of an
+      unmarked list every time; still applies and dismisses on one tap,
+      same as before, no separate confirm step.
+      Picking an account also captures its Firefly ID
+      (`RuleEditFragment.PickedAccount`, held in
+      `sourceAccountPick`/`destinationAccountPick`) alongside the name -
+      an ID survives a Firefly-side account rename, a name alone
+      doesn't. `buildDraft` only carries the ID into `ParseRule.
+      sourceAccountId`/`destinationAccountId` if the field's *current*
+      text still equals the name that was picked - if the user edits it
+      away afterward, the ID would point at a different account than
+      the name now shown, so it's dropped rather than silently sending
+      a mismatched ID/name pair. A rule saved before this existed (or
+      whose account field has never been through the picker) simply has
+      a null ID and keeps resolving by name at post time - see
+      `FireflyJson.buildTransactionRequestBody`, which sends `source_id`/
+      `destination_id` instead of the `_name` variant whenever an ID is
+      present (Firefly's own docs: submit one or the other, not both).
       Every macro-template field (the counterparty account side plus
       description/notes/category/tags - *not* `homeCurrency`, which
       `renderTemplate` never touches: `RuleEngine` compares the captured

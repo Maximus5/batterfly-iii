@@ -51,8 +51,15 @@ fun buildTransactionRequestBody(request: FireflyTransactionRequest): String {
         put("amount", request.amount)
         put("description", request.description)
         put("currency_code", request.currencyCode)
-        request.sourceName?.let { put("source_name", it) }
-        request.destinationName?.let { put("destination_name", it) }
+        // Firefly's own docs: "Submit either this or source_name" - an ID, when we have one,
+        // survives a Firefly-side account rename that would silently break a name-only match, so
+        // it's sent *instead of* the name, not alongside it.
+        if (request.sourceId != null) put("source_id", request.sourceId) else request.sourceName?.let { put("source_name", it) }
+        if (request.destinationId != null) {
+            put("destination_id", request.destinationId)
+        } else {
+            request.destinationName?.let { put("destination_name", it) }
+        }
         request.categoryName?.let { put("category_name", it) }
         if (request.tags.isNotEmpty()) put("tags", JSONArray(request.tags))
         request.notes?.let { put("notes", it) }

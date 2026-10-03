@@ -102,7 +102,9 @@ class FireflyJsonTest {
 
         val split = JSONObject(buildTransactionRequestBody(request)).getJSONArray("transactions").getJSONObject(0)
 
+        assertTrue(!split.has("source_id"))
         assertTrue(!split.has("source_name"))
+        assertTrue(!split.has("destination_id"))
         assertTrue(!split.has("destination_name"))
         assertTrue(!split.has("category_name"))
         assertTrue(!split.has("tags"))
@@ -110,6 +112,28 @@ class FireflyJsonTest {
         assertTrue(!split.has("foreign_amount"))
         assertTrue(!split.has("foreign_currency_code"))
         assertTrue(!split.has("external_id"))
+    }
+
+    @Test
+    fun `buildTransactionRequestBody sends an id instead of a name when both are set, not both`() {
+        val request = FireflyTransactionRequest(
+            type = "withdrawal",
+            dateIso = "2026-03-01T12:00:00+00:00",
+            amount = "12.50",
+            description = "Shop1234",
+            currencyCode = "EUR",
+            sourceId = "2",
+            sourceName = "Bank Account A",
+            destinationId = "9",
+            destinationName = "Shop1234",
+        )
+
+        val split = JSONObject(buildTransactionRequestBody(request)).getJSONArray("transactions").getJSONObject(0)
+
+        assertEquals("2", split.getString("source_id"))
+        assertTrue(!split.has("source_name"))
+        assertEquals("9", split.getString("destination_id"))
+        assertTrue(!split.has("destination_name"))
     }
 
     @Test

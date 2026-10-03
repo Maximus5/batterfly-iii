@@ -31,7 +31,17 @@ work.
       *counterparty* side (expense/revenue) by name - the asset side
       must already exist. Falls back to a Toast + stays free-typeable
       when Firefly isn't configured, rather than blocking the rule
-      editor on it.
+      editor on it. Also done, raised by the user: picking an account
+      also captures its Firefly ID (`ParseRule.sourceAccountId`/
+      `destinationAccountId`, `RulesDb` v6), since an ID survives an
+      account rename in Firefly and a name alone doesn't - posting
+      prefers the ID when present (`FireflyJson.
+      buildTransactionRequestBody` sends `source_id`/`destination_id`
+      instead of the `_name` variant), falls back to name-only exactly
+      like before for any rule saved before this existed. The picker
+      also now pre-highlights whichever account already matches the
+      field's current text when reopened (`setSingleChoiceItems`, also
+      user-raised).
     - **Not done yet**: `createTransaction()` still has no caller - a
       local "created transactions" log (hash + source notification +
       Firefly transaction id, the latter from `createTransaction()`'s
