@@ -1,0 +1,26 @@
+package io.github.maximus5.ffnotifyimporter.rules
+
+import java.math.BigDecimal
+import java.time.Instant
+
+/** A problem with a [TransactionDraft] worth surfacing before anything gets posted anywhere. */
+enum class DraftIssue {
+    /** Only a foreign-currency amount was found; the home-currency amount needs manual entry. */
+    LOCAL_AMOUNT_MISSING,
+}
+
+/** What a [ParseRule] detected in a notification. Not yet a Firefly III API request - posting is
+ * a separate, not-yet-built step (see TODO.md); this is purely "what we matched". */
+data class TransactionDraft(
+    val kind: RuleKind,
+    val date: Instant,
+    val amount: BigDecimal?, // in homeCurrency; null if only a foreign amount was found
+    val currencyCode: String, // the rule's homeCurrency
+    val foreignAmount: BigDecimal?,
+    val foreignCurrencyCode: String?,
+    val ownAccountName: String,
+    val counterpartyName: String?,
+    val description: String,
+    val notes: String,
+    val issues: Set<DraftIssue>,
+)

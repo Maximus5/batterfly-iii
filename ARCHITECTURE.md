@@ -23,11 +23,36 @@ transactions, once posting to it exists. Locally, message content is
 in-memory only by default - nothing written to disk - unless the user
 explicitly opts into on-device message history retention (see below).
 
-Current iteration (second milestone, landed): capture + dedup, a
-settings area (monitored apps + opt-in local history), still no rule
-matching and no Firefly III API calls yet (deliberately deferred, see
+Current iteration (third milestone, landed): capture + dedup, a
+settings area (monitored apps + opt-in local history), and a rule
+*matching* engine (`parser`/`rules` packages - pure Kotlin, unit
+tested, not wired into any UI yet). Still no Firefly III API calls -
+`rules` deliberately has no dependency on Firefly, using free-text
+placeholders for accounts/currencies until that connection exists (see
 TODO.md) - single Gradle module `app`, Kotlin, classic Android Views
 (no Compose), minSdk 26.
+
+A deliberate two-layer split for the matching engine, settled after
+some back-and-forth on an earlier draft that mixed them:
+`parser` knows regex mechanics and nothing else (not even that
+`amount` is a meaningful group name); `rules` is where
+transaction/Firefly-flavored meaning (kinds, accounts, currencies,
+description/notes templates) lives, on top of what `parser` extracts.
+Other decisions worth remembering because they're not obvious from the
+code alone:
+- A notification is always matched as `title + "\n" + body` in one
+  regex - never title and body matched separately.
+- No per-rule `counterparty` title/text fallback logic - counterparty
+  extraction is just whatever the pattern's `counterparty` group
+  captures from the combined input; if a bank puts it in the title,
+  write the pattern to look there.
+- Rule list order *is* priority: `RuleEngine` returns the first rule
+  (app-filtered, in list order) whose pattern matches and yields a
+  parsable amount. No `priority` field, no "ambiguous match" outcome.
+- `description`/`notes` are macro templates (`{groupName}`/`{title}`/
+  `{body}`), not a single implicit `description` regex group - lets a
+  rule reference the raw notification text even for fields its pattern
+  didn't capture.
 
 Package: `io.github.maximus5.ffnotifyimporter`.
 
@@ -61,6 +86,34 @@ Single `:app` module, packages under
     the settings UI when the user changes the value mid-session) never
     does, since `restore` has no dedup against what's already in
     memory and calling it twice would duplicate entries already shown.
+- `parser` - regex mechanics only, zero knowledge of transactions,
+  Firefly, or what any group name means:
+  - `extractGroups(pattern, input): Map<String,String>?` /
+    `namedGroupNames(pattern)` (`NamedGroupMatcherTest`).
+  - `parseAmount(raw, decimalSeparator)` (`AmountParserTest`).
+- `rules` - the Firefly-*flavored* domain, still Firefly-API-free
+  (string placeholders - see Overview):
+  - `ParseRule` - one parsing template scoped to one account/app
+    combination (`accountName`/`homeCurrency`/
+    `counterpartyAccountName` are placeholders; `pattern` matched
+    against `parser`'s combined-input convention;
+    `descriptionTemplate`/`notesTemplate` are macro templates).
+  - `Groups` - the named-group names `rules` knows to look for
+    (`amount`, `currency`, `foreignAmount`, `foreignCurrency`,
+    `counterparty`) - a convention `parser` has no opinion on.
+  - `renderTemplate`/`templateMacroNames` (`MacroTemplateTest`) - `{x}`
+    macro substitution for description/notes, using the match's
+    captured groups plus always-available `{title}`/`{body}`.
+  - `TransactionDraft`/`DraftIssue`/`ParseOutcome`/`NoMatchReason` -
+    what a match produced (or why it didn't match), not yet a Firefly
+    API request.
+  - `RuleEngine.match(message)` (`RuleEngineTest`) - the
+    first-rule-in-order-that-matches algorithm described above.
+  - `validateRule(rule)` (`RuleValidationTest`) - checks a pattern
+    defines `amount`, transfer rules have a counterparty, and every
+    macro referenced in the templates is either a declared group or
+    `title`/`body`. For the (not yet built) rule editor to call before
+    letting a save through.
 - `prefs` - thin `SharedPreferences` wrappers for configuration (not
   notification content, so - unlike captured messages by default -
   persisted across restarts/reboots on purpose):
@@ -121,9 +174,11 @@ re-renders via the store's listener callback; if retention is enabled,
 `MessageStore`'s `onNewMessage` hook also mirrors the entry into
 `MessageHistoryDb` and prunes rows older than the retention window. On
 process start, `FfNotifyImporterApp` hydrates `MessageStore` from
-`MessageHistoryDb` if retention was left enabled. Rule matching and
-the Firefly III API call do not exist yet; they slot in after the
-dedup step, consuming the same `CapturedMessage`.
+`MessageHistoryDb` if retention was left enabled. `rules.RuleEngine`
+can already match a `CapturedMessage` against a `List<ParseRule>` and
+produce a `TransactionDraft`, but nothing in the running app calls it
+yet - no rule storage (`RulesDb`), no rules UI, no "test match" tap on
+Messages, no Firefly III API call. See TODO.md for what's left.
 
 ## Known bugs / gotchas
 
