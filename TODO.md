@@ -22,27 +22,20 @@ work.
   more likely to be lost if Android kills the backgrounded app under
   memory pressure, not just on reboot.
 - `ic_launcher` is a placeholder vector icon, not a real app icon.
-- Optional fullscreen/edge-to-edge mode as a user setting. Default is
-  now non-fullscreen, via two things together: the
-  `android:windowOptOutEdgeToEdgeEnforcement` theme attribute
-  (`values/themes.xml`) - the actual opt-out on Android 15+/targetSdk
-  35+, where edge-to-edge is forced and the old
-  `WindowCompat.setDecorFitsSystemWindows(window, true)` call alone
-  (still in `MainActivity`, harmless, matters pre-35) is not enough on
-  its own. Google documents `windowOptOutEdgeToEdgeEnforcement` as a
-  *temporary* escape hatch that may stop working in a future Android
-  release - if it does, this whole area needs a real fix (proper
-  `WindowInsets`-based edge-to-edge support, not another opt-out), not
-  just finding a new flag. If an edge-to-edge mode is ever added as an
-  opt-in setting, it needs that same proper insets handling - see next
-  item.
-- Tab switching (`ViewPager2`/`TabLayout` in `MainActivity`) was
-  broken in edge-to-edge/fullscreen mode - the status bar and
-  gesture-nav areas overlapped the tab strip and the swipe area and
-  ate touches. Fixed for the current non-fullscreen default; needs a
-  real fix (proper `WindowInsets` padding on the tab layout and
-  view pager) before any future fullscreen setting re-enables
-  edge-to-edge.
+- Optional fullscreen/edge-to-edge mode as a user setting. The default
+  is the classic non-overlapping look: `MainActivity` lets the window
+  draw edge-to-edge (`WindowCompat.setDecorFitsSystemWindows(window,
+  false)`, required on Android 15+/targetSdk 35+ where the platform
+  forces this and the old pre-35 opt-out call doesn't work by itself)
+  and then pads the root view by `WindowInsetsCompat.Type.systemBars()`
+  itself, reserving the same space the status/nav bars would've taken
+  pre-edge-to-edge. This is the real fix, not a reliance on
+  `android:windowOptOutEdgeToEdgeEnforcement` (which Google documents
+  as a temporary escape hatch that may be removed later) - it works the
+  same regardless of what Android does with that flag. A future
+  fullscreen *setting* just needs to make the padding conditional
+  (skip it, or only reserve space for one bar) rather than redo this
+  insets plumbing.
 - Only English and Russian are localized
   (`values/strings.xml` and `values-ru/strings.xml`). Default/base is
   English; add more `values-<lang>/strings.xml` as needed, keep
