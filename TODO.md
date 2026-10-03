@@ -120,35 +120,45 @@ work.
   copies - unlike varying by *app* or *kind*, which already has a
   natural home as separate rules (list-order priority already handles
   "try rule A, then B" - this is a different, smaller-grained need:
-  one field, one rule, conditional content). An `{if ...}...{else}...
-  {endif}` block was proposed. Not implemented - this is a real jump
-  in complexity, not a small addition, and needs these decided first:
-  - Condition scope: just "did this group capture a non-blank value"
-    (covers the common case, e.g. `{if counterparty}...{endif}` to
-    only show something when that group actually matched), or real
-    comparisons too (`{if currency != "EUR"}` - needed for the
-    "foreign" tag example above, but is a small expression grammar of
-    its own: `==`/`!=` against a literal at minimum, quoting rules,
-    whitespace handling).
-  - Syntax has to be unambiguous against both plain `{macroName}`
-    substitution and the `{{escaped}}` literal-brace proposal in the
-    entry above - probably wants its own delimiter shape (e.g.
-    `{if:expr}`/`{else}`/`{endif}`, Handlebars-style `{{#if}}`, or
-    similar) rather than reusing bare `{word}`, so a parser can tell
-    "this is a control token" apart from "this is a macro name" without
-    guessing.
+  one field, one rule, conditional content). A conditional block was
+  proposed. Not implemented - this is a real jump in complexity, not a
+  small addition, and needs these decided first:
+  - Syntax (decided, per the user - Jinja2-style, since they'd already
+    seen it elsewhere and it reads unambiguously against both plain
+    `{macroName}` substitution and the `{{escaped}}` literal-brace
+    proposal in the entry above): `{% if <expr> %}`...`{% else %}`...
+    `{% endif %}`, operators/operands all living inside the `{% %}`
+    delimiters rather than bare `{word}` - a parser can tell "this is a
+    control token" apart from "this is a macro name" without guessing,
+    since `%` never appears in a plain macro reference.
+  - Condition scope (decided, per the user): real comparisons, at least
+    `==`/`!=` between a bare macro name and a quoted string literal -
+    e.g. `{% if currency == "EUR" %}` - not just a bare presence/
+    truthiness check. Still open: quoting rules for the literal
+    (escaped quotes inside it?), whitespace tolerance around the
+    operator, whether the left-hand side can also be a quoted literal
+    or only a macro name, and whether comparing two macro names
+    (`{% if currency == homeCurrency %}`-style, though `homeCurrency`
+    isn't itself a macro today - see the currency-field discussion)
+    is ever needed. Numeric/ordering comparisons (`<`/`>`, e.g. an
+    amount threshold) weren't asked for - leave out of v1, revisit if
+    a real use case shows up.
   - This stops being a single regex pass (`MacroTemplate.kt` today) and
     becomes an actual small block parser - unmatched/nested
     `if`/`endif`, whether `{else}` is required, whether nesting is
     allowed at all for v1 - each needs an explicit answer and its own
     test coverage, not just "whatever the regex happens to do".
-  - `validateRule`/`templateMacroNames` need to parse control tokens
-    too, so `if`/`else`/`endif`/the condition expression itself aren't
-    mistaken for macro names and flagged as "unknown macro".
+  - `validateRule`/`templateMacroNames` need to parse `{% %}` tokens
+    too: the macro name on the condition's left-hand side (`currency`
+    in the example above) should still be validated as a real macro
+    reference (so a typo there is caught the same way a typo in a bare
+    `{macro}` already is), while `if`/`else`/`endif`/the quoted literal
+    are not macro references and shouldn't be flagged as "unknown
+    macro".
   - The rule editor's insert-macro picker (the "<>" button) only knows
-    how to insert a bare `{name}` today - inserting a whole `{if}...
-    {else}...{endif}` skeleton would need its own UI entry point, not
-    just another row in that same list.
+    how to insert a bare `{name}` today - inserting a whole `{% if %}`
+    ...`{% else %}`...`{% endif %}` skeleton would need its own UI
+    entry point, not just another row in that same list.
 - Only English and Russian are localized
   (`values/strings.xml` and `values-ru/strings.xml`). Default/base is
   English; add more `values-<lang>/strings.xml` as needed, keep
