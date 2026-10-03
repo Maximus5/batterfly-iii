@@ -349,11 +349,15 @@ class RuleEditFragment : Fragment() {
             sourceAccountName = binding.sourceAccountInput.text?.toString().orEmpty().trim(),
             destinationAccountName = binding.destinationAccountInput.text?.toString().orEmpty().trim(),
             homeCurrency = binding.homeCurrencyInput.text?.toString().orEmpty().trim(),
+            // Not .trim()'d: the Android keyboard's autocorrect routinely leaves a trailing
+            // space behind, and leading/trailing whitespace in a *regex* is syntax, not
+            // formatting - trimming it could silently change what the pattern matches (e.g. a
+            // pattern deliberately ending " $" to require a trailing space before end-of-input).
             pattern = binding.patternInput.text?.toString().orEmpty(),
-            descriptionTemplate = binding.descriptionTemplateInput.text?.toString().orEmpty(),
-            notesTemplate = binding.notesTemplateInput.text?.toString().orEmpty(),
-            categoryTemplate = binding.categoryTemplateInput.text?.toString().orEmpty(),
-            tagsTemplate = binding.tagsTemplateInput.text?.toString().orEmpty(),
+            descriptionTemplate = binding.descriptionTemplateInput.text?.toString().orEmpty().trim(),
+            notesTemplate = binding.notesTemplateInput.text?.toString().orEmpty().trim(),
+            categoryTemplate = binding.categoryTemplateInput.text?.toString().orEmpty().trim(),
+            tagsTemplate = binding.tagsTemplateInput.text?.toString().orEmpty().trim(),
             enabled = binding.enabledSwitch.isChecked,
         )
     }
