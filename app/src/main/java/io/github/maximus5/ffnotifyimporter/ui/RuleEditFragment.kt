@@ -265,16 +265,27 @@ class RuleEditFragment : Fragment() {
             return
         }
 
-        val items = matches.map { (message, groups) ->
+        // AlertDialog.Builder's setMessage + setAdapter don't actually combine - the adapter's
+        // list silently doesn't render once a message is also set (found the hard way: v0.26
+        // shipped with the summary line showing and zero match rows below it). Built as a plain
+        // custom view instead - a summary TextView, then one inflated item_picker_two_line row
+        // per match - since MAX_TEST_MATCHES keeps the list short enough that ListView's
+        // recycling has no value here anyway.
+        val view = LayoutInflater.from(context).inflate(R.layout.dialog_test_results, null, false)
+        val container = view.findViewById<ViewGroup>(R.id.testResultsContainer)
+        container.addView(
+            TextView(context).apply { text = getString(R.string.rule_test_matches_found, matches.size, scanned) },
+        )
+        matches.forEach { (message, groups) ->
             val capturedGroups = declaredGroups.mapNotNull { name -> groups[name]?.let { "$name: $it" } }
-            message.title to capturedGroups.joinToString("\n")
+            val row = LayoutInflater.from(context).inflate(R.layout.item_picker_two_line, container, false)
+            bindPickerItemRow(row, message.title, capturedGroups.joinToString("\n"), monospaceBody = false)
+            container.addView(row)
         }
-        val adapter = PickerItemAdapter(context, items, monospaceBody = false)
 
         AlertDialog.Builder(context)
             .setTitle(R.string.rule_test_title)
-            .setMessage(getString(R.string.rule_test_matches_found, matches.size, scanned))
-            .setAdapter(adapter, null)
+            .setView(view)
             .setPositiveButton(android.R.string.ok, null)
             .show()
     }
@@ -393,11 +404,16 @@ private class PickerItemAdapter(
         val view = convertView
             ?: LayoutInflater.from(context).inflate(R.layout.item_picker_two_line, parent, false)
         val (header, body) = items[position]
-        view.findViewById<TextView>(R.id.pickerItemHeader).text = header
-        view.findViewById<TextView>(R.id.pickerItemBody).apply {
-            text = body
-            typeface = if (monospaceBody) Typeface.MONOSPACE else Typeface.DEFAULT
-        }
+        bindPickerItemRow(view, header, body, monospaceBody)
         return view
+    }
+}
+
+/** Shared by [PickerItemAdapter] and the "Test results" dialog's static rows. */
+private fun bindPickerItemRow(view: View, header: String, body: String, monospaceBody: Boolean) {
+    view.findViewById<TextView>(R.id.pickerItemHeader).text = header
+    view.findViewById<TextView>(R.id.pickerItemBody).apply {
+        text = body
+        typeface = if (monospaceBody) Typeface.MONOSPACE else Typeface.DEFAULT
     }
 }
