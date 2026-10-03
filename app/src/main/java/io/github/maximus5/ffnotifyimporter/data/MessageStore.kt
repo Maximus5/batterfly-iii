@@ -25,6 +25,9 @@ class MessageStore(
      */
     var onNewMessage: ((CapturedMessage) -> Unit)? = null
 
+    /** Mirror of [onNewMessage] for [remove] - lets persistence delete the on-disk row too. */
+    var onMessageRemoved: ((CapturedMessage) -> Unit)? = null
+
     /** Returns true if a new entry was recorded, false if it was dropped as a duplicate. */
     fun add(packageName: String, appLabel: String, title: String, text: String): Boolean {
         val now = clock()
@@ -62,6 +65,18 @@ class MessageStore(
             snapshot = messages.toList()
         }
         listeners.forEach { it(snapshot) }
+    }
+
+    /** Removes [message] (matched by value equality) from history. Returns true if it was there. */
+    fun remove(message: CapturedMessage): Boolean {
+        val snapshot: List<CapturedMessage>
+        synchronized(lock) {
+            if (!messages.remove(message)) return false
+            snapshot = messages.toList()
+        }
+        listeners.forEach { it(snapshot) }
+        onMessageRemoved?.invoke(message)
+        return true
     }
 
     fun snapshot(): List<CapturedMessage> = synchronized(lock) { messages.toList() }

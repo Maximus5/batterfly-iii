@@ -79,6 +79,15 @@ class MessageHistoryDb(context: Context) : SQLiteOpenHelper(context, DB_NAME, nu
         writableDatabase.delete(TABLE, "$COL_TIMESTAMP < ?", arrayOf(cutoffMillis.toString()))
     }
 
+    /** Deletes the row matching [message] exactly (its full column set is unique enough here). */
+    fun delete(message: CapturedMessage) {
+        writableDatabase.delete(
+            TABLE,
+            "$COL_PACKAGE_NAME = ? AND $COL_TITLE = ? AND $COL_TEXT = ? AND $COL_TIMESTAMP = ?",
+            arrayOf(message.packageName, message.title, message.text, message.timestampMillis.toString()),
+        )
+    }
+
     /** Wipes all stored history - used when the user turns retention back off. */
     fun clearAll() {
         writableDatabase.delete(TABLE, null, null)

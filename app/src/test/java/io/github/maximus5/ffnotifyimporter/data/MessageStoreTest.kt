@@ -106,4 +106,42 @@ class MessageStoreTest {
 
         assertTrue(notified.isEmpty())
     }
+
+    @Test
+    fun `remove deletes a matching message and notifies listeners`() {
+        val store = MessageStore(dedupWindowMillis = 1000, clock = { 0L })
+        store.add("bank.a", "Bank A", "Keep", "text")
+        store.add("bank.b", "Bank B", "Also keep", "text")
+        val target = store.snapshot().first { it.title == "Keep" }
+
+        assertTrue(store.remove(target))
+
+        assertEquals(1, store.snapshot().size)
+        assertEquals("Also keep", store.snapshot().single().title)
+    }
+
+    @Test
+    fun `remove returns false and does nothing for a message that is not present`() {
+        val store = MessageStore(dedupWindowMillis = 1000, clock = { 0L })
+        store.add("bank.a", "Bank A", "Keep", "text")
+        val notPresent = CapturedMessage("bank.x", "Bank X", "Nope", "text", timestampMillis = 999)
+
+        assertFalse(store.remove(notPresent))
+        assertEquals(1, store.snapshot().size)
+    }
+
+    @Test
+    fun `remove invokes onMessageRemoved only when something was actually removed`() {
+        val store = MessageStore(dedupWindowMillis = 1000, clock = { 0L })
+        val removed = mutableListOf<CapturedMessage>()
+        store.onMessageRemoved = { removed.add(it) }
+        store.add("bank.a", "Bank A", "Keep", "text")
+        val target = store.snapshot().single()
+
+        store.remove(CapturedMessage("bank.x", "Bank X", "Nope", "text", timestampMillis = 999))
+        assertTrue(removed.isEmpty())
+
+        store.remove(target)
+        assertEquals(listOf(target), removed)
+    }
 }

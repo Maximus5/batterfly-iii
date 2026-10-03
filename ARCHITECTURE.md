@@ -44,7 +44,9 @@ Single `:app` module, packages under
     used by the listener service and the UI. `add` dedups and notifies
     listeners; `restore` bulk-seeds already-deduplicated entries
     (loaded from disk at startup) without re-running the dedup check;
-    the optional `onNewMessage` hook is how persistence attaches
+    `remove` deletes one entry (matched by value equality - there's no
+    separate id) for the Messages screen's delete action. The optional
+    `onNewMessage`/`onMessageRemoved` hooks are how persistence attaches
     itself without `MessageStore` knowing persistence exists.
   - `MessageHistoryDb` - the on-disk mirror, plain `SQLiteOpenHelper`
     (no ORM), one `messages` table. Only ever written to while
@@ -78,7 +80,11 @@ Single `:app` module, packages under
   - `MainActivity` - home screen, just hosts `MessagesFragment` plus a
     toolbar with a settings action. `MessagesFragment` subscribes to
     `MessageStore.shared` while visible (`onStart`/`onStop`) and
-    renders the current snapshot, newest first.
+    renders the current snapshot, newest first. Long-press starts a
+    standard `androidx.appcompat.view.ActionMode` multi-select (tap
+    toggles more items in or out); its delete action calls
+    `MessageStore.shared.remove` for each selected message after a
+    confirmation dialog.
   - `SettingsActivity` - everything else, as a stack of fragments
     pushed via plain `FragmentManager` back-stack transactions (no
     Navigation Component - the flow is small and linear enough not to
