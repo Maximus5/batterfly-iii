@@ -131,7 +131,7 @@ class RuleEditFragment : Fragment() {
         val groups = runCatching { namedGroupNames(pattern) }.getOrDefault(emptyList())
         val macroEntries = (groups + FIXED_MACROS).map { "{$it}" to "{$it}" }
         val appLabel = monitoredApps.firstOrNull { it.first == selectedPackageName }?.second
-        val appEntry = appLabel?.let { listOf(getString(R.string.rule_insert_app_name, it) to it) }.orEmpty()
+        val appEntry = appLabel?.let { listOf(it to it) }.orEmpty()
         val entries = macroEntries + appEntry
         if (entries.isEmpty()) return
 
