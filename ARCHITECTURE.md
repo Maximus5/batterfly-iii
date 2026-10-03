@@ -286,13 +286,23 @@ Single `:app` module, packages under
       row has move up/down, duplicate, delete - all straight
       `RulesDb` calls followed by a reload. A FAB opens
       `RuleEditFragment` with no rule id, to create one. Each row's
-      subtitle is `"<app>: <kind>: <source> → <destination>"`
-      (`rule_subtitle_format`) - whichever of source/destination isn't
-      fixed on the rule (normal for WITHDRAWAL/DEPOSIT, filled
-      dynamically at match time instead, see the `RuleKind` note
-      above) shows a `"(from notification)"` placeholder rather than
-      leaving a blank gap next to the arrow, which read as if text had
-      gone missing.
+      subtitle is `"<app>: <kind>: <source> → <destination>"` - always
+      that pair shape, even when one side is blank by design (normal
+      for WITHDRAWAL/DEPOSIT, which only ever fill one side; see the
+      `RuleKind` note above). A blank side displays as
+      `rule_account_no_name` ("(no name)") rather than leaving a blank
+      gap next to the arrow, which read as if text had gone missing -
+      deliberately the same placeholder Firefly III itself shows for a
+      null account, so it reads as a familiar convention instead of
+      app-invented text. Display-only: this is `RulesAdapter.bind`
+      string-formatting the already-loaded `ParseRule`, nothing is
+      written back to `RulesDb` or (once it exists) sent to Firefly -
+      `TransactionDraft.sourceName`/`destinationName` stay genuinely
+      `null` when unset (an earlier, different placeholder here -
+      `"(from notification)"` - was removed outright after user
+      feedback that its meaning wasn't obvious at a glance; this one
+      replaces that spot with the Firefly-familiar wording instead of
+      reintroducing the same confusion).
     - `RuleEditFragment` - one form for both create (`ruleId == null`)
       and edit, via `RuleEditFragment.newInstance(ruleId)`. App and
       kind are both Material "exposed dropdown menu" fields (an

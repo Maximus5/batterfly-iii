@@ -41,16 +41,16 @@ class RulesAdapter(
 
             val appLabel = rule.packageNames.firstOrNull()?.let { AppLabelResolver.resolve(context, it) }
                 ?: context.getString(R.string.rule_apps_any)
-            // sourceAccountName/destinationAccountName are macro templates (e.g. "{counterparty}"
-            // is a perfectly normal value, not just a fixed account name) and are often blank on
-            // one side by design - show whichever is set verbatim (a macro expression reads as
-            // self-explanatory to whoever wrote the pattern), arrow only when both are set.
-            val accounts = when {
-                rule.sourceAccountName.isNotBlank() && rule.destinationAccountName.isNotBlank() ->
-                    "${rule.sourceAccountName} → ${rule.destinationAccountName}"
-                rule.sourceAccountName.isNotBlank() -> rule.sourceAccountName
-                else -> rule.destinationAccountName
-            }
+            // Always show the source -> destination pair, even when one side is blank by design
+            // (WITHDRAWAL/DEPOSIT only ever fill one side) - a blank side is filled with
+            // "(no name)" for display only, the same placeholder Firefly itself shows for a null
+            // account, so it reads as a familiar convention rather than empty space. This is
+            // purely cosmetic for this list row; it's never written back into the rule or sent
+            // anywhere - TransactionDraft.sourceName/destinationName stay null, unaffected.
+            val noName = context.getString(R.string.rule_account_no_name)
+            val source = rule.sourceAccountName.ifBlank { noName }
+            val destination = rule.destinationAccountName.ifBlank { noName }
+            val accounts = "$source → $destination"
 
             var subtitle = "$appLabel: ${context.getString(rule.kind.labelRes())}: $accounts"
             if (!rule.enabled) subtitle += " · ${context.getString(R.string.rule_disabled_label)}"

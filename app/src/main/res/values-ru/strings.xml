@@ -52,6 +52,7 @@
     <string name="rule_duplicate">Дублировать</string>
     <string name="rule_apps_any">любое мониторимое приложение</string>
     <string name="rule_disabled_label">выключено</string>
+    <string name="rule_account_no_name">(без имени)</string>
     <string name="rule_default_label">Правило №%1$d</string>
 
     <string name="rule_kind_withdrawal">Списание</string>

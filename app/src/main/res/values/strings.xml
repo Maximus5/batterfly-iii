@@ -52,6 +52,7 @@
     <string name="rule_duplicate">Duplicate</string>
     <string name="rule_apps_any">any monitored app</string>
     <string name="rule_disabled_label">disabled</string>
+    <string name="rule_account_no_name">(no name)</string>
     <string name="rule_default_label">Rule #%1$d</string>
 
     <string name="rule_kind_withdrawal">Withdrawal</string>
