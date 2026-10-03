@@ -18,9 +18,11 @@ data class TransactionDraft(
     val currencyCode: String, // the rule's homeCurrency
     val foreignAmount: BigDecimal?,
     val foreignCurrencyCode: String?,
-    val ownAccountName: String,
-    val counterpartyName: String?,
+    val sourceName: String?,
+    val destinationName: String?,
     val description: String,
     val notes: String,
+    val category: String?,
+    val tags: List<String>,
     val issues: Set<DraftIssue>,
 )

@@ -50,10 +50,27 @@ code alone:
 - Rule list order *is* priority: `RuleEngine` returns the first rule
   (app-filtered, in list order) whose pattern matches and yields a
   parsable amount. No `priority` field, no "ambiguous match" outcome.
-- `description`/`notes` are macro templates (`{groupName}`/`{title}`/
-  `{body}`), not a single implicit `description` regex group - lets a
-  rule reference the raw notification text even for fields its pattern
-  didn't capture.
+- `description`/`notes`/`category`/`tags` are all macro templates
+  (`{groupName}`/`{title}`/`{body}`), not separate "is this dynamic or
+  static" fields - a template with no `{macro}` in it just behaves
+  like a plain fixed string, so templates are a strict superset of
+  "plain string" at zero extra cost, and keeps one mechanism instead
+  of two. `tags` is the odd one out structurally: its template renders
+  to one string, which then gets split on `,` (trimmed, blanks
+  dropped) into `TransactionDraft.tags: List<String>`. No default text
+  in any of these for a new rule - user feedback was that a silently
+  pre-filled default is confusing, better left blank and explicit.
+- `RuleKind` is `WITHDRAWAL`/`DEPOSIT`/`TRANSFER` - no `_OUT`/`_IN`
+  split (an earlier version had one). Direction comes directly from
+  which of `sourceAccountName`/`destinationAccountName` is filled in,
+  not from the kind. Exactly one of those two is expected to be blank
+  for `WITHDRAWAL`/`DEPOSIT` (`RuleEngine` fills it from the pattern's
+  `counterparty` group - the merchant/payer varies per notification,
+  rarely a fixed value); `TRANSFER` requires both fixed, since neither
+  side of a transfer between your own accounts should come from
+  freeform notification text. A rule only ever picks from the
+  *monitored* apps list (not every installed app) in the UI - it can't
+  match anything else anyway.
 
 Package: `io.github.maximus5.ffnotifyimporter`.
 
@@ -94,11 +111,11 @@ Single `:app` module, packages under
   - `parseAmount(raw, decimalSeparator)` (`AmountParserTest`).
 - `rules` - the Firefly-*flavored* domain, still Firefly-API-free
   (string placeholders - see Overview):
-  - `ParseRule` - one parsing template scoped to one account/app
-    combination (`accountName`/`homeCurrency`/
-    `counterpartyAccountName` are placeholders; `pattern` matched
-    against `parser`'s combined-input convention;
-    `descriptionTemplate`/`notesTemplate` are macro templates).
+  - `ParseRule` - one parsing template scoped to one app
+    (`sourceAccountName`/`destinationAccountName`/`homeCurrency` are
+    placeholders; `pattern` matched against `parser`'s combined-input
+    convention; `descriptionTemplate`/`notesTemplate` are macro
+    templates, blank by default - no silently pre-filled text).
   - `Groups` - the named-group names `rules` knows to look for
     (`amount`, `currency`, `foreignAmount`, `foreignCurrency`,
     `counterparty`) - a convention `parser` has no opinion on.
@@ -111,10 +128,11 @@ Single `:app` module, packages under
   - `RuleEngine.match(message)` (`RuleEngineTest`) - the
     first-rule-in-order-that-matches algorithm described above.
   - `validateRule(rule)` (`RuleValidationTest`) - checks a pattern
-    defines `amount`, transfer rules have a counterparty, and every
-    macro referenced in the templates is either a declared group or
-    `title`/`body`. The rule editor calls this before letting a save
-    through.
+    defines `amount`, at least one app is picked, the right
+    source/destination account is filled per kind (see the `RuleKind`
+    note above), and every macro referenced in the templates is either
+    a declared group or `title`/`body`. The rule editor calls this
+    before letting a save through.
   - `RulesDb` - plain SQLite (no ORM), one row per rule plus an
     explicit `sort_order` column - the only priority mechanism
     `RuleEngine` uses, so `moveUp`/`moveDown` just swap two rows'
@@ -122,10 +140,18 @@ Single `:app` module, packages under
     and inserts the copy right after the original, in a transaction.
     `distinctPatterns()` is the "pick an existing pattern" source for
     the rule editor - a derived query over this same table, newest
-    first, one entry per distinct pattern; no separate library table.
-    `RulesDb.getInstance(context)` is the one shared instance (same
-    reasoning as `MessageHistoryDb.getInstance`). Not unit tested -
-    like `MessageHistoryDb`, it's thin glue over real
+    first, one entry per distinct pattern; no separate library table,
+    and deliberately no built-in/canned example patterns either - only
+    what the user has actually saved. `RulesDb.getInstance(context)`
+    is the one shared instance (same reasoning as
+    `MessageHistoryDb.getInstance`). `DB_VERSION` has been bumped twice
+    already as the rule shape settled (2:
+    `account_name`/`counterparty_account_name` columns ->
+    `source_account_name`/`destination_account_name`; 3: added
+    `category_template`/`tags_template`) - `onUpgrade` just drops and
+    recreates the table, fine for a personal, not-yet-relied-upon rules
+    list; revisit if that's ever not true. Not unit tested - like
+    `MessageHistoryDb`, it's thin glue over real
     `SQLiteOpenHelper`/Android framework classes that don't run under
     plain JVM unit tests.
 - `prefs` - thin `SharedPreferences` wrappers for configuration (not
@@ -153,7 +179,7 @@ Single `:app` module, packages under
     `MessageStore.shared.remove` for each selected message after a
     confirmation dialog. A plain tap *outside* of that selection mode
     runs `RuleEngine.match` against the tapped message and shows the
-    result (rule, account, amounts/currencies, counterparty,
+    result (rule, source/destination account, amounts/currencies,
     rendered description/notes, issues) in a dialog - "test match".
   - `SettingsActivity` - everything else, as a stack of fragments
     pushed via plain `FragmentManager` back-stack transactions (no
@@ -183,16 +209,28 @@ Single `:app` module, packages under
       `RulesDb` calls followed by a reload. A FAB opens
       `RuleEditFragment` with no rule id, to create one.
     - `RuleEditFragment` - one form for both create (`ruleId == null`)
-      and edit, via `RuleEditFragment.newInstance(ruleId)`. The apps
-      picker is a multi-choice `AlertDialog` sourced from
-      `MonitoredAppsPrefs` (not a full re-enumeration of installed
-      apps - a rule can only ever match what the listener service
-      already captures). The pattern field has a "pick existing
-      pattern" button backed by `RulesDb.distinctPatterns()`, and a
-      live "available macros" hint computed from
-      `parser.namedGroupNames` on whatever's currently typed. Save
-      runs `validateRule` and shows every error in one dialog before
-      writing anything.
+      and edit, via `RuleEditFragment.newInstance(ruleId)`. App and
+      kind are both Material "exposed dropdown menu" fields (an
+      outlined `TextInputLayout` wrapping a
+      `MaterialAutoCompleteTextView`) rather than a bare `Spinner` -
+      keeps every field on the form visually consistent (a plain
+      `Spinner` stood out badly next to the outlined text fields, per
+      user feedback on an earlier version). The app dropdown is
+      single-select, sourced from `MonitoredAppsPrefs` only (not a
+      full re-enumeration of installed apps - a rule can only ever
+      match what the listener service already captures) - a rule
+      needs exactly one app, not "any monitored app" or several
+      (simplified after user feedback; `ParseRule.packageNames` is
+      still technically a `Set` for `RuleEngine`'s sake, the UI just
+      always writes a singleton set). Field order: identity fields
+      first (label, app, kind, source/destination account), then a
+      divider, then the regex section (pick-existing button, the
+      field itself, the live "available macros" hint from
+      `parser.namedGroupNames`), then currency/decimal
+      separator/templates - grouped that way because currency only
+      makes sense once you're thinking about what the regex extracts.
+      Save runs `validateRule` and shows every error in one dialog
+      before writing anything.
   - `SystemBarInsets.kt` - `useClassicSystemBars(root)`, the shared
     edge-to-edge-but-padded-back-to-classic logic both activities call
     (see Known bugs/gotchas below for why it's done this way).

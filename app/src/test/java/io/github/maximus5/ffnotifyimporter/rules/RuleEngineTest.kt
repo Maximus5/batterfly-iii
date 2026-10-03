@@ -13,17 +13,31 @@ class RuleEngineTest {
         label: String = "Test rule",
         packageNames: Set<String> = emptySet(),
         kind: RuleKind = RuleKind.WITHDRAWAL,
-        accountName: String = "Bank Account A",
+        sourceAccountName: String? = "Bank Account A",
+        destinationAccountName: String? = null,
         homeCurrency: String = "EUR",
-        counterpartyAccountName: String? = null,
         pattern: String,
         decimalSeparator: Char = ',',
         descriptionTemplate: String = "{title}",
         notesTemplate: String = "{body}",
+        categoryTemplate: String = "",
+        tagsTemplate: String = "",
         enabled: Boolean = true,
     ) = ParseRule(
-        id, label, packageNames, kind, accountName, homeCurrency, counterpartyAccountName,
-        pattern, decimalSeparator, descriptionTemplate, notesTemplate, enabled,
+        id = id,
+        label = label,
+        packageNames = packageNames,
+        kind = kind,
+        sourceAccountName = sourceAccountName,
+        destinationAccountName = destinationAccountName,
+        homeCurrency = homeCurrency,
+        pattern = pattern,
+        decimalSeparator = decimalSeparator,
+        descriptionTemplate = descriptionTemplate,
+        notesTemplate = notesTemplate,
+        categoryTemplate = categoryTemplate,
+        tagsTemplate = tagsTemplate,
+        enabled = enabled,
     )
 
     private fun message(
@@ -66,6 +80,7 @@ class RuleEngineTest {
     @Test
     fun `builds a withdrawal draft with description and notes rendered from templates`() {
         val r = rule(
+            sourceAccountName = "Bank Account A",
             pattern = """spent (?<amount>[\d,]+) EUR at (?<counterparty>.+)""",
             descriptionTemplate = "{counterparty}",
             notesTemplate = "raw: {body}",
@@ -76,8 +91,23 @@ class RuleEngineTest {
         assertEquals("EUR", outcome.draft.currencyCode)
         assertEquals("Shop1234", outcome.draft.description)
         assertEquals("raw: You spent 12,50 EUR at Shop1234", outcome.draft.notes)
-        assertEquals("Shop1234", outcome.draft.counterpartyName)
+        assertEquals("Bank Account A", outcome.draft.sourceName)
+        assertEquals("Shop1234", outcome.draft.destinationName)
         assertTrue(outcome.draft.issues.isEmpty())
+    }
+
+    @Test
+    fun `transfer draft uses both fixed account names, ignoring any captured counterparty`() {
+        val r = rule(
+            kind = RuleKind.TRANSFER,
+            sourceAccountName = "Bank Account A",
+            destinationAccountName = "Savings EUR",
+            pattern = """moved (?<amount>[\d,]+) EUR""",
+        )
+        val outcome = RuleEngine(listOf(r)).match(message(text = "You moved 12,50 EUR")) as ParseOutcome.Matched
+
+        assertEquals("Bank Account A", outcome.draft.sourceName)
+        assertEquals("Savings EUR", outcome.draft.destinationName)
     }
 
     @Test
@@ -107,6 +137,28 @@ class RuleEngineTest {
         assertEquals(BigDecimal("10.00"), outcome.draft.foreignAmount)
         assertEquals("GBP", outcome.draft.foreignCurrencyCode)
         assertTrue(outcome.draft.issues.isEmpty())
+    }
+
+    @Test
+    fun `category and tags templates render and tags split on comma`() {
+        val r = rule(
+            pattern = """spent (?<amount>[\d,]+) EUR at (?<counterparty>.+)""",
+            categoryTemplate = "Groceries",
+            tagsTemplate = "recurring, {counterparty} ,  ",
+        )
+        val outcome = RuleEngine(listOf(r)).match(message()) as ParseOutcome.Matched
+
+        assertEquals("Groceries", outcome.draft.category)
+        assertEquals(listOf("recurring", "Shop1234"), outcome.draft.tags)
+    }
+
+    @Test
+    fun `blank category and tags templates produce no category and no tags`() {
+        val r = rule(pattern = """spent (?<amount>[\d,]+) EUR""")
+        val outcome = RuleEngine(listOf(r)).match(message()) as ParseOutcome.Matched
+
+        assertEquals(null, outcome.draft.category)
+        assertTrue(outcome.draft.tags.isEmpty())
     }
 
     @Test

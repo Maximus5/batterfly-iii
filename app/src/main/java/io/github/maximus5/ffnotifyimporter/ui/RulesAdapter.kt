@@ -6,6 +6,7 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import io.github.maximus5.ffnotifyimporter.R
 import io.github.maximus5.ffnotifyimporter.databinding.ItemRuleBinding
+import io.github.maximus5.ffnotifyimporter.notifications.AppLabelResolver
 import io.github.maximus5.ffnotifyimporter.rules.ParseRule
 
 class RulesAdapter(
@@ -38,14 +39,12 @@ class RulesAdapter(
             val context = binding.root.context
             binding.ruleLabel.text = rule.label
 
-            val appsSummary = if (rule.packageNames.isEmpty()) {
-                context.getString(R.string.rule_apps_any)
-            } else {
-                context.getString(R.string.rule_apps_count, rule.packageNames.size)
-            }
-            val parts = listOf(rule.kind.name, rule.accountName, appsSummary) +
+            val appLabel = rule.packageNames.firstOrNull()?.let { AppLabelResolver.resolve(context, it) }
+                ?: context.getString(R.string.rule_apps_any)
+            val account = rule.sourceAccountName ?: rule.destinationAccountName.orEmpty()
+            val parts = listOf(context.getString(rule.kind.labelRes()), account, appLabel) +
                 listOfNotNull(context.getString(R.string.rule_disabled_label).takeIf { !rule.enabled })
-            binding.ruleSubtitle.text = parts.joinToString(" · ")
+            binding.ruleSubtitle.text = parts.filter { it.isNotBlank() }.joinToString(" · ")
 
             binding.ruleRowContent.setOnClickListener { onClick(rule) }
             binding.ruleOverflowButton.setOnClickListener { onOverflowClick(rule, it) }

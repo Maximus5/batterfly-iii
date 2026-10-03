@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
@@ -22,43 +23,44 @@
 
         </com.google.android.material.textfield.TextInputLayout>
 
-        <Button
-            android:id="@+id/chooseAppsButton"
-            style="?attr/borderlessButtonStyle"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="2dp"
-            android:gravity="start|center_vertical"
-            android:text="@string/rule_field_apps" />
-
-        <TextView
-            android:id="@+id/appsSummaryText"
+        <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="12dp"
-            android:textColor="#888888"
-            android:textSize="13sp" />
+            android:hint="@string/rule_field_apps"
+            style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu">
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/rule_field_kind"
-            android:textSize="13sp" />
+            <com.google.android.material.textfield.MaterialAutoCompleteTextView
+                android:id="@+id/appInput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="none" />
 
-        <Spinner
-            android:id="@+id/kindSpinner"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="12dp" />
+        </com.google.android.material.textfield.TextInputLayout>
 
         <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="12dp"
-            android:hint="@string/rule_field_account_name">
+            android:hint="@string/rule_field_kind"
+            style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu">
+
+            <com.google.android.material.textfield.MaterialAutoCompleteTextView
+                android:id="@+id/kindInput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="none" />
+
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            android:hint="@string/rule_field_source_account">
 
             <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/accountNameInput"
+                android:id="@+id/sourceAccountInput"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content" />
 
@@ -67,30 +69,21 @@
         <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="12dp"
-            android:hint="@string/rule_field_home_currency">
+            android:layout_marginBottom="16dp"
+            android:hint="@string/rule_field_destination_account">
 
             <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/homeCurrencyInput"
+                android:id="@+id/destinationAccountInput"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content" />
 
         </com.google.android.material.textfield.TextInputLayout>
 
-        <com.google.android.material.textfield.TextInputLayout
-            android:id="@+id/counterpartyAccountLayout"
+        <View
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="12dp"
-            android:hint="@string/rule_field_counterparty_account"
-            android:visibility="gone">
-
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/counterpartyAccountInput"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content" />
-
-        </com.google.android.material.textfield.TextInputLayout>
+            android:layout_height="1dp"
+            android:layout_marginBottom="16dp"
+            android:background="#E0E0E0" />
 
         <Button
             android:id="@+id/pickPatternButton"
@@ -121,9 +114,22 @@
             android:id="@+id/availableMacrosText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="12dp"
+            android:layout_marginBottom="16dp"
             android:textColor="#888888"
             android:textSize="12sp" />
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            android:hint="@string/rule_field_home_currency">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/homeCurrencyInput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+
+        </com.google.android.material.textfield.TextInputLayout>
 
         <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
@@ -133,7 +139,7 @@
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/decimalSeparatorInput"
-                android:layout_width="96dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:maxLength="1" />
 
@@ -160,6 +166,32 @@
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/notesTemplateInput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            android:hint="@string/rule_field_category_template">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/categoryTemplateInput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            android:hint="@string/rule_field_tags_template">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/tagsTemplateInput"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content" />
 

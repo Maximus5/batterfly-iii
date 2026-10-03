@@ -1,9 +1,7 @@
 package io.github.maximus5.ffnotifyimporter.rules
 
 /**
- * Direction is always relative to the rule's own account ([ParseRule.accountName]).
- * Convention for transfers: configure the rule on ONE side only (either TRANSFER_OUT on the
- * source account's rule or TRANSFER_IN on the destination account's rule) - no deduplication
- * is performed if both happen to match the same notification.
+ * Direction comes from [ParseRule.sourceAccountName]/[ParseRule.destinationAccountName]
+ * directly, not from the kind - kind is just which Firefly III transaction type this becomes.
  */
-enum class RuleKind { WITHDRAWAL, DEPOSIT, TRANSFER_OUT, TRANSFER_IN }
+enum class RuleKind { WITHDRAWAL, DEPOSIT, TRANSFER }

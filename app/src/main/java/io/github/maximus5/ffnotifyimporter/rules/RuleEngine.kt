@@ -54,6 +54,15 @@ class RuleEngine(private val rules: List<ParseRule>) {
             issues += DraftIssue.LOCAL_AMOUNT_MISSING
         }
 
+        val counterparty = groups[Groups.COUNTERPARTY]
+        val category = renderTemplate(rule.categoryTemplate, groups, message.title, message.text)
+            .trim()
+            .takeIf { it.isNotEmpty() }
+        val tags = renderTemplate(rule.tagsTemplate, groups, message.title, message.text)
+            .split(",")
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+
         return TransactionDraft(
             kind = rule.kind,
             date = Instant.ofEpochMilli(message.timestampMillis),
@@ -61,10 +70,12 @@ class RuleEngine(private val rules: List<ParseRule>) {
             currencyCode = rule.homeCurrency,
             foreignAmount = foreignAmount,
             foreignCurrencyCode = foreignCurrency,
-            ownAccountName = rule.accountName,
-            counterpartyName = rule.counterpartyAccountName ?: groups[Groups.COUNTERPARTY],
+            sourceName = rule.sourceAccountName ?: counterparty,
+            destinationName = rule.destinationAccountName ?: counterparty,
             description = renderTemplate(rule.descriptionTemplate, groups, message.title, message.text),
             notes = renderTemplate(rule.notesTemplate, groups, message.title, message.text),
+            category = category,
+            tags = tags,
             issues = issues,
         )
     }

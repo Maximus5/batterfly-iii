@@ -22,13 +22,15 @@ class RulesDb(context: Context) : SQLiteOpenHelper(context, DB_NAME, null, DB_VE
                 $COL_LABEL TEXT NOT NULL,
                 $COL_PACKAGE_NAMES TEXT NOT NULL,
                 $COL_KIND TEXT NOT NULL,
-                $COL_ACCOUNT_NAME TEXT NOT NULL,
+                $COL_SOURCE_ACCOUNT_NAME TEXT,
+                $COL_DESTINATION_ACCOUNT_NAME TEXT,
                 $COL_HOME_CURRENCY TEXT NOT NULL,
-                $COL_COUNTERPARTY_ACCOUNT_NAME TEXT,
                 $COL_PATTERN TEXT NOT NULL,
                 $COL_DECIMAL_SEPARATOR TEXT NOT NULL,
                 $COL_DESCRIPTION_TEMPLATE TEXT NOT NULL,
                 $COL_NOTES_TEMPLATE TEXT NOT NULL,
+                $COL_CATEGORY_TEMPLATE TEXT NOT NULL,
+                $COL_TAGS_TEMPLATE TEXT NOT NULL,
                 $COL_ENABLED INTEGER NOT NULL,
                 $COL_SORT_ORDER INTEGER NOT NULL
             )
@@ -154,13 +156,15 @@ class RulesDb(context: Context) : SQLiteOpenHelper(context, DB_NAME, null, DB_VE
         put(COL_LABEL, label)
         put(COL_PACKAGE_NAMES, packageNames.joinToString(","))
         put(COL_KIND, kind.name)
-        put(COL_ACCOUNT_NAME, accountName)
+        put(COL_SOURCE_ACCOUNT_NAME, sourceAccountName)
+        put(COL_DESTINATION_ACCOUNT_NAME, destinationAccountName)
         put(COL_HOME_CURRENCY, homeCurrency)
-        put(COL_COUNTERPARTY_ACCOUNT_NAME, counterpartyAccountName)
         put(COL_PATTERN, pattern)
         put(COL_DECIMAL_SEPARATOR, decimalSeparator.toString())
         put(COL_DESCRIPTION_TEMPLATE, descriptionTemplate)
         put(COL_NOTES_TEMPLATE, notesTemplate)
+        put(COL_CATEGORY_TEMPLATE, categoryTemplate)
+        put(COL_TAGS_TEMPLATE, tagsTemplate)
         put(COL_ENABLED, if (enabled) 1 else 0)
         put(COL_SORT_ORDER, sortOrder)
     }
@@ -176,32 +180,36 @@ class RulesDb(context: Context) : SQLiteOpenHelper(context, DB_NAME, null, DB_VE
             label = str(COL_LABEL),
             packageNames = str(COL_PACKAGE_NAMES).split(",").filter { it.isNotEmpty() }.toSet(),
             kind = RuleKind.valueOf(str(COL_KIND)),
-            accountName = str(COL_ACCOUNT_NAME),
+            sourceAccountName = strOrNull(COL_SOURCE_ACCOUNT_NAME),
+            destinationAccountName = strOrNull(COL_DESTINATION_ACCOUNT_NAME),
             homeCurrency = str(COL_HOME_CURRENCY),
-            counterpartyAccountName = strOrNull(COL_COUNTERPARTY_ACCOUNT_NAME),
             pattern = str(COL_PATTERN),
             decimalSeparator = str(COL_DECIMAL_SEPARATOR).first(),
             descriptionTemplate = str(COL_DESCRIPTION_TEMPLATE),
             notesTemplate = str(COL_NOTES_TEMPLATE),
+            categoryTemplate = str(COL_CATEGORY_TEMPLATE),
+            tagsTemplate = str(COL_TAGS_TEMPLATE),
             enabled = getInt(getColumnIndexOrThrow(COL_ENABLED)) != 0,
         )
     }
 
     companion object {
         private const val DB_NAME = "rules.db"
-        private const val DB_VERSION = 1
+        private const val DB_VERSION = 3 // v3: added category_template/tags_template
         private const val TABLE = "rules"
         private const val COL_ID = "id"
         private const val COL_LABEL = "label"
         private const val COL_PACKAGE_NAMES = "package_names"
         private const val COL_KIND = "kind"
-        private const val COL_ACCOUNT_NAME = "account_name"
+        private const val COL_SOURCE_ACCOUNT_NAME = "source_account_name"
+        private const val COL_DESTINATION_ACCOUNT_NAME = "destination_account_name"
         private const val COL_HOME_CURRENCY = "home_currency"
-        private const val COL_COUNTERPARTY_ACCOUNT_NAME = "counterparty_account_name"
         private const val COL_PATTERN = "pattern"
         private const val COL_DECIMAL_SEPARATOR = "decimal_separator"
         private const val COL_DESCRIPTION_TEMPLATE = "description_template"
         private const val COL_NOTES_TEMPLATE = "notes_template"
+        private const val COL_CATEGORY_TEMPLATE = "category_template"
+        private const val COL_TAGS_TEMPLATE = "tags_template"
         private const val COL_ENABLED = "enabled"
         private const val COL_SORT_ORDER = "sort_order"
 

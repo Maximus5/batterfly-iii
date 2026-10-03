@@ -91,7 +91,8 @@ class MessagesFragment : Fragment() {
             is ParseOutcome.Matched -> buildString {
                 val draft = outcome.draft
                 appendLine(getString(R.string.test_match_rule_label, outcome.rule.label))
-                appendLine(getString(R.string.test_match_account, draft.ownAccountName))
+                draft.sourceName?.let { appendLine(getString(R.string.test_match_source, it)) }
+                draft.destinationName?.let { appendLine(getString(R.string.test_match_destination, it)) }
                 if (draft.amount != null) {
                     appendLine(getString(R.string.test_match_amount, draft.amount.toPlainString(), draft.currencyCode))
                 } else {
@@ -106,9 +107,12 @@ class MessagesFragment : Fragment() {
                         ),
                     )
                 }
-                draft.counterpartyName?.let { appendLine(getString(R.string.test_match_counterparty, it)) }
                 appendLine(getString(R.string.test_match_description, draft.description))
                 appendLine(getString(R.string.test_match_notes, draft.notes))
+                draft.category?.let { appendLine(getString(R.string.test_match_category, it)) }
+                if (draft.tags.isNotEmpty()) {
+                    appendLine(getString(R.string.test_match_tags, draft.tags.joinToString(", ")))
+                }
                 draft.issues.forEach { issue ->
                     appendLine(
                         when (issue) {

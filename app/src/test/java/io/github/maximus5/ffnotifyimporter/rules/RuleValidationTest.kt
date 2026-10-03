@@ -8,8 +8,9 @@ class RuleValidationTest {
     private fun validRule() = ParseRule(
         id = "r1",
         label = "Test",
+        packageNames = setOf("bank.app"),
         kind = RuleKind.WITHDRAWAL,
-        accountName = "Bank Account A",
+        sourceAccountName = "Bank Account A",
         homeCurrency = "EUR",
         pattern = """spent (?<amount>[\d,]+) EUR at (?<counterparty>.+)""",
         descriptionTemplate = "{counterparty}",
@@ -30,13 +31,36 @@ class RuleValidationTest {
     @Test
     fun `invalid regex is reported`() {
         val errors = validateRule(validRule().copy(pattern = "("))
-        assertTrue(errors.any { it.contains("regex", ignoreCase = true) })
+        assertTrue(errors.any { it.contains("regular expression", ignoreCase = true) })
     }
 
     @Test
-    fun `transfer rules need a counterparty account name`() {
-        val errors = validateRule(validRule().copy(kind = RuleKind.TRANSFER_OUT, counterpartyAccountName = null))
-        assertTrue(errors.any { it.contains("counterparty", ignoreCase = true) })
+    fun `withdrawal rules need a source account`() {
+        val errors = validateRule(validRule().copy(sourceAccountName = null))
+        assertTrue(errors.any { it.contains("source", ignoreCase = true) })
+    }
+
+    @Test
+    fun `deposit rules need a destination account`() {
+        val errors = validateRule(
+            validRule().copy(kind = RuleKind.DEPOSIT, sourceAccountName = null, destinationAccountName = null),
+        )
+        assertTrue(errors.any { it.contains("destination", ignoreCase = true) })
+    }
+
+    @Test
+    fun `transfer rules need both a source and a destination account`() {
+        val errors = validateRule(
+            validRule().copy(kind = RuleKind.TRANSFER, sourceAccountName = null, destinationAccountName = null),
+        )
+        assertTrue(errors.any { it.contains("source", ignoreCase = true) })
+        assertTrue(errors.any { it.contains("destination", ignoreCase = true) })
+    }
+
+    @Test
+    fun `no apps selected is reported`() {
+        val errors = validateRule(validRule().copy(packageNames = emptySet()))
+        assertTrue(errors.any { it.contains("app", ignoreCase = true) })
     }
 
     @Test

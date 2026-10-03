@@ -6,10 +6,9 @@ import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ArrayAdapter
 import android.widget.Toast
-import androidx.fragment.app.Fragment
 import androidx.appcompat.app.AlertDialog
+import androidx.fragment.app.Fragment
 import io.github.maximus5.ffnotifyimporter.R
 import io.github.maximus5.ffnotifyimporter.databinding.FragmentRuleEditBinding
 import io.github.maximus5.ffnotifyimporter.notifications.AppLabelResolver
@@ -26,14 +25,13 @@ class RuleEditFragment : Fragment() {
     private var binding: FragmentRuleEditBinding? = null
     private lateinit var rulesDb: RulesDb
     private var existingRule: ParseRule? = null
-    private var selectedPackages: Set<String> = emptySet()
 
-    private val kindOrder = listOf(
-        RuleKind.WITHDRAWAL,
-        RuleKind.DEPOSIT,
-        RuleKind.TRANSFER_OUT,
-        RuleKind.TRANSFER_IN,
-    )
+    /** package name to display label, sorted - a rule can only ever match a monitored app. */
+    private var monitoredApps: List<Pair<String, String>> = emptyList()
+    private var selectedPackageName: String? = null
+    private var selectedKind: RuleKind = RuleKind.WITHDRAWAL
+
+    private val kindOrder = listOf(RuleKind.WITHDRAWAL, RuleKind.DEPOSIT, RuleKind.TRANSFER)
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -49,18 +47,8 @@ class RuleEditFragment : Fragment() {
         val binding = binding ?: return
         rulesDb = RulesDb.getInstance(requireContext())
 
-        binding.kindSpinner.adapter = ArrayAdapter(
-            requireContext(),
-            android.R.layout.simple_spinner_dropdown_item,
-            kindOrder.map { it.name },
-        )
-        binding.kindSpinner.setOnItemSelectedListener(object : android.widget.AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: android.widget.AdapterView<*>?, v: View?, position: Int, id: Long) {
-                updateCounterpartyVisibility()
-            }
-
-            override fun onNothingSelected(parent: android.widget.AdapterView<*>?) = Unit
-        })
+        setupKindDropdown()
+        setupAppsDropdown()
 
         val ruleId = arguments?.getString(ARG_RULE_ID)
         existingRule = ruleId?.let { id -> rulesDb.loadAllOrdered().firstOrNull { it.id == id } }
@@ -72,37 +60,62 @@ class RuleEditFragment : Fragment() {
             override fun afterTextChanged(s: Editable?) = updateAvailableMacros()
         })
 
-        binding.chooseAppsButton.setOnClickListener { showAppsPicker() }
         binding.pickPatternButton.setOnClickListener { showPatternPicker() }
         binding.saveRuleButton.setOnClickListener { save() }
         binding.deleteRuleButton.setOnClickListener { confirmDelete() }
 
-        updateAppsSummary()
         updateAvailableMacros()
+    }
+
+    private fun setupKindDropdown() {
+        val binding = binding ?: return
+        binding.kindInput.setSimpleItems(kindOrder.map { getString(it.labelRes()) }.toTypedArray())
+        binding.kindInput.setOnItemClickListener { _, _, position, _ -> selectedKind = kindOrder[position] }
+    }
+
+    private fun setupAppsDropdown() {
+        val binding = binding ?: return
+        val context = requireContext()
+        monitoredApps = MonitoredAppsPrefs(context).getMonitoredPackages()
+            .map { it to AppLabelResolver.resolve(context, it) }
+            .sortedBy { it.second.lowercase() }
+
+        if (monitoredApps.isEmpty()) {
+            binding.appInput.isEnabled = false
+            Toast.makeText(context, R.string.rule_no_monitored_apps, Toast.LENGTH_LONG).show()
+            return
+        }
+
+        binding.appInput.setSimpleItems(monitoredApps.map { it.second }.toTypedArray())
+        binding.appInput.setOnItemClickListener { _, _, position, _ ->
+            selectedPackageName = monitoredApps[position].first
+        }
     }
 
     private fun populateFields(rule: ParseRule?) {
         val binding = binding ?: return
-        selectedPackages = rule?.packageNames ?: emptySet()
-        binding.labelInput.setText(rule?.label.orEmpty())
-        binding.kindSpinner.setSelection(kindOrder.indexOf(rule?.kind ?: RuleKind.WITHDRAWAL))
-        binding.accountNameInput.setText(rule?.accountName.orEmpty())
+
+        binding.labelInput.setText(
+            rule?.label ?: getString(R.string.rule_default_label, rulesDb.loadAllOrdered().size + 1),
+        )
+
+        selectedPackageName = rule?.packageNames?.firstOrNull() ?: monitoredApps.firstOrNull()?.first
+        monitoredApps.firstOrNull { it.first == selectedPackageName }?.let { binding.appInput.setText(it.second, false) }
+
+        selectedKind = rule?.kind ?: RuleKind.WITHDRAWAL
+        binding.kindInput.setText(getString(selectedKind.labelRes()), false)
+
+        binding.sourceAccountInput.setText(rule?.sourceAccountName.orEmpty())
+        binding.destinationAccountInput.setText(rule?.destinationAccountName.orEmpty())
         binding.homeCurrencyInput.setText(rule?.homeCurrency.orEmpty())
-        binding.counterpartyAccountInput.setText(rule?.counterpartyAccountName.orEmpty())
         binding.patternInput.setText(rule?.pattern.orEmpty())
-        binding.decimalSeparatorInput.setText((rule?.decimalSeparator ?: ',').toString())
-        binding.descriptionTemplateInput.setText(rule?.descriptionTemplate ?: "{title}")
-        binding.notesTemplateInput.setText(rule?.notesTemplate ?: "{body}")
+        binding.decimalSeparatorInput.setText(rule?.decimalSeparator?.toString().orEmpty())
+        binding.descriptionTemplateInput.setText(rule?.descriptionTemplate.orEmpty())
+        binding.notesTemplateInput.setText(rule?.notesTemplate.orEmpty())
+        binding.categoryTemplateInput.setText(rule?.categoryTemplate.orEmpty())
+        binding.tagsTemplateInput.setText(rule?.tagsTemplate.orEmpty())
         binding.enabledSwitch.isChecked = rule?.enabled ?: true
         binding.deleteRuleButton.visibility = if (rule != null) View.VISIBLE else View.GONE
-        updateCounterpartyVisibility()
-    }
-
-    private fun updateCounterpartyVisibility() {
-        val binding = binding ?: return
-        val kind = kindOrder.getOrNull(binding.kindSpinner.selectedItemPosition) ?: return
-        val isTransfer = kind == RuleKind.TRANSFER_OUT || kind == RuleKind.TRANSFER_IN
-        binding.counterpartyAccountLayout.visibility = if (isTransfer) View.VISIBLE else View.GONE
     }
 
     private fun updateAvailableMacros() {
@@ -111,38 +124,6 @@ class RuleEditFragment : Fragment() {
         val groups = runCatching { namedGroupNames(pattern) }.getOrDefault(emptyList())
         val macros = (groups + listOf("title", "body")).joinToString(" ") { "{$it}" }
         binding.availableMacrosText.text = getString(R.string.rule_available_macros, macros)
-    }
-
-    private fun showAppsPicker() {
-        val context = requireContext()
-        val packages = MonitoredAppsPrefs(context).getMonitoredPackages()
-            .map { it to AppLabelResolver.resolve(context, it) }
-            .sortedBy { it.second.lowercase() }
-        if (packages.isEmpty()) {
-            Toast.makeText(context, R.string.rule_no_monitored_apps, Toast.LENGTH_SHORT).show()
-            return
-        }
-        val labels = packages.map { it.second }.toTypedArray()
-        val checked = packages.map { it.first in selectedPackages }.toBooleanArray()
-
-        AlertDialog.Builder(context)
-            .setTitle(R.string.rule_field_apps)
-            .setMultiChoiceItems(labels, checked) { _, which, isChecked -> checked[which] = isChecked }
-            .setPositiveButton(android.R.string.ok) { _, _ ->
-                selectedPackages = packages.filterIndexed { index, _ -> checked[index] }.map { it.first }.toSet()
-                updateAppsSummary()
-            }
-            .setNegativeButton(android.R.string.cancel, null)
-            .show()
-    }
-
-    private fun updateAppsSummary() {
-        val binding = binding ?: return
-        binding.appsSummaryText.text = if (selectedPackages.isEmpty()) {
-            getString(R.string.rule_apps_any)
-        } else {
-            getString(R.string.rule_apps_count, selectedPackages.size)
-        }
     }
 
     private fun showPatternPicker() {
@@ -162,19 +143,20 @@ class RuleEditFragment : Fragment() {
 
     private fun buildDraft(): ParseRule {
         val binding = requireBinding()
-        val kind = kindOrder.getOrNull(binding.kindSpinner.selectedItemPosition) ?: RuleKind.WITHDRAWAL
         return ParseRule(
             id = existingRule?.id ?: "",
             label = binding.labelInput.text?.toString().orEmpty().trim(),
-            packageNames = selectedPackages,
-            kind = kind,
-            accountName = binding.accountNameInput.text?.toString().orEmpty().trim(),
+            packageNames = selectedPackageName?.let { setOf(it) } ?: emptySet(),
+            kind = selectedKind,
+            sourceAccountName = binding.sourceAccountInput.text?.toString()?.trim()?.takeIf { it.isNotEmpty() },
+            destinationAccountName = binding.destinationAccountInput.text?.toString()?.trim()?.takeIf { it.isNotEmpty() },
             homeCurrency = binding.homeCurrencyInput.text?.toString().orEmpty().trim(),
-            counterpartyAccountName = binding.counterpartyAccountInput.text?.toString()?.trim()?.takeIf { it.isNotEmpty() },
             pattern = binding.patternInput.text?.toString().orEmpty(),
-            decimalSeparator = binding.decimalSeparatorInput.text?.toString()?.firstOrNull() ?: ',',
+            decimalSeparator = binding.decimalSeparatorInput.text?.toString()?.firstOrNull() ?: ' ',
             descriptionTemplate = binding.descriptionTemplateInput.text?.toString().orEmpty(),
             notesTemplate = binding.notesTemplateInput.text?.toString().orEmpty(),
+            categoryTemplate = binding.categoryTemplateInput.text?.toString().orEmpty(),
+            tagsTemplate = binding.tagsTemplateInput.text?.toString().orEmpty(),
             enabled = binding.enabledSwitch.isChecked,
         )
     }
