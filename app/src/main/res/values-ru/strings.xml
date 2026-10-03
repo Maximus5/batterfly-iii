@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">FF Notify Importer</string>
+
+    <string name="tab_apps">Приложения</string>
+    <string name="tab_messages">Сообщения</string>
+
+    <string name="apps_empty">Не удалось получить список приложений</string>
+    <string name="messages_empty">Пока ничего не поймано. Включите мониторинг для нужных приложений и дождитесь уведомления.</string>
+
+    <string name="notification_access_missing">Доступ к уведомлениям не выдан. Без него мониторинг не работает.</string>
+    <string name="notification_access_grant">Открыть настройки</string>
+</resources>

@@ -35,3 +35,7 @@ work.
   real fix (proper `WindowInsets` padding on the tab layout and
   view pager) before any future fullscreen setting re-enables
   edge-to-edge.
+- Only English and Russian are localized
+  (`values/strings.xml` and `values-ru/strings.xml`). Default/base is
+  English; add more `values-<lang>/strings.xml` as needed, keep
+  `strings.xml` in sync across locales when adding new strings.
