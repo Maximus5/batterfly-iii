@@ -235,8 +235,17 @@ Single `:app` module, packages under
     `MessageStore.shared.remove` for each selected message after a
     confirmation dialog. A plain tap *outside* of that selection mode
     runs `RuleEngine.match` against the tapped message and shows the
-    result (rule, source/destination account, amounts/currencies,
-    rendered description/notes, issues) in a dialog - "test match".
+    result (source/destination account, amounts/currencies, rendered
+    description/notes, issues) in a dialog - "test match". The dialog's
+    *title* is the outcome itself: the matched rule's own label, or
+    "No match" - not a generic "Test match" every time regardless of
+    what happened, which made the matched-vs-not distinction easy to
+    miss at a glance. The body is a `SpannableStringBuilder` with each
+    field's label (`Source:`, `Amount:`, ...) in bold - plain
+    `getString(R.string.x, value)` concatenation read as one
+    same-weight wall of text; this needed splitting the old combined
+    "Label: %1$s" string resources into label-only strings so code can
+    bold just the label span.
   - `SettingsActivity` - everything else, as a stack of fragments
     pushed via plain `FragmentManager` back-stack transactions (no
     Navigation Component - the flow is small and linear enough not to

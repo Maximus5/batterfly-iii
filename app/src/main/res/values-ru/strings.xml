@@ -84,21 +84,19 @@
     <string name="rule_validation_failed">Сначала исправьте</string>
     <string name="rule_delete_confirm_title">Удалить это правило?</string>
 
-    <string name="test_match_title">Проверка матчинга</string>
-    <string name="test_match_no_match">Нет совпадения (%1$s)</string>
+    <string name="test_match_no_match_title">Нет совпадения</string>
     <string name="no_match_reason_no_rules_for_app">нет правил для этого приложения</string>
     <string name="no_match_reason_no_pattern_matched">ни одно выражение не подошло</string>
     <string name="no_match_reason_amount_unparsable">сумму не удалось распознать</string>
-    <string name="test_match_rule_label">Правило: %1$s</string>
-    <string name="test_match_source">Источник: %1$s</string>
-    <string name="test_match_destination">Назначение: %1$s</string>
-    <string name="test_match_amount">Сумма: %1$s %2$s</string>
-    <string name="test_match_amount_missing">Сумма: (отсутствует, см. проблемы ниже)</string>
-    <string name="test_match_foreign_amount">Валютная сумма: %1$s %2$s</string>
-    <string name="test_match_description">Описание: %1$s</string>
-    <string name="test_match_notes">Заметки: %1$s</string>
-    <string name="test_match_category">Категория: %1$s</string>
-    <string name="test_match_tags">Теги: %1$s</string>
+    <string name="test_match_label_source">Источник:</string>
+    <string name="test_match_label_destination">Назначение:</string>
+    <string name="test_match_label_amount">Сумма:</string>
+    <string name="test_match_amount_missing_value">(отсутствует, см. проблемы ниже)</string>
+    <string name="test_match_label_foreign">Валютная сумма:</string>
+    <string name="test_match_label_description">Описание:</string>
+    <string name="test_match_label_notes">Заметки:</string>
+    <string name="test_match_label_category">Категория:</string>
+    <string name="test_match_label_tags">Теги:</string>
     <string name="test_match_issue_local_amount_missing">⚠ Нет суммы в родной валюте — ввести вручную</string>
 
     <string name="settings_currencies_title">Валюты</string>

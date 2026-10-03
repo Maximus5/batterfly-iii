@@ -1,6 +1,10 @@
 package io.github.maximus5.ffnotifyimporter.ui
 
+import android.graphics.Typeface
 import android.os.Bundle
+import android.text.SpannableStringBuilder
+import android.text.Spanned
+import android.text.style.StyleSpan
 import android.view.LayoutInflater
 import android.view.Menu
 import android.view.MenuItem
@@ -21,6 +25,7 @@ import io.github.maximus5.ffnotifyimporter.rules.NoMatchReason
 import io.github.maximus5.ffnotifyimporter.rules.ParseOutcome
 import io.github.maximus5.ffnotifyimporter.rules.RuleEngine
 import io.github.maximus5.ffnotifyimporter.rules.RulesDb
+import io.github.maximus5.ffnotifyimporter.rules.TransactionDraft
 
 class MessagesFragment : Fragment() {
 
@@ -88,48 +93,69 @@ class MessagesFragment : Fragment() {
         val currencySymbols = CurrenciesDb.getInstance(requireContext()).symbolToCodeMap()
         val outcome = RuleEngine(rules, currencySymbols).match(message)
 
-        val body = when (outcome) {
-            is ParseOutcome.NoMatch -> getString(R.string.test_match_no_match, getString(reasonStringRes(outcome.reason)))
-            is ParseOutcome.Matched -> buildString {
-                val draft = outcome.draft
-                appendLine(getString(R.string.test_match_rule_label, outcome.rule.label))
-                draft.sourceName?.let { appendLine(getString(R.string.test_match_source, it)) }
-                draft.destinationName?.let { appendLine(getString(R.string.test_match_destination, it)) }
-                if (draft.amount != null) {
-                    appendLine(getString(R.string.test_match_amount, draft.amount.toPlainString(), draft.currencyCode))
-                } else {
-                    appendLine(getString(R.string.test_match_amount_missing))
-                }
-                if (draft.foreignAmount != null) {
-                    appendLine(
-                        getString(
-                            R.string.test_match_foreign_amount,
-                            draft.foreignAmount.toPlainString(),
-                            draft.foreignCurrencyCode.orEmpty(),
-                        ),
-                    )
-                }
-                appendLine(getString(R.string.test_match_description, draft.description))
-                appendLine(getString(R.string.test_match_notes, draft.notes))
-                draft.category?.let { appendLine(getString(R.string.test_match_category, it)) }
-                if (draft.tags.isNotEmpty()) {
-                    appendLine(getString(R.string.test_match_tags, draft.tags.joinToString(", ")))
-                }
-                draft.issues.forEach { issue ->
-                    appendLine(
-                        when (issue) {
-                            DraftIssue.LOCAL_AMOUNT_MISSING -> getString(R.string.test_match_issue_local_amount_missing)
-                        },
-                    )
-                }
+        // The title *is* the outcome - the matched rule's own label, or "No match" - instead of
+        // a generic "Test match" that made every dialog look the same regardless of which rule
+        // (if any) actually fired.
+        val title: CharSequence
+        val body: CharSequence
+        when (outcome) {
+            is ParseOutcome.NoMatch -> {
+                title = getString(R.string.test_match_no_match_title)
+                body = getString(reasonStringRes(outcome.reason))
+            }
+            is ParseOutcome.Matched -> {
+                title = outcome.rule.label
+                body = buildMatchedBody(outcome.draft)
             }
         }
 
         AlertDialog.Builder(requireContext())
-            .setTitle(R.string.test_match_title)
-            .setMessage(body.trim())
+            .setTitle(title)
+            .setMessage(body)
             .setPositiveButton(android.R.string.ok, null)
             .show()
+    }
+
+    /** Bolds each field's label ("Source:", "Amount:", ...) so a multi-field dialog reads as a
+     * list of fields rather than a wall of same-weight text. */
+    private fun buildMatchedBody(draft: TransactionDraft): CharSequence {
+        val text = SpannableStringBuilder()
+        fun field(label: String, value: String) {
+            if (text.isNotEmpty()) text.append("\n")
+            val labelStart = text.length
+            text.append(label)
+            text.setSpan(StyleSpan(Typeface.BOLD), labelStart, text.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            text.append(" ").append(value)
+        }
+
+        draft.sourceName?.let { field(getString(R.string.test_match_label_source), it) }
+        draft.destinationName?.let { field(getString(R.string.test_match_label_destination), it) }
+        field(
+            getString(R.string.test_match_label_amount),
+            if (draft.amount != null) {
+                "${draft.amount.toPlainString()} ${draft.currencyCode}"
+            } else {
+                getString(R.string.test_match_amount_missing_value)
+            },
+        )
+        draft.foreignAmount?.let {
+            field(
+                getString(R.string.test_match_label_foreign),
+                "${it.toPlainString()} ${draft.foreignCurrencyCode.orEmpty()}",
+            )
+        }
+        field(getString(R.string.test_match_label_description), draft.description)
+        field(getString(R.string.test_match_label_notes), draft.notes)
+        draft.category?.let { field(getString(R.string.test_match_label_category), it) }
+        if (draft.tags.isNotEmpty()) field(getString(R.string.test_match_label_tags), draft.tags.joinToString(", "))
+        draft.issues.forEach { issue ->
+            text.append("\n").append(
+                when (issue) {
+                    DraftIssue.LOCAL_AMOUNT_MISSING -> getString(R.string.test_match_issue_local_amount_missing)
+                },
+            )
+        }
+        return text
     }
 
     private fun reasonStringRes(reason: NoMatchReason) = when (reason) {
