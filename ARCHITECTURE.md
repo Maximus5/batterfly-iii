@@ -283,7 +283,14 @@ Single `:app` module, packages under
       captured messages for the selected app, newest first, stopping
       after 3 matches found; results are separated by a plain line, no
       numbering - a numbered list of already-multi-line entries read as
-      more clutter than help, per user feedback). Then the live
+      more clutter than help, per user feedback). Each match is shown as
+      the notification's raw `title` followed by one `groupname: value`
+      line per named group the pattern declares - not the derived
+      `TransactionDraft` fields (amount/account/etc), which depend on
+      rule config that may still be unfilled while iterating on a
+      pattern and so aren't what "does my regex actually capture what I
+      want" is asking (`ParseOutcome.Matched.groups` exposes the raw
+      capture map for exactly this). Then the live
       "available macros" hint from `parser.namedGroupNames`, then
       *source/destination account* (moved here, below the regex, from
       the identity-fields group above - now that they're macro

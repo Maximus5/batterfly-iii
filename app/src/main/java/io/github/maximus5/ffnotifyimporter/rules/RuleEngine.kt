@@ -34,7 +34,7 @@ class RuleEngine(
             val groups = extractGroups(rule.pattern, combinedInput) ?: continue
             anyPatternMatched = true
             val draft = buildDraft(rule, groups, message) ?: continue
-            return ParseOutcome.Matched(rule, draft)
+            return ParseOutcome.Matched(rule, draft, groups)
         }
 
         val reason = if (anyPatternMatched) NoMatchReason.AMOUNT_UNPARSABLE else NoMatchReason.NO_PATTERN_MATCHED

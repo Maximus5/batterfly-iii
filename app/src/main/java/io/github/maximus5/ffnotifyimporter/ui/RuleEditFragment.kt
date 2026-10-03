@@ -22,7 +22,6 @@ import io.github.maximus5.ffnotifyimporter.rules.ParseRule
 import io.github.maximus5.ffnotifyimporter.rules.RuleEngine
 import io.github.maximus5.ffnotifyimporter.rules.RuleKind
 import io.github.maximus5.ffnotifyimporter.rules.RulesDb
-import io.github.maximus5.ffnotifyimporter.rules.TransactionDraft
 import io.github.maximus5.ffnotifyimporter.rules.validateRule
 
 /** Create (ruleId == null) or edit (ruleId != null) one [ParseRule]. */
@@ -184,30 +183,30 @@ class RuleEditFragment : Fragment() {
             return
         }
 
-        val engine = RuleEngine(listOf(buildDraft()), CurrenciesDb.getInstance(context).symbolToCodeMap())
-        val matches = mutableListOf<Pair<CapturedMessage, TransactionDraft>>()
+        val draftRule = buildDraft()
+        val declaredGroups = namedGroupNames(draftRule.pattern)
+        val engine = RuleEngine(listOf(draftRule), CurrenciesDb.getInstance(context).symbolToCodeMap())
+        val matches = mutableListOf<Pair<CapturedMessage, Map<String, String>>>()
         var scanned = 0
         for (message in messages) {
             scanned++
             val outcome = engine.match(message)
-            if (outcome is ParseOutcome.Matched) matches.add(message to outcome.draft)
+            if (outcome is ParseOutcome.Matched) matches.add(message to outcome.groups)
             if (matches.size >= MAX_TEST_MATCHES) break
         }
 
+        // Shows what the pattern actually captured for each match - amount/account/etc are
+        // derived from rule config that may not be filled in yet, which isn't what "does my
+        // regex work" is asking.
         val body = if (matches.isEmpty()) {
             getString(R.string.rule_test_no_matches, scanned)
         } else {
             buildString {
                 append(getString(R.string.rule_test_matches_found, matches.size, scanned))
-                matches.forEach { (message, draft) ->
+                matches.forEach { (message, groups) ->
                     append("\n$MATCH_SEPARATOR\n")
-                    append("${message.title} → ")
-                    when {
-                        draft.amount != null -> append("${draft.amount.toPlainString()} ${draft.currencyCode}")
-                        draft.foreignAmount != null ->
-                            append("${draft.foreignAmount.toPlainString()} ${draft.foreignCurrencyCode}")
-                    }
-                    (draft.destinationName ?: draft.sourceName)?.let { append(" ($it)") }
+                    append(message.title)
+                    declaredGroups.forEach { name -> groups[name]?.let { append("\n$name: $it") } }
                 }
             }
         }
