@@ -136,7 +136,20 @@ Single `:app` module, packages under
     what a match produced (or why it didn't match), not yet a Firefly
     API request.
   - `RuleEngine.match(message)` (`RuleEngineTest`) - the
-    first-rule-in-order-that-matches algorithm described above.
+    first-rule-in-order-that-matches algorithm described above. Takes
+    an optional `currencySymbols: Map<String,String>` (symbol -> code,
+    from `CurrenciesDb.symbolToCodeMap()`) and runs captured
+    `currency`/`foreignCurrency` values through
+    `normalizeCurrency`/`CurrencyNormalizationTest` before comparing
+    against `homeCurrency` - banks print symbols ("€50.00") far more
+    often than ISO codes, and without this every symbol-only
+    notification would look "foreign" even when it's actually the
+    home currency.
+  - `CurrencyEntry`/`CurrenciesDb` - another user-maintained
+    placeholder table (code<->symbol, e.g. `EUR`<->`€`), same idea and
+    same "plain SQLite, no ORM, `getInstance(context)` singleton"
+    shape as `RulesDb`/`MessageHistoryDb`. Seeded with EUR/USD/GBP on
+    first creation; the user edits it from Settings -> Currencies.
   - `validateRule(rule)` (`RuleValidationTest`) - checks a pattern
     defines `amount`, at least one app is picked, the right
     source/destination account is filled per kind (see the `RuleKind`
@@ -200,9 +213,9 @@ Single `:app` module, packages under
     pushed via plain `FragmentManager` back-stack transactions (no
     Navigation Component - the flow is small and linear enough not to
     need it). `SettingsRootFragment` is the menu (monitored apps,
-    rules, message history, add test message, and later Firefly III
-    connection / appearance, added one row at a time as each is
-    built), linking to:
+    rules, currencies, message history, add test message, and later
+    Firefly III connection / appearance, added one row at a time as
+    each is built), linking to:
     - `AppsFragment` (reused as-is, just hosted here instead of a tab;
       lists every launchable installed app via `queryIntentActivities`
       on `ACTION_MAIN`/`CATEGORY_LAUNCHER`, which needs the
@@ -239,12 +252,18 @@ Single `:app` module, packages under
       still technically a `Set` for `RuleEngine`'s sake, the UI just
       always writes a singleton set). Field order: identity fields
       first (label, app, kind, source/destination account), then a
-      divider, then the regex section (pick-existing button - falls
-      back to one hardcoded example pattern if nothing's been saved
-      yet, see `RulesDb` below - the field itself, the live "available
-      macros" hint from `parser.namedGroupNames`), then
-      currency/templates - grouped that way because currency only
-      makes sense once you're thinking about what the regex extracts.
+      divider, then the regex section: a "pick message" button (lists
+      `MessageStore.shared.snapshot()` filtered to the currently
+      selected app, in-memory session data only - picking one drops
+      its raw `"title\nbody"` into the pattern field as a literal
+      starting point to then wrap with named groups, instead of
+      hand-copying the bank's wording from the Messages screen) above
+      a "pick existing" button (falls back to one hardcoded example
+      pattern if nothing's been saved yet, see `RulesDb` below), the
+      pattern field itself, then the live "available macros" hint from
+      `parser.namedGroupNames` - then currency/templates, grouped that
+      way because currency only makes sense once you're thinking about
+      what the regex extracts.
       Every `TextInputLayout` on this form (and on
       `AddTestMessageFragment`'s) sets `app:expandedHintEnabled="false"`
       so the field label always sits in the compact/floating position -
@@ -253,6 +272,10 @@ Single `:app` module, packages under
       focused/filled and others not looks visually inconsistent ("zoo
       of labels", per user feedback). Save runs `validateRule` and
       shows every error in one dialog before writing anything.
+    - `CurrenciesFragment`/`CurrenciesAdapter` - list + add/edit (one
+      `AlertDialog` with two fields: code, symbol) + delete over
+      `CurrenciesDb`. No separate full-screen editor like
+      `RuleEditFragment` - two fields doesn't warrant one.
   - `SystemBarInsets.kt` - `useClassicSystemBars(root)`, the shared
     edge-to-edge-but-padded-back-to-classic logic both activities call
     (see Known bugs/gotchas below for why it's done this way). Also

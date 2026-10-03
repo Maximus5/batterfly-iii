@@ -10,6 +10,8 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import io.github.maximus5.ffnotifyimporter.R
+import io.github.maximus5.ffnotifyimporter.data.CapturedMessage
+import io.github.maximus5.ffnotifyimporter.data.MessageStore
 import io.github.maximus5.ffnotifyimporter.databinding.FragmentRuleEditBinding
 import io.github.maximus5.ffnotifyimporter.notifications.AppLabelResolver
 import io.github.maximus5.ffnotifyimporter.parser.namedGroupNames
@@ -60,6 +62,7 @@ class RuleEditFragment : Fragment() {
             override fun afterTextChanged(s: Editable?) = updateAvailableMacros()
         })
 
+        binding.pickMessageButton.setOnClickListener { showMessagePicker() }
         binding.pickPatternButton.setOnClickListener { showPatternPicker() }
         binding.saveRuleButton.setOnClickListener { save() }
         binding.deleteRuleButton.setOnClickListener { confirmDelete() }
@@ -123,6 +126,37 @@ class RuleEditFragment : Fragment() {
         val groups = runCatching { namedGroupNames(pattern) }.getOrDefault(emptyList())
         val macros = (groups + listOf("title", "body")).joinToString(" ") { "{$it}" }
         binding.availableMacrosText.text = getString(R.string.rule_available_macros, macros)
+    }
+
+    /**
+     * Lets the user pick a real captured message (filtered to the app currently selected above -
+     * a rule can only ever match that app's notifications anyway) and drops its combined
+     * "title\nbody" into the pattern field as a literal starting point, instead of having to
+     * retype or hand-copy the bank's wording from the Messages screen. In-memory only
+     * (`MessageStore.shared`), so this only offers whatever's been captured so far this session.
+     */
+    private fun showMessagePicker() {
+        val context = requireContext()
+        val packageName = selectedPackageName
+        if (packageName == null) {
+            Toast.makeText(context, R.string.rule_no_monitored_apps, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val messages = MessageStore.shared.snapshot().filter { it.packageName == packageName }
+        if (messages.isEmpty()) {
+            Toast.makeText(context, R.string.rule_no_captured_messages, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val labels = messages.map { "${it.title}: ${it.text}".take(PATTERN_PREVIEW_LENGTH) }.toTypedArray()
+
+        AlertDialog.Builder(context)
+            .setTitle(R.string.rule_pick_message)
+            .setItems(labels) { _, which -> setPatternFrom(messages[which]) }
+            .show()
+    }
+
+    private fun setPatternFrom(message: CapturedMessage) {
+        binding?.patternInput?.setText("${message.title}\n${message.text}")
     }
 
     private fun showPatternPicker() {

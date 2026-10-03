@@ -36,8 +36,21 @@ work.
   token, entered by the user, stored on-device per AGENTS.md's Secrets
   section - never hardcoded, never committed) - not built yet, just a
   future row in `SettingsRootFragment`. Once it exists, `ParseRule`'s
-  `accountName`/`homeCurrency` placeholders need a migration path to
-  real Firefly account/currency references.
+  `sourceAccountName`/`destinationAccountName`/`homeCurrency`
+  placeholders need a migration path to real Firefly account/currency
+  references - and `CurrenciesDb` (Settings -> Currencies, user-edited
+  code<->symbol table, seeded EUR/USD/GBP) could then be replaced or
+  backed by Firefly's real enabled-currencies list instead of being
+  hand-maintained.
+- A pattern can't use the same named group twice (Java regex
+  limitation, not something we can configure around) - e.g. a
+  currency symbol that appears sometimes before the amount, sometimes
+  after, *within one bank's notification format*, can't be captured by
+  one `(?<currency>...)` group placed in two spots or two alternation
+  branches. Hasn't come up for real yet (a given bank is consistent).
+  If it does: would need named-group aliases (e.g. `currencyBefore`/
+  `currencyAfter`, both treated as `Groups.CURRENCY` by `RuleEngine`)
+  rather than forcing the user to pick one position.
 - Real on-device verification needed for: message history retention
   (toggle on, capture a notification, restart the app, confirm it's
   still there; toggle back off, confirm the on-disk file is actually

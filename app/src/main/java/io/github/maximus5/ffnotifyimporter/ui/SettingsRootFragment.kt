@@ -38,6 +38,12 @@ class SettingsRootFragment : Fragment() {
                 R.string.settings_rules_title,
             )
         }
+        binding.rowCurrencies.setOnClickListener {
+            (activity as? SettingsActivity)?.openScreen(
+                CurrenciesFragment(),
+                R.string.settings_currencies_title,
+            )
+        }
         binding.rowMessageHistory.setOnClickListener {
             (activity as? SettingsActivity)?.openScreen(
                 MessageHistoryFragment(),

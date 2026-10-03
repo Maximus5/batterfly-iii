@@ -10,8 +10,16 @@ import java.time.Instant
  * Matches a [CapturedMessage] against an ordered list of rules. List order IS priority: the
  * first rule whose pattern matches AND yields a parsable amount wins, nothing further is tried.
  * (No "Ambiguous" outcome - by design, see TODO.md/ARCHITECTURE.md history.)
+ *
+ * [currencySymbols] (symbol -> code, from [CurrenciesDb.symbolToCodeMap]) normalizes a captured
+ * currency symbol ("€") to its code ("EUR") before it's compared against [ParseRule.homeCurrency]
+ * or stored - banks print symbols far more often than ISO codes. Defaults to empty (no
+ * translation) so tests and call sites that don't care about this can ignore it.
  */
-class RuleEngine(private val rules: List<ParseRule>) {
+class RuleEngine(
+    private val rules: List<ParseRule>,
+    private val currencySymbols: Map<String, String> = emptyMap(),
+) {
 
     fun match(message: CapturedMessage): ParseOutcome {
         val candidates = rules.filter {
@@ -39,9 +47,9 @@ class RuleEngine(private val rules: List<ParseRule>) {
         message: CapturedMessage,
     ): TransactionDraft? {
         val amount = groups[Groups.AMOUNT]?.let { parseAmount(it) } ?: return null
-        val currency = groups[Groups.CURRENCY]
+        val currency = groups[Groups.CURRENCY]?.let { normalizeCurrency(it, currencySymbols) }
         var foreignAmount = groups[Groups.FOREIGN_AMOUNT]?.let { parseAmount(it) }
-        var foreignCurrency = groups[Groups.FOREIGN_CURRENCY]
+        var foreignCurrency = groups[Groups.FOREIGN_CURRENCY]?.let { normalizeCurrency(it, currencySymbols) }
         var localAmount: BigDecimal? = amount
         val issues = mutableSetOf<DraftIssue>()
 

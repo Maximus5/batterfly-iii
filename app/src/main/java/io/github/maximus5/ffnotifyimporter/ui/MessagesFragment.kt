@@ -15,6 +15,7 @@ import io.github.maximus5.ffnotifyimporter.R
 import io.github.maximus5.ffnotifyimporter.data.CapturedMessage
 import io.github.maximus5.ffnotifyimporter.data.MessageStore
 import io.github.maximus5.ffnotifyimporter.databinding.FragmentMessagesBinding
+import io.github.maximus5.ffnotifyimporter.rules.CurrenciesDb
 import io.github.maximus5.ffnotifyimporter.rules.DraftIssue
 import io.github.maximus5.ffnotifyimporter.rules.NoMatchReason
 import io.github.maximus5.ffnotifyimporter.rules.ParseOutcome
@@ -84,7 +85,8 @@ class MessagesFragment : Fragment() {
 
     private fun showTestMatch(message: CapturedMessage) {
         val rules = RulesDb.getInstance(requireContext()).loadAllOrdered()
-        val outcome = RuleEngine(rules).match(message)
+        val currencySymbols = CurrenciesDb.getInstance(requireContext()).symbolToCodeMap()
+        val outcome = RuleEngine(rules, currencySymbols).match(message)
 
         val body = when (outcome) {
             is ParseOutcome.NoMatch -> getString(R.string.test_match_no_match, getString(reasonStringRes(outcome.reason)))

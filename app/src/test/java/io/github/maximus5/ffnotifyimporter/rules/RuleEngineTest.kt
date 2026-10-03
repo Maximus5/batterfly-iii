@@ -160,6 +160,33 @@ class RuleEngineTest {
     }
 
     @Test
+    fun `currency symbol before the amount is normalized to its code via currencySymbols`() {
+        val r = rule(
+            homeCurrency = "EUR",
+            pattern = """spent (?<currency>[€$£])(?<amount>[\d,]+)""",
+        )
+        val outcome = RuleEngine(listOf(r), currencySymbols = mapOf("€" to "EUR"))
+            .match(message(text = "You spent €12,50")) as ParseOutcome.Matched
+
+        assertEquals(BigDecimal("12.50"), outcome.draft.amount)
+        assertEquals("EUR", outcome.draft.currencyCode)
+        assertTrue(outcome.draft.issues.isEmpty())
+    }
+
+    @Test
+    fun `an unmapped currency symbol is treated as foreign as-is`() {
+        val r = rule(
+            homeCurrency = "EUR",
+            pattern = """spent (?<currency>[€$£])(?<amount>[\d,]+)""",
+        )
+        val outcome = RuleEngine(listOf(r), currencySymbols = mapOf("€" to "EUR"))
+            .match(message(text = "You spent £12,50")) as ParseOutcome.Matched
+
+        assertEquals("£", outcome.draft.foreignCurrencyCode)
+        assertEquals(setOf(DraftIssue.LOCAL_AMOUNT_MISSING), outcome.draft.issues)
+    }
+
+    @Test
     fun `disabled rules are never candidates`() {
         val engine = RuleEngine(listOf(rule(pattern = """(?<amount>\d+)""", enabled = false)))
         val outcome = engine.match(message(text = "123"))

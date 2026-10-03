@@ -64,7 +64,9 @@
     <string name="rule_field_destination_account">Destination account</string>
     <string name="rule_field_home_currency">Currency</string>
     <string name="rule_field_pattern">Regular expression (matched against title + text)</string>
-    <string name="rule_pick_existing_pattern">Pick existing regular expression…</string>
+    <string name="rule_pick_existing_pattern">Pick existing…</string>
+    <string name="rule_pick_message">Pick message…</string>
+    <string name="rule_no_captured_messages">No captured messages for this app yet</string>
     <string name="rule_available_macros">Available macros: %1$s</string>
     <string name="rule_field_description_template">Description template</string>
     <string name="rule_field_notes_template">Notes template</string>
@@ -93,4 +95,13 @@
     <string name="test_match_category">Category: %1$s</string>
     <string name="test_match_tags">Tags: %1$s</string>
     <string name="test_match_issue_local_amount_missing">⚠ Local amount missing - enter manually</string>
+
+    <string name="settings_currencies_title">Currencies</string>
+    <string name="settings_currencies_subtitle">Code↔symbol table, e.g. EUR↔€ - used to read bank notifications</string>
+    <string name="currency_add">Add currency</string>
+    <string name="currency_edit_title">Edit currency</string>
+    <string name="currency_field_code">Code (e.g. EUR)</string>
+    <string name="currency_field_symbol">Symbol (e.g. €)</string>
+    <string name="currency_code_required">Code can\'t be empty</string>
+    <string name="currency_delete_confirm_title">Delete %1$s?</string>
 </resources>
