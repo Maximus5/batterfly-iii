@@ -83,16 +83,22 @@ Single `:app` module, packages under
     pushed via plain `FragmentManager` back-stack transactions (no
     Navigation Component - the flow is small and linear enough not to
     need it): `SettingsRootFragment` (the menu: monitored apps,
-    message history, and later Firefly III connection / processing
-    rules / appearance, added one row at a time as each is built) ->
-    `AppsFragment` (reused as-is, just hosted here instead of a tab;
-    lists every launchable installed app via `queryIntentActivities`
-    on `ACTION_MAIN`/`CATEGORY_LAUNCHER`, which needs the `<queries>`
-    entry in the manifest to see apps on API 30+; loads on a
-    background dispatcher, only once the screen is actually opened,
-    not eagerly) or `MessageHistoryFragment` (the retention radio
-    group, writes to `RetentionPrefs` and calls
-    `RetentionController.applyOnSettingChanged`).
+    message history, add test message, and later Firefly III
+    connection / processing rules / appearance, added one row at a
+    time as each is built) -> `AppsFragment` (reused as-is, just
+    hosted here instead of a tab; lists every launchable installed app
+    via `queryIntentActivities` on `ACTION_MAIN`/`CATEGORY_LAUNCHER`,
+    which needs the `<queries>` entry in the manifest to see apps on
+    API 30+; loads on a background dispatcher, only once the screen is
+    actually opened, not eagerly), `MessageHistoryFragment` (the
+    retention radio group, writes to `RetentionPrefs` and calls
+    `RetentionController.applyOnSettingChanged`), or
+    `AddTestMessageFragment` - a debug tool: picks from the monitored
+    apps list and calls `MessageStore.shared.add(...)` directly with
+    user-entered title/text, exactly like
+    `BankNotificationListenerService` would for a real notification
+    (same dedup, same persistence-if-enabled) - lets rule processing
+    be tested without waiting for a real bank notification.
   - `SystemBarInsets.kt` - `useClassicSystemBars(root)`, the shared
     edge-to-edge-but-padded-back-to-classic logic both activities call
     (see Known bugs/gotchas below for why it's done this way).

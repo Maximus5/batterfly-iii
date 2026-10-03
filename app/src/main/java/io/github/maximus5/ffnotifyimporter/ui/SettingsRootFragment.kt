@@ -38,6 +38,12 @@ class SettingsRootFragment : Fragment() {
                 R.string.settings_message_history_title,
             )
         }
+        binding.rowAddTestMessage.setOnClickListener {
+            (activity as? SettingsActivity)?.openScreen(
+                AddTestMessageFragment(),
+                R.string.settings_add_test_message_title,
+            )
+        }
     }
 
     override fun onResume() {

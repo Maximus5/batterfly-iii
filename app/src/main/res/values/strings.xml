@@ -24,4 +24,16 @@
     <string name="message_history_option_3">Keep for 3 days</string>
     <string name="message_history_option_5">Keep for 5 days</string>
     <string name="message_history_option_7">Keep for 7 days</string>
+
+    <string name="settings_add_test_message_title">Add test message</string>
+    <string name="settings_add_test_message_subtitle">Manually add a message, for testing rules later</string>
+    <string name="add_test_message_explanation">Adds a message to history exactly like a real notification would - useful for testing rule processing without waiting for a real one.</string>
+    <string name="add_test_message_no_apps">No monitored apps yet. Pick at least one in Monitored apps first.</string>
+    <string name="add_test_message_app_label">App</string>
+    <string name="add_test_message_title_label">Title</string>
+    <string name="add_test_message_text_label">Text</string>
+    <string name="add_test_message_add_button">Add to history</string>
+    <string name="add_test_message_empty_error">Title and text can\'t both be empty</string>
+    <string name="add_test_message_added">Added</string>
+    <string name="add_test_message_duplicate">Dropped as a duplicate (same app/title/text within the dedup window)</string>
 </resources>

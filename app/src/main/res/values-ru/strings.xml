@@ -24,4 +24,16 @@
     <string name="message_history_option_3">Хранить 3 дня</string>
     <string name="message_history_option_5">Хранить 5 дней</string>
     <string name="message_history_option_7">Хранить 7 дней</string>
+
+    <string name="settings_add_test_message_title">Добавить тестовое сообщение</string>
+    <string name="settings_add_test_message_subtitle">Вручную добавить сообщение — для тестирования правил</string>
+    <string name="add_test_message_explanation">Добавляет сообщение в историю точно так же, как это сделало бы реальное уведомление — удобно для тестирования обработки правил без ожидания настоящего уведомления.</string>
+    <string name="add_test_message_no_apps">Нет приложений для мониторинга. Сначала выберите хотя бы одно в разделе «Приложения для мониторинга».</string>
+    <string name="add_test_message_app_label">Приложение</string>
+    <string name="add_test_message_title_label">Заголовок</string>
+    <string name="add_test_message_text_label">Текст</string>
+    <string name="add_test_message_add_button">Добавить в историю</string>
+    <string name="add_test_message_empty_error">Заголовок и текст не могут быть пустыми одновременно</string>
+    <string name="add_test_message_added">Добавлено</string>
+    <string name="add_test_message_duplicate">Отброшено как дубликат (то же приложение/заголовок/текст в пределах окна дедупликации)</string>
 </resources>
