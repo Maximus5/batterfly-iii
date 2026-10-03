@@ -13,11 +13,29 @@ work.
   - The Firefly III API client/actual transaction posting - `rules`
     deliberately has no dependency on this; `ParseRule.sourceAccountName`/
     `destinationAccountName`/`homeCurrency` are free-text placeholders
-    until it exists (see next item).
-    - Once posting exists, it needs an automatic-posting setting (post
-      every match immediately vs. require manual review/confirm first)
-      *and* a transaction-level dedup option - two different problems
-      from `MessageStore`'s existing notification-level dedup
+    until it fully exists (see next item). Phased, in progress:
+    - **Done**: connection settings screen (`FireflySettingsFragment`,
+      `FireflyPrefs`, `KeystoreCipher` - see ARCHITECTURE.md) - base
+      URL, token, Test connection, the approximate-conversion tag field
+      (used below), auto-create toggle, dedup toggle +
+      include-description toggle + window (minutes).
+    - **Not done yet**: `FireflyApiClient` only has `testConnection()`
+      so far - still needs listing asset accounts and creating a
+      transaction; the rule editor's asset-side account field (source
+      for WITHDRAWAL, destination for DEPOSIT, both for TRANSFER) needs
+      to become a pick-from-Firefly-accounts field instead of a
+      free-text macro template, since Firefly's API only auto-creates
+      the *counterparty* side (expense/revenue) by name - the asset
+      side must already exist; a local "created transactions" log
+      (hash + source notification + Firefly transaction id) for both
+      the dedup check and an "already created" state; the "Создать"
+      button itself on the Messages screen's test-match dialog; the
+      auto-create path (WorkManager retry on failure, per AGENTS.md's
+      stack note).
+    - Once full posting exists, it needs an automatic-posting setting
+      (**done** - see above) *and* a transaction-level dedup option
+      (**done** - see above) - two different problems from
+      `MessageStore`'s existing notification-level dedup
       (`(packageName, title, text)` within a window - see its
       ARCHITECTURE.md entry):
         - A bank can re-post the same notification a few times - already
@@ -84,17 +102,16 @@ work.
           side-effect (harmless, and it means Firefly's own future
           reports/calculations benefit too) - a nice-to-have, not a
           dependency of the main flow.
-        - Decided: mark a computed/approximated transaction with a tag
-          (not a note or a Firefly-side flag) - the tag's *name* is a
-          user-configurable setting (a new Settings field, not
-          hardcoded), so it's a plain, visible Firefly tag the user
-          picks themselves rather than something baked into this app's
-          wording. Applied on top of whatever the rule's own
-          `tagsTemplate` already produces, not instead of it. Where
-          this setting lives (its own tiny prefs class vs. folded into
-          whatever the Firefly connection settings screen ends up
-          being) isn't decided - that connection screen doesn't exist
-          yet either.
+        - Decided and **done**: mark a computed/approximated
+          transaction with a tag (not a note or a Firefly-side flag) -
+          the tag's *name* is user-configurable
+          (`FireflyPrefs.getApproxConversionTag`/`FireflySettingsFragment`),
+          so it's a plain, visible Firefly tag the user picks
+          themselves rather than something baked into this app's
+          wording. Still not done: actually applying it - on top of
+          whatever the rule's own `tagsTemplate` already produces, not
+          instead of it - which needs the exchange-rate lookup +
+          computed-`amount` flow above to exist first.
   - A way to reorder rules other than one-step-at-a-time up/down
     buttons (fine for a handful of rules; revisit - e.g. drag handles
     - if the list grows long enough to make that tedious).
@@ -113,16 +130,6 @@ work.
     backup/portability/occasionally-eyeballing-it, which an opaque
     binary blob works against, and it's needlessly fragile across
     schema changes to boot.
-- Firefly III connection settings screen (base URL + personal access
-  token, entered by the user, stored on-device per AGENTS.md's Secrets
-  section - never hardcoded, never committed) - not built yet, just a
-  future row in `SettingsRootFragment`. Once it exists, `ParseRule`'s
-  `sourceAccountName`/`destinationAccountName`/`homeCurrency`
-  placeholders need a migration path to real Firefly account/currency
-  references - and `CurrenciesDb` (Settings -> Currencies, user-edited
-  code<->symbol table, seeded EUR/USD/GBP) could then be replaced or
-  backed by Firefly's real enabled-currencies list instead of being
-  hand-maintained.
 - A pattern can't use the same named group twice (Java regex
   limitation, not something we can configure around) - e.g. a
   currency symbol that appears sometimes before the amount, sometimes

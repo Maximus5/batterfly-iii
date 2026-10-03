@@ -111,4 +111,25 @@
     <string name="currency_field_symbol">Символ (напр. €)</string>
     <string name="currency_code_required">Код не может быть пустым.</string>
     <string name="currency_delete_confirm_title">Удалить %1$s?</string>
+
+    <string name="settings_firefly_title">Подключение к Firefly III</string>
+    <string name="settings_firefly_subtitle_not_configured">Не настроено</string>
+    <string name="settings_firefly_subtitle_configured">Подключено к %1$s</string>
+    <string name="firefly_field_url">Base URL</string>
+    <string name="firefly_field_url_example">напр. https://firefly.example.com</string>
+    <string name="firefly_cleartext_warning">⚠ http:// не шифруется — используйте только в доверенной локальной сети.</string>
+    <string name="firefly_field_token">Personal access token</string>
+    <string name="firefly_test_connection">Проверить подключение</string>
+    <string name="firefly_test_connection_success">Подключено — Firefly III %1$s</string>
+    <string name="firefly_test_connection_failure">Ошибка подключения: %1$s</string>
+    <string name="firefly_field_approx_tag">Тег приближённой конвертации</string>
+    <string name="firefly_field_approx_tag_example">напр. fx-approx — ставится, когда сумма посчитана по найденному курсу</string>
+    <string name="firefly_auto_create">Создавать транзакции автоматически</string>
+    <string name="firefly_dedup_enabled">Избегать дублей транзакций</string>
+    <string name="firefly_dedup_include_description">Также сравнивать description</string>
+    <string name="firefly_field_dedup_window">Окно дедупликации (минут)</string>
+    <string name="firefly_url_required">Base URL не может быть пустым.</string>
+    <string name="firefly_token_required">Personal access token не может быть пустым.</string>
+    <string name="firefly_dedup_window_invalid">Окно дедупликации должно быть положительным числом минут.</string>
+    <string name="firefly_settings_saved">Сохранено</string>
 </resources>

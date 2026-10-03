@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Allows plain http:// for the Firefly III connection - its host is whatever the user types in
+     Settings, not known at build time, so this can't be scoped to a specific domain the way a
+     real cleartext allowance normally would be. The URL field warns in the UI when the user
+     enters http://; this is what actually lets that connection succeed instead of Android's
+     default (API 28+) cleartext block silently failing it. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

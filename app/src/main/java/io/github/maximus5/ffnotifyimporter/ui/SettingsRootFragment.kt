@@ -7,6 +7,8 @@ import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import io.github.maximus5.ffnotifyimporter.R
 import io.github.maximus5.ffnotifyimporter.databinding.FragmentSettingsRootBinding
+import io.github.maximus5.ffnotifyimporter.network.hostOf
+import io.github.maximus5.ffnotifyimporter.prefs.FireflyPrefs
 import io.github.maximus5.ffnotifyimporter.prefs.RetentionPrefs
 
 class SettingsRootFragment : Fragment() {
@@ -26,6 +28,12 @@ class SettingsRootFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         val binding = binding ?: return
 
+        binding.rowFirefly.setOnClickListener {
+            (activity as? SettingsActivity)?.openScreen(
+                FireflySettingsFragment(),
+                R.string.settings_firefly_title,
+            )
+        }
         binding.rowMonitoredApps.setOnClickListener {
             (activity as? SettingsActivity)?.openScreen(
                 AppsFragment(),
@@ -61,6 +69,17 @@ class SettingsRootFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         updateMessageHistorySubtitle()
+        updateFireflySubtitle()
+    }
+
+    private fun updateFireflySubtitle() {
+        val binding = binding ?: return
+        val host = hostOf(FireflyPrefs(requireContext()).getBaseUrl())
+        binding.rowFireflySubtitle.text = if (host != null) {
+            getString(R.string.settings_firefly_subtitle_configured, host)
+        } else {
+            getString(R.string.settings_firefly_subtitle_not_configured)
+        }
     }
 
     private fun updateMessageHistorySubtitle() {

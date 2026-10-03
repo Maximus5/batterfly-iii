@@ -23,15 +23,19 @@ transactions, once posting to it exists. Locally, message content is
 in-memory only by default - nothing written to disk - unless the user
 explicitly opts into on-device message history retention (see below).
 
-Current iteration (fourth milestone, landed): capture + dedup, a
-settings area (monitored apps + opt-in local history), and a full
+Current iteration (fifth milestone, in progress): capture + dedup, a
+settings area (monitored apps + opt-in local history), a full
 rule-matching flow - create/edit/duplicate/reorder rules in Settings,
-"test match" a captured message by tapping it on the Messages screen.
-Still no Firefly III API calls - `rules` deliberately has no
-dependency on Firefly, using free-text placeholders for
-accounts/currencies until that connection exists (see TODO.md) -
-single Gradle module `app`, Kotlin, classic Android Views (no
-Compose), minSdk 26.
+"test match" a captured message by tapping it on the Messages screen -
+and the start of the Firefly III connection itself (base URL/token,
+Test connection, posting-behavior settings; see `prefs`/`network`
+below and TODO.md for what's still missing before a rule match can
+actually become a transaction). `rules` still has no *direct*
+dependency on Firefly - `ParseRule.sourceAccountName`/
+`destinationAccountName`/`homeCurrency` are still free-text
+placeholders until the rule editor's asset-account picker lands (see
+TODO.md) - single Gradle module `app`, Kotlin, classic Android Views
+(no Compose), minSdk 26.
 
 A deliberate two-layer split for the matching engine, settled after
 some back-and-forth on an earlier draft that mixed them:
@@ -262,6 +266,63 @@ Single `:app` module, packages under
   - `MonitoredAppsPrefs` - which package names to monitor.
   - `RetentionPrefs` - local history retention in days; `0` (default)
     means off/in-memory-only.
+  - `FireflyPrefs` - the Firefly III connection + posting-behavior
+    settings (`FireflySettingsFragment` is the UI): base URL, personal
+    access token, the approximate-conversion tag name, auto-create
+    toggle, dedup toggle + include-description toggle + window
+    (minutes, default 5). Base URL and token are the only genuinely
+    secret values in this app (AGENTS.md's Secrets section) - encrypted
+    through `KeystoreCipher` before being stored, in an otherwise plain
+    `SharedPreferences` (every other field here is unencrypted, same as
+    every other prefs class). *Not* built on
+    `androidx.security:security-crypto`'s `EncryptedSharedPreferences`/
+    `MasterKey` - checked before using them and found every API in that
+    library deprecated as of 1.1.0 with no further releases planned.
+  - `KeystoreCipher` - the replacement: AES-GCM via a key generated and
+    held *inside* Android Keystore (`KeyGenParameterSpec`/
+    `KeyProperties.PURPOSE_ENCRYPT or PURPOSE_DECRYPT`, alias
+    `firefly_prefs_key`) - the key material itself never leaves
+    hardware-backed storage, only `Cipher` operations cross that
+    boundary. One key, reused for both secret strings; stores
+    `ivBase64:cipherBase64` as the pref value, since GCM needs the
+    exact IV it encrypted with to decrypt and generates a fresh random
+    one every call. `decrypt` returns null (never throws) on anything
+    it can't make sense of - corrupt/foreign-format stored value, key
+    unavailable - so a caller treats that the same as "nothing stored
+    yet". Not unit tested - real Android Keystore, same reason
+    `RulesDb`/`MessageHistoryDb` aren't.
+- `network` - the Firefly III API client, `rules`-API-free (string
+  placeholders are what `rules` still uses - see the `ParseRule` note
+  above):
+  - `FireflyUrl.kt` - pure helpers kept separate from the real network
+    call specifically so they're plain-Kotlin unit testable
+    (`FireflyUrlTest`): `normalizeBaseUrl` (strips a trailing slash),
+    `hostOf` (for the Settings row's "Connected to X" subtitle),
+    `isCleartextUrl` (drives the in-UI `http://` warning),
+    `parseAboutVersion` (pulls the version string out of
+    `GET /api/v1/about`'s `{"data": {"version": ...}}` response, used
+    to confirm Test Connection actually talked to a real Firefly
+    instance and not just got a 200 from something else on that URL).
+  - `FireflyApiClient` - plain `HttpURLConnection` + `org.json`, not
+    OkHttp/Retrofit - same "avoid a new dependency when the framework
+    already covers it" reasoning as the planned rules export/import
+    JSON format (see TODO.md); a handful of endpoints doesn't justify a
+    full HTTP client library. `org.json` at runtime is the real
+    Android-bundled implementation, but JVM unit tests run against a
+    stub `android.jar` where its methods throw "not mocked" - a
+    `testImplementation("org.json:json:...")` real-implementation jar
+    is what actually makes `FireflyUrlTest` exercise real JSON parsing
+    instead of silently no-op'ing. So far only `testConnection()`
+    (`GET /api/v1/about`) exists; listing accounts and creating a
+    transaction are TODO.md items.
+  - Cleartext (`http://`) support: Android blocks it by default at
+    API 28+. `res/xml/network_security_config.xml` allows it globally
+    (`<base-config cleartextTrafficPermitted="true" />`) rather than
+    for a specific domain, since the Firefly host is whatever the user
+    types in Settings - not knowable at build time. The URL field warns
+    in the UI when it's `http://`; the manifest's
+    `android:networkSecurityConfig` is what actually lets that
+    connection succeed instead of failing silently.
 - `notifications` - `BankNotificationListenerService`
   (`NotificationListenerService` subclass): for every posted
   notification, checks `MonitoredAppsPrefs`, pulls `EXTRA_TITLE`/
@@ -314,11 +375,27 @@ Single `:app` module, packages under
   - `SettingsActivity` - everything else, as a stack of fragments
     pushed via plain `FragmentManager` back-stack transactions (no
     Navigation Component - the flow is small and linear enough not to
-    need it). `SettingsRootFragment` is the menu (monitored apps,
-    currencies, rules, message history, add test message, and later
-    Firefly III connection / appearance, added one row at a time as
-    each is built - currencies sits above rules since rules depend on
-    it, same reasoning as monitored apps coming first), linking to:
+    need it). `SettingsRootFragment` is the menu (Firefly III
+    connection, monitored apps, currencies, rules, message history, add
+    test message, and later appearance, added one row at a time as each
+    is built - Firefly connection sits first since it's the gateway to
+    actually doing anything with a rule match now that posting is
+    underway; currencies sits above rules since rules depend on it,
+    same reasoning as monitored apps coming first), linking to:
+    - `FireflySettingsFragment` (see the `prefs`/`network` package
+      notes above for `FireflyPrefs`/`FireflyApiClient`) - one form,
+      one explicit Save button, not autosave-per-field like
+      `MessageHistoryFragment`'s radio group, since several of these
+      fields are text the user is still typing/correcting rather than
+      a single tap choice. "Test connection" runs
+      `FireflyApiClient.testConnection()` on a coroutine
+      (`viewLifecycleOwner.lifecycleScope`) against whatever's
+      currently typed in the URL/token fields - not what's saved - so
+      the user can verify before committing. The Settings row's own
+      subtitle ("Connected to X" / "Not configured") only reads
+      `hostOf(getBaseUrl())`, not a live connection check - a cheap,
+      offline-friendly signal that *something* is saved, not proof it
+      still works.
     - `AppsFragment` (reused as-is, just hosted here instead of a tab;
       lists every launchable installed app via `queryIntentActivities`
       on `ACTION_MAIN`/`CATEGORY_LAUNCHER`, which needs the
