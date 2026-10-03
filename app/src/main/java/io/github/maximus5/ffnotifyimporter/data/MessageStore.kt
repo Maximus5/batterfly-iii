@@ -1,4 +1,4 @@
-package com.mxmmsk.ffnotifyimporter.data
+package io.github.maximus5.ffnotifyimporter.data
 
 /**
  * Keeps captured notifications in memory only - nothing is ever written to disk or sent

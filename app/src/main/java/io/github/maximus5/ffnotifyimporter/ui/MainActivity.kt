@@ -1,4 +1,4 @@
-package com.mxmmsk.ffnotifyimporter.ui
+package io.github.maximus5.ffnotifyimporter.ui
 
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
@@ -7,8 +7,8 @@ import androidx.fragment.app.FragmentManager
 import androidx.lifecycle.Lifecycle
 import androidx.viewpager2.adapter.FragmentStateAdapter
 import com.google.android.material.tabs.TabLayoutMediator
-import com.mxmmsk.ffnotifyimporter.R
-import com.mxmmsk.ffnotifyimporter.databinding.ActivityMainBinding
+import io.github.maximus5.ffnotifyimporter.R
+import io.github.maximus5.ffnotifyimporter.databinding.ActivityMainBinding
 
 class MainActivity : AppCompatActivity() {
 

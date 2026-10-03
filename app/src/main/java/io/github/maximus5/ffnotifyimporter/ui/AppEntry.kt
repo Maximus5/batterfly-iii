@@ -1,4 +1,4 @@
-package com.mxmmsk.ffnotifyimporter.ui
+package io.github.maximus5.ffnotifyimporter.ui
 
 import android.graphics.drawable.Drawable
 

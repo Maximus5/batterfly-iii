@@ -1,9 +1,9 @@
-package com.mxmmsk.ffnotifyimporter.ui
+package io.github.maximus5.ffnotifyimporter.ui
 
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
-import com.mxmmsk.ffnotifyimporter.databinding.ItemAppBinding
+import io.github.maximus5.ffnotifyimporter.databinding.ItemAppBinding
 
 class AppsAdapter(
     private val onMonitoredChanged: (packageName: String, monitored: Boolean) -> Unit,

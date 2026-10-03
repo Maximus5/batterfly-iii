@@ -1,4 +1,4 @@
-package com.mxmmsk.ffnotifyimporter.notifications
+package io.github.maximus5.ffnotifyimporter.notifications
 
 import android.content.Context
 import android.content.pm.PackageManager

@@ -1,4 +1,4 @@
-package com.mxmmsk.ffnotifyimporter.data
+package io.github.maximus5.ffnotifyimporter.data
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

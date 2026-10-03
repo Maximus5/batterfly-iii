@@ -1,4 +1,4 @@
-package com.mxmmsk.ffnotifyimporter.ui
+package io.github.maximus5.ffnotifyimporter.ui
 
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -6,9 +6,9 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.mxmmsk.ffnotifyimporter.data.CapturedMessage
-import com.mxmmsk.ffnotifyimporter.data.MessageStore
-import com.mxmmsk.ffnotifyimporter.databinding.FragmentMessagesBinding
+import io.github.maximus5.ffnotifyimporter.data.CapturedMessage
+import io.github.maximus5.ffnotifyimporter.data.MessageStore
+import io.github.maximus5.ffnotifyimporter.databinding.FragmentMessagesBinding
 
 class MessagesFragment : Fragment() {
 

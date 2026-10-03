@@ -1,4 +1,4 @@
-package com.mxmmsk.ffnotifyimporter.prefs
+package io.github.maximus5.ffnotifyimporter.prefs
 
 import android.content.Context
 

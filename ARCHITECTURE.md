@@ -27,12 +27,12 @@ Firefly III API calls yet (deliberately deferred, see TODO.md), and no
 persistence of any kind - single Gradle module `app`, Kotlin, classic
 Android Views (no Compose), minSdk 26.
 
-Package: `com.mxmmsk.ffnotifyimporter`.
+Package: `io.github.maximus5.ffnotifyimporter`.
 
 ## Module layout
 
 Single `:app` module, packages under
-`com.mxmmsk.ffnotifyimporter`:
+`io.github.maximus5.ffnotifyimporter`:
 
 - `data` - `CapturedMessage` (app/title/text/timestamp) and
   `MessageStore`, the in-memory, time-windowed dedup store. Pure

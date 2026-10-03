@@ -1,10 +1,10 @@
-package com.mxmmsk.ffnotifyimporter.notifications
+package io.github.maximus5.ffnotifyimporter.notifications
 
 import android.app.Notification
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
-import com.mxmmsk.ffnotifyimporter.data.MessageStore
-import com.mxmmsk.ffnotifyimporter.prefs.MonitoredAppsPrefs
+import io.github.maximus5.ffnotifyimporter.data.MessageStore
+import io.github.maximus5.ffnotifyimporter.prefs.MonitoredAppsPrefs
 
 class BankNotificationListenerService : NotificationListenerService() {
 

@@ -1,10 +1,10 @@
-package com.mxmmsk.ffnotifyimporter.ui
+package io.github.maximus5.ffnotifyimporter.ui
 
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
-import com.mxmmsk.ffnotifyimporter.data.CapturedMessage
-import com.mxmmsk.ffnotifyimporter.databinding.ItemMessageBinding
+import io.github.maximus5.ffnotifyimporter.data.CapturedMessage
+import io.github.maximus5.ffnotifyimporter.databinding.ItemMessageBinding
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale

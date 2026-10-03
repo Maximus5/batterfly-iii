@@ -1,4 +1,4 @@
-package com.mxmmsk.ffnotifyimporter.ui
+package io.github.maximus5.ffnotifyimporter.ui
 
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -10,8 +10,8 @@ import android.view.ViewGroup
 import androidx.core.app.NotificationManagerCompat
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.mxmmsk.ffnotifyimporter.databinding.FragmentAppsBinding
-import com.mxmmsk.ffnotifyimporter.prefs.MonitoredAppsPrefs
+import io.github.maximus5.ffnotifyimporter.databinding.FragmentAppsBinding
+import io.github.maximus5.ffnotifyimporter.prefs.MonitoredAppsPrefs
 
 class AppsFragment : Fragment() {
 
