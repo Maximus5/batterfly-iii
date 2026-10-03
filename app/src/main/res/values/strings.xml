@@ -81,15 +81,13 @@
     <string name="action_save">Save</string>
     <string name="rule_no_monitored_apps">No monitored apps yet - pick some in Monitored apps first</string>
     <string name="rule_pattern_example_label">Example</string>
-    <string name="rule_pattern_preview_title">Use this pattern?</string>
-    <string name="action_apply">Apply</string>
     <string name="rule_validation_failed">Fix these first</string>
     <string name="rule_delete_confirm_title">Delete this rule?</string>
 
     <string name="test_match_title">Test match</string>
     <string name="test_match_no_match">No match (%1$s)</string>
     <string name="no_match_reason_no_rules_for_app">no rules for this app</string>
-    <string name="no_match_reason_no_pattern_matched">no pattern matched</string>
+    <string name="no_match_reason_no_pattern_matched">no regex matched</string>
     <string name="no_match_reason_amount_unparsable">amount unparsable</string>
     <string name="test_match_rule_label">Rule: %1$s</string>
     <string name="test_match_source">Source: %1$s</string>

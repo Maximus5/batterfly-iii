@@ -116,7 +116,14 @@ class RuleEditFragment : Fragment() {
     private fun insertMacro(target: EditText, macroName: String) {
         val start = target.selectionStart.coerceAtLeast(0)
         val end = target.selectionEnd.coerceAtLeast(0)
-        target.text?.replace(minOf(start, end), maxOf(start, end), "{$macroName}")
+        val insertAt = minOf(start, end)
+        val macroText = "{$macroName}"
+        target.text?.replace(insertAt, maxOf(start, end), macroText)
+        // The end icon click (and the picker dialog it opened) moved focus away from the field,
+        // so the cursor needs to be put back explicitly - otherwise it's left wherever it was
+        // (or nowhere), not right after what was just inserted.
+        target.requestFocus()
+        target.setSelection(insertAt + macroText.length)
     }
 
     private fun setupKindDropdown() {
@@ -268,34 +275,25 @@ class RuleEditFragment : Fragment() {
         val saved = rulesDb.distinctPatterns()
         // The illustrative example is always offered too, not just when nothing's saved yet -
         // it's a handy syntax reminder regardless of how many real rules already exist.
-        // distinctBy guards against listing it twice if a saved pattern happens to match it
+        // distinctBy guards against listing it twice if a saved regex happens to match it
         // verbatim.
-        val patterns = (saved + (EXAMPLE_PATTERN to getString(R.string.rule_pattern_example_label)))
+        val regexes = (saved + (EXAMPLE_PATTERN to getString(R.string.rule_pattern_example_label)))
             .distinctBy { it.first }
-        val labels = patterns.map { (pattern, label) -> "$label: ${previewOf(pattern)}" }.toTypedArray()
+        // Full regex shown right here in the list, label above it - not truncated to one line,
+        // since a cut-off regex is too easy to misread (and previously looked like a rendering
+        // glitch). Seeing it in full here, before tapping, is the "shown before applying" step -
+        // no separate confirm dialog needed on top of that.
+        val labels = regexes.map { (regex, label) -> "$label\n$regex" }.toTypedArray()
 
         AlertDialog.Builder(context)
             .setTitle(R.string.rule_pick_existing_pattern)
-            .setItems(labels) { _, which -> confirmApplyPattern(patterns[which].first) }
+            .setItems(labels) { _, which -> binding?.patternInput?.setText(regexes[which].first) }
             .show()
     }
 
     /** Truncates with a visible "…" so a cut-off preview doesn't look like a rendering glitch. */
     private fun previewOf(text: String): String =
         if (text.length > PATTERN_PREVIEW_LENGTH) text.take(PATTERN_PREVIEW_LENGTH) + "…" else text
-
-    /**
-     * Patterns are easy to misread in a one-line truncated preview, so picking one from the list
-     * shows it in full here before it actually overwrites whatever's in the pattern field.
-     */
-    private fun confirmApplyPattern(pattern: String) {
-        AlertDialog.Builder(requireContext())
-            .setTitle(R.string.rule_pattern_preview_title)
-            .setMessage(pattern)
-            .setPositiveButton(R.string.action_apply) { _, _ -> binding?.patternInput?.setText(pattern) }
-            .setNegativeButton(android.R.string.cancel, null)
-            .show()
-    }
 
     private fun buildDraft(): ParseRule {
         val binding = requireBinding()
