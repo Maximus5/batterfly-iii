@@ -6,6 +6,7 @@ import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.EditText
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
@@ -17,6 +18,7 @@ import io.github.maximus5.ffnotifyimporter.notifications.AppLabelResolver
 import io.github.maximus5.ffnotifyimporter.parser.namedGroupNames
 import io.github.maximus5.ffnotifyimporter.prefs.MonitoredAppsPrefs
 import io.github.maximus5.ffnotifyimporter.rules.CurrenciesDb
+import io.github.maximus5.ffnotifyimporter.rules.FIXED_MACROS
 import io.github.maximus5.ffnotifyimporter.rules.ParseOutcome
 import io.github.maximus5.ffnotifyimporter.rules.ParseRule
 import io.github.maximus5.ffnotifyimporter.rules.RuleEngine
@@ -71,7 +73,50 @@ class RuleEditFragment : Fragment() {
         binding.saveRuleButton.setOnClickListener { save() }
         binding.deleteRuleButton.setOnClickListener { confirmDelete() }
 
+        setupMacroInsertButtons()
         updateAvailableMacros()
+    }
+
+    /**
+     * Every template field (anything below the regex field that's macro-driven - account names,
+     * description/notes/category/tags, NOT home currency which is a plain value) gets a custom
+     * end icon that inserts a `{name}` macro at the cursor, instead of requiring it to be typed
+     * out by hand. Deliberately an insert at the current selection, not a `setText` - the field
+     * may already have other text around where the macro goes.
+     */
+    private fun setupMacroInsertButtons() {
+        val binding = binding ?: return
+        val targets = listOf(
+            binding.sourceAccountLayout to binding.sourceAccountInput,
+            binding.destinationAccountLayout to binding.destinationAccountInput,
+            binding.descriptionTemplateLayout to binding.descriptionTemplateInput,
+            binding.notesTemplateLayout to binding.notesTemplateInput,
+            binding.categoryTemplateLayout to binding.categoryTemplateInput,
+            binding.tagsTemplateLayout to binding.tagsTemplateInput,
+        )
+        targets.forEach { (layout, input) ->
+            layout.setEndIconOnClickListener { showMacroPicker(input) }
+        }
+    }
+
+    private fun showMacroPicker(target: EditText) {
+        val context = requireContext()
+        val pattern = binding?.patternInput?.text?.toString().orEmpty()
+        val groups = runCatching { namedGroupNames(pattern) }.getOrDefault(emptyList())
+        val macros = (groups + FIXED_MACROS)
+        if (macros.isEmpty()) return
+        val labels = macros.map { "{$it}" }.toTypedArray()
+
+        AlertDialog.Builder(context)
+            .setTitle(R.string.rule_insert_macro)
+            .setItems(labels) { _, which -> insertMacro(target, macros[which]) }
+            .show()
+    }
+
+    private fun insertMacro(target: EditText, macroName: String) {
+        val start = target.selectionStart.coerceAtLeast(0)
+        val end = target.selectionEnd.coerceAtLeast(0)
+        target.text?.replace(minOf(start, end), maxOf(start, end), "{$macroName}")
     }
 
     private fun setupKindDropdown() {
@@ -128,7 +173,7 @@ class RuleEditFragment : Fragment() {
         val binding = binding ?: return
         val pattern = binding.patternInput.text?.toString().orEmpty()
         val groups = runCatching { namedGroupNames(pattern) }.getOrDefault(emptyList())
-        val macros = (groups + listOf("title", "body")).joinToString(" ") { "{$it}" }
+        val macros = (groups + FIXED_MACROS).joinToString(" ") { "{$it}" }
         binding.availableMacrosText.text = getString(R.string.rule_available_macros, macros)
     }
 

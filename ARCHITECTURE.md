@@ -51,11 +51,19 @@ code alone:
   (app-filtered, in list order) whose pattern matches and yields a
   parsable amount. No `priority` field, no "ambiguous match" outcome.
 - `description`/`notes`/`category`/`tags` are all macro templates
-  (`{groupName}`/`{title}`/`{body}`), not separate "is this dynamic or
-  static" fields - a template with no `{macro}` in it just behaves
-  like a plain fixed string, so templates are a strict superset of
-  "plain string" at zero extra cost, and keeps one mechanism instead
-  of two. `tags` is the odd one out structurally: its template renders
+  (`{groupName}`/`{title}`/`{body}`/`{appname}`), not separate "is this
+  dynamic or static" fields - a template with no `{macro}` in it just
+  behaves like a plain fixed string, so templates are a strict superset
+  of "plain string" at zero extra cost, and keeps one mechanism instead
+  of two. `{title}`/`{body}`/`{appname}` (`MacroTemplate.FIXED_MACROS`)
+  are always available regardless of what the pattern declares -
+  `{appname}` is the monitored app's display label
+  (`CapturedMessage.appLabel`, the same string shown in the app
+  dropdown), not a captured group, for a rule that wants the source app
+  in a description/notes without hardcoding it (useful once one rule's
+  pattern is reused loosely-ish across similarly-worded notifications
+  from different apps). `tags` is the odd one out structurally: its
+  template renders
   to one string, which then gets split on `,` (trimmed, blanks
   dropped) into `TransactionDraft.tags: List<String>`. No default text
   in any of these for a new rule - user feedback was that a silently
@@ -137,9 +145,10 @@ Single `:app` module, packages under
   - `Groups` - the named-group names `rules` knows to look for
     (`amount`, `currency`, `foreignAmount`, `foreignCurrency`,
     `counterparty`) - a convention `parser` has no opinion on.
-  - `renderTemplate`/`templateMacroNames` (`MacroTemplateTest`) - `{x}`
-    macro substitution for description/notes, using the match's
-    captured groups plus always-available `{title}`/`{body}`.
+  - `renderTemplate`/`templateMacroNames`/`FIXED_MACROS`
+    (`MacroTemplateTest`) - `{x}` macro substitution for
+    description/notes/account names/etc, using the match's captured
+    groups plus always-available `{title}`/`{body}`/`{appname}`.
   - `TransactionDraft`/`DraftIssue`/`ParseOutcome`/`NoMatchReason` -
     what a match produced (or why it didn't match), not yet a Firefly
     API request.
@@ -297,7 +306,16 @@ Single `:app` module, packages under
       templates (see the `RuleKind` note above) they only make sense
       once you're thinking about what the regex extracts, same
       reasoning `homeCurrency` already had), then `homeCurrency`, then
-      the rest of the templates.
+      the rest of the templates. Every macro-template field (both
+      account fields, description/notes/category/tags - *not*
+      `homeCurrency`, which is a plain value, not a template) has a
+      custom end icon (`TextInputLayout.setEndIconOnClickListener`,
+      `ic_insert_macro`) that opens a picker over the currently declared
+      macros (the pattern's named groups plus `FIXED_MACROS`) and
+      inserts `{name}` at the current cursor position/selection in that
+      field - an `Editable.replace`, not `setText`, so it doesn't
+      clobber whatever else is already typed there. Saves having to
+      hand-type e.g. `{currency}` and getting the spelling wrong.
       Every `TextInputLayout` on this form (and on
       `AddTestMessageFragment`'s) sets `app:expandedHintEnabled="false"`
       so the field label always sits in the compact/floating position -

@@ -72,6 +72,7 @@
     <string name="rule_test_no_matches">Совпадений не найдено (просмотрено сообщений: %1$d)</string>
     <string name="rule_test_matches_found">Найдено совпадений: %1$d (просмотрено: %2$d)</string>
     <string name="rule_available_macros">Доступные макросы: %1$s</string>
+    <string name="rule_insert_macro">Вставить макрос</string>
     <string name="rule_field_description_template">Шаблон описания</string>
     <string name="rule_field_notes_template">Шаблон заметок</string>
     <string name="rule_field_category_template">Шаблон категории</string>

@@ -72,6 +72,7 @@
     <string name="rule_test_no_matches">No matches in %1$d captured message(s)</string>
     <string name="rule_test_matches_found">%1$d match(es) found (scanned %2$d)</string>
     <string name="rule_available_macros">Available macros: %1$s</string>
+    <string name="rule_insert_macro">Insert macro</string>
     <string name="rule_field_description_template">Description template</string>
     <string name="rule_field_notes_template">Notes template</string>
     <string name="rule_field_category_template">Category template</string>

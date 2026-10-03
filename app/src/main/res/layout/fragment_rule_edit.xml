@@ -128,11 +128,15 @@
             android:textSize="12sp" />
 
         <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/sourceAccountLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="12dp"
             android:hint="@string/rule_field_source_account"
-            app:expandedHintEnabled="false">
+            app:expandedHintEnabled="false"
+            app:endIconMode="custom"
+            app:endIconDrawable="@drawable/ic_insert_macro"
+            app:endIconContentDescription="@string/rule_insert_macro">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/sourceAccountInput"
@@ -142,11 +146,15 @@
         </com.google.android.material.textfield.TextInputLayout>
 
         <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/destinationAccountLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="12dp"
             android:hint="@string/rule_field_destination_account"
-            app:expandedHintEnabled="false">
+            app:expandedHintEnabled="false"
+            app:endIconMode="custom"
+            app:endIconDrawable="@drawable/ic_insert_macro"
+            app:endIconContentDescription="@string/rule_insert_macro">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/destinationAccountInput"
@@ -170,11 +178,15 @@
         </com.google.android.material.textfield.TextInputLayout>
 
         <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/descriptionTemplateLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="12dp"
             android:hint="@string/rule_field_description_template"
-            app:expandedHintEnabled="false">
+            app:expandedHintEnabled="false"
+            app:endIconMode="custom"
+            app:endIconDrawable="@drawable/ic_insert_macro"
+            app:endIconContentDescription="@string/rule_insert_macro">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/descriptionTemplateInput"
@@ -184,11 +196,15 @@
         </com.google.android.material.textfield.TextInputLayout>
 
         <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/notesTemplateLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="12dp"
             android:hint="@string/rule_field_notes_template"
-            app:expandedHintEnabled="false">
+            app:expandedHintEnabled="false"
+            app:endIconMode="custom"
+            app:endIconDrawable="@drawable/ic_insert_macro"
+            app:endIconContentDescription="@string/rule_insert_macro">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/notesTemplateInput"
@@ -198,11 +214,15 @@
         </com.google.android.material.textfield.TextInputLayout>
 
         <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/categoryTemplateLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="12dp"
             android:hint="@string/rule_field_category_template"
-            app:expandedHintEnabled="false">
+            app:expandedHintEnabled="false"
+            app:endIconMode="custom"
+            app:endIconDrawable="@drawable/ic_insert_macro"
+            app:endIconContentDescription="@string/rule_insert_macro">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/categoryTemplateInput"
@@ -212,11 +232,15 @@
         </com.google.android.material.textfield.TextInputLayout>
 
         <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/tagsTemplateLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="12dp"
             android:hint="@string/rule_field_tags_template"
-            app:expandedHintEnabled="false">
+            app:expandedHintEnabled="false"
+            app:endIconMode="custom"
+            app:endIconDrawable="@drawable/ic_insert_macro"
+            app:endIconContentDescription="@string/rule_insert_macro">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/tagsTemplateInput"
