@@ -1,5 +1,9 @@
 package io.github.maximus5.ffnotifyimporter.ui
 
+import android.graphics.Typeface
+import android.text.SpannableStringBuilder
+import android.text.Spanned
+import android.text.style.StyleSpan
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -52,8 +56,15 @@ class RulesAdapter(
             val destination = rule.destinationAccountName.ifBlank { noName }
             val accounts = "$source → $destination"
 
-            var subtitle = "$appLabel: ${context.getString(rule.kind.labelRes())}: $accounts"
-            if (!rule.enabled) subtitle += " · ${context.getString(R.string.rule_disabled_label)}"
+            var rest = "${context.getString(rule.kind.labelRes())}: $accounts"
+            if (!rule.enabled) rest += " · ${context.getString(R.string.rule_disabled_label)}"
+
+            // App name bold and on its own line - it's the identity of the row (which app this
+            // rule even applies to), everything else is detail about that.
+            val subtitle = SpannableStringBuilder(appLabel).apply {
+                setSpan(StyleSpan(Typeface.BOLD), 0, appLabel.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                append("\n").append(rest)
+            }
             binding.ruleSubtitle.text = subtitle
 
             binding.ruleRowContent.setOnClickListener { onClick(rule) }

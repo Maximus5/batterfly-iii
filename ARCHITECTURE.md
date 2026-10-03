@@ -286,7 +286,10 @@ Single `:app` module, packages under
       row has move up/down, duplicate, delete - all straight
       `RulesDb` calls followed by a reload. A FAB opens
       `RuleEditFragment` with no rule id, to create one. Each row's
-      subtitle is `"<app>: <kind>: <source> → <destination>"` - always
+      subtitle is the app name bold on its own line (`SpannableStringBuilder`
+      + `StyleSpan`, not a separate `TextView` - it's the row's identity,
+      everything else is detail about that one app), then
+      `"<kind>: <source> → <destination>"` on the line below - always
       that pair shape, even when one side is blank by design (normal
       for WITHDRAWAL/DEPOSIT, which only ever fill one side; see the
       `RuleKind` note above). A blank side displays as
