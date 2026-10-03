@@ -311,10 +311,29 @@ Single `:app` module, packages under
     Android-bundled implementation, but JVM unit tests run against a
     stub `android.jar` where its methods throw "not mocked" - a
     `testImplementation("org.json:json:...")` real-implementation jar
-    is what actually makes `FireflyUrlTest` exercise real JSON parsing
-    instead of silently no-op'ing. So far only `testConnection()`
-    (`GET /api/v1/about`) exists; listing accounts and creating a
-    transaction are TODO.md items.
+    is what actually makes `FireflyUrlTest`/`FireflyJsonTest` exercise
+    real JSON parsing instead of silently no-op'ing.
+    `testConnection()` (`GET /api/v1/about`), `listAssetAccounts()`
+    (`GET /api/v1/accounts?type=asset`, follows `meta.pagination.
+    total_pages` across every page rather than assuming the first 50
+    is everything), and `createTransaction(FireflyTransactionRequest)`
+    (`POST /v1/transactions`) all exist now - nothing in the UI calls
+    the latter two yet (see TODO.md for what still has to exist first:
+    an asset-account picker, a dedup log, the "Создать" button).
+    `FireflyJson.kt` holds the request-building/response-parsing for
+    those two, pulled out the same way `FireflyUrl.kt` was, for the
+    same plain-Kotlin-unit-testable reason (`FireflyJsonTest`).
+    Request/response field names and shapes (`TransactionSplitStore`,
+    `AccountRead`, the `TransactionTypeProperty` enum being exactly
+    `withdrawal`/`deposit`/`transfer`, lowercase) were checked against
+    Firefly's own OpenAPI spec before writing any of this, not
+    guessed - `FireflyTransactionRequest.type` is that exact literal
+    string, not `rules.RuleKind`, to keep `network` genuinely decoupled
+    from `rules` (the caller maps `RuleKind.name.lowercase()`).
+    `createTransaction` always sends `error_if_duplicate_hash: true` -
+    a free extra safety net on top of this app's own planned dedup
+    check (see TODO.md), since Firefly rejects the request outright if
+    *it* also thinks this is a duplicate.
   - Cleartext (`http://`) support: Android blocks it by default at
     API 28+. `res/xml/network_security_config.xml` allows it globally
     (`<base-config cleartextTrafficPermitted="true" />`) rather than

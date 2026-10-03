@@ -18,20 +18,25 @@ work.
       `FireflyPrefs`, `KeystoreCipher` - see ARCHITECTURE.md) - base
       URL, token, Test connection, the approximate-conversion tag field
       (used below), auto-create toggle, dedup toggle +
-      include-description toggle + window (minutes).
-    - **Not done yet**: `FireflyApiClient` only has `testConnection()`
-      so far - still needs listing asset accounts and creating a
-      transaction; the rule editor's asset-side account field (source
-      for WITHDRAWAL, destination for DEPOSIT, both for TRANSFER) needs
-      to become a pick-from-Firefly-accounts field instead of a
-      free-text macro template, since Firefly's API only auto-creates
-      the *counterparty* side (expense/revenue) by name - the asset
-      side must already exist; a local "created transactions" log
-      (hash + source notification + Firefly transaction id) for both
-      the dedup check and an "already created" state; the "Создать"
-      button itself on the Messages screen's test-match dialog; the
-      auto-create path (WorkManager retry on failure, per AGENTS.md's
-      stack note).
+      include-description toggle + window (minutes). Also done:
+      `FireflyApiClient.listAssetAccounts()`/`createTransaction()` and
+      their request/response plumbing (`FireflyAccount`,
+      `FireflyTransactionRequest`, `FireflyJson` - see
+      ARCHITECTURE.md), verified against Firefly's OpenAPI spec, not
+      guessed. Nothing calls either yet - no UI wires to them.
+    - **Not done yet**: the rule editor's asset-side account field
+      (source for WITHDRAWAL, destination for DEPOSIT, both for
+      TRANSFER) needs to become a pick-from-`listAssetAccounts()`
+      field instead of a free-text macro template, since Firefly's API
+      only auto-creates the *counterparty* side (expense/revenue) by
+      name - the asset side must already exist; a local "created
+      transactions" log (hash + source notification + Firefly
+      transaction id, the latter from `createTransaction()`'s return
+      value) for both the dedup check and an "already created" state;
+      the "Создать" button itself on the Messages screen's test-match
+      dialog, which is what actually calls `createTransaction()` for
+      the first time; the auto-create path (WorkManager retry on
+      failure, per AGENTS.md's stack note).
     - Once full posting exists, it needs an automatic-posting setting
       (**done** - see above) *and* a transaction-level dedup option
       (**done** - see above) - two different problems from
