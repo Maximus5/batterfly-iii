@@ -110,6 +110,45 @@ work.
   way it is). A fullscreen *setting* just needs to make that padding
   conditional (skip it, or only reserve space for one bar) rather than
   redo the insets plumbing.
+- Template fields (description/notes/category/tags/account names) have
+  no conditional logic - only flat `{macro}` substitution. Raised by
+  the user: sometimes only *one* field should vary depending on what a
+  group captured (e.g. a tag that says "foreign" only when `currency`
+  isn't the home currency), and duplicating the whole rule just to
+  change that one field is wasteful when everything else (pattern,
+  accounts, description, ...) would be identical between the two
+  copies - unlike varying by *app* or *kind*, which already has a
+  natural home as separate rules (list-order priority already handles
+  "try rule A, then B" - this is a different, smaller-grained need:
+  one field, one rule, conditional content). An `{if ...}...{else}...
+  {endif}` block was proposed. Not implemented - this is a real jump
+  in complexity, not a small addition, and needs these decided first:
+  - Condition scope: just "did this group capture a non-blank value"
+    (covers the common case, e.g. `{if counterparty}...{endif}` to
+    only show something when that group actually matched), or real
+    comparisons too (`{if currency != "EUR"}` - needed for the
+    "foreign" tag example above, but is a small expression grammar of
+    its own: `==`/`!=` against a literal at minimum, quoting rules,
+    whitespace handling).
+  - Syntax has to be unambiguous against both plain `{macroName}`
+    substitution and the `{{escaped}}` literal-brace proposal in the
+    entry above - probably wants its own delimiter shape (e.g.
+    `{if:expr}`/`{else}`/`{endif}`, Handlebars-style `{{#if}}`, or
+    similar) rather than reusing bare `{word}`, so a parser can tell
+    "this is a control token" apart from "this is a macro name" without
+    guessing.
+  - This stops being a single regex pass (`MacroTemplate.kt` today) and
+    becomes an actual small block parser - unmatched/nested
+    `if`/`endif`, whether `{else}` is required, whether nesting is
+    allowed at all for v1 - each needs an explicit answer and its own
+    test coverage, not just "whatever the regex happens to do".
+  - `validateRule`/`templateMacroNames` need to parse control tokens
+    too, so `if`/`else`/`endif`/the condition expression itself aren't
+    mistaken for macro names and flagged as "unknown macro".
+  - The rule editor's insert-macro picker (the "<>" button) only knows
+    how to insert a bare `{name}` today - inserting a whole `{if}...
+    {else}...{endif}` skeleton would need its own UI entry point, not
+    just another row in that same list.
 - Only English and Russian are localized
   (`values/strings.xml` and `values-ru/strings.xml`). Default/base is
   English; add more `values-<lang>/strings.xml` as needed, keep
