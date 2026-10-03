@@ -76,6 +76,10 @@
     <string name="rule_available_macros">Available macros: %1$s</string>
     <string name="rule_insert_macro">Insert macro</string>
     <string name="rule_pick_currency">Pick currency</string>
+    <string name="rule_pick_account">Pick account</string>
+    <string name="rule_firefly_not_configured">Connect Firefly III in Settings first.</string>
+    <string name="rule_firefly_accounts_failed">Couldn\'t load accounts: %1$s</string>
+    <string name="rule_firefly_no_accounts">No asset accounts found in Firefly.</string>
     <string name="rule_field_description_template">Description template</string>
     <string name="rule_field_notes_template">Notes template</string>
     <string name="rule_field_category_template">Category template</string>

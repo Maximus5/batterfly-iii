@@ -101,6 +101,13 @@ code alone:
   same as they would in a description template - a plain name with no
   `{}` in it is just a fixed value, same "templates are a strict
   superset of plain strings" reasoning as the other template fields.
+  This is still true at the data level - `ParseRule`/`RuleEngine` treat
+  both fields identically, no model-level "which side is the asset"
+  concept exists. The *editor* now constrains one side per `RuleKind`
+  to a Firefly-asset-account picker instead of free macro text (see the
+  `RuleEditFragment`/`FireflyApiClient` notes below) - a UI-level
+  requirement driven by what Firefly's own API will actually accept,
+  not a `ParseRule` shape change.
   A rule only ever picks from the *monitored* apps list (not every
   installed app) in the UI - it can't match anything else anyway.
 
@@ -531,16 +538,41 @@ Single `:app` module, packages under
       Then the live
       "available macros" hint from `parser.namedGroupNames`, then
       *source/destination account* (moved here, below the regex, from
-      the identity-fields group above - now that they're macro
-      templates (see the `RuleKind` note above) they only make sense
-      once you're thinking about what the regex extracts, same
-      reasoning `homeCurrency` already had), then `homeCurrency`
-      (labeled "Account currency" in the UI - "Currency" alone read as
-      ambiguous once cross-currency transactions came up in discussion:
-      it's the *account's* currency, a fixed comparison value, not
-      "whatever currency this transaction happens to be in"), then the
-      rest of the templates.
-      Every macro-template field (both account fields,
+      the identity-fields group above - once they're macro templates
+      they only make sense once you're thinking about what the regex
+      extracts, same reasoning `homeCurrency` already had), then
+      `homeCurrency` (labeled "Account currency" in the UI - "Currency"
+      alone read as ambiguous once cross-currency transactions came up
+      in discussion: it's the *account's* currency, a fixed comparison
+      value, not "whatever currency this transaction happens to be
+      in"), then the rest of the templates.
+      Source/destination each switch between *two different* end-icon
+      behaviors depending on `selectedKind`
+      (`RuleEditFragment.updateAccountFieldModes`, called on kind change
+      and once right after `populateFields`) - which side is the
+      *asset* account Firefly requires to already exist versus the
+      *counterparty* side Firefly auto-creates by name (see the
+      `FireflyApiClient` note above for why this split exists at all):
+      WITHDRAWAL source=asset/destination=counterparty, DEPOSIT
+      source=counterparty/destination=asset, TRANSFER both=asset. The
+      counterparty side keeps the macro-template behavior description/
+      notes/category/tags already had (`ic_insert_macro`,
+      `showMacroPicker`, `Editable.replace` at the cursor, not
+      `setText` - the field may have other text around where the macro
+      goes; also offers the current app's name as a plain literal
+      string, not a `{macro}`, see the `{appname}` removal note above).
+      The asset side gets the *same* end icon `homeCurrency` already
+      had (`ic_dropdown`) but over `FireflyApiClient.listAssetAccounts()`
+      instead of `CurrenciesDb` - `setText`s the whole field on pick,
+      same "this holds one fixed value, not a template to build up
+      piece by piece" reasoning, fetched once per screen session and
+      cached in `RuleEditFragment.assetAccounts` (a personal Firefly
+      instance's account list doesn't change often enough to justify a
+      network call on every picker tap) rather than failing the whole
+      screen when Firefly isn't configured yet, this just falls back to
+      a Toast and leaves the field free-typeable - the rule can still be
+      drafted and fixed up once a connection exists.
+      Every macro-template field (the counterparty account side plus
       description/notes/category/tags - *not* `homeCurrency`, which
       `renderTemplate` never touches: `RuleEngine` compares the captured
       currency *against* it literally to decide local vs. foreign
@@ -551,24 +583,19 @@ Single `:app` module, packages under
       that opens a picker (`RuleEditFragment.showMacroPicker`) over the
       currently declared macros (the pattern's named groups plus
       `FIXED_MACROS`) *plus* the current app's name as a plain literal
-      string (not a `{macro}` - see the `{appname}` removal note above)
-      and inserts the picked text at the current cursor
-      position/selection in that field - an `Editable.replace`, not
-      `setText`, so it doesn't clobber whatever else is already typed
-      there. The end icon tap (and the picker dialog it opens) moves
-      focus off the field, so insertion explicitly calls
-      `requestFocus()` + `setSelection(insertAt + text.length)`
-      afterward - without it the cursor was left stranded wherever it
-      happened to be instead of right after what was just inserted.
-      Saves having to hand-type e.g. `{currency}` and getting the
-      spelling wrong.
-      `homeCurrency` gets a *different* end icon
-      (`ic_dropdown`, `RuleEditFragment.showCurrencyPicker`) - a plain
-      list of the user-maintained `CurrenciesDb` codes (e.g. "EUR (€)"),
-      picking one `setText`s the whole field rather than inserting at a
-      cursor, since this field holds one fixed value, not a template to
-      build up piece by piece. Saves a typo turning into a currency
-      `normalizeCurrency` never recognizes.
+      string and inserts the picked text at the current cursor
+      position/selection in that field. The end icon tap (and the
+      picker dialog it opens) moves focus off the field, so insertion
+      explicitly calls `requestFocus()` +
+      `setSelection(insertAt + text.length)` afterward - without it the
+      cursor was left stranded wherever it happened to be instead of
+      right after what was just inserted. Saves having to hand-type
+      e.g. `{currency}` and getting the spelling wrong.
+      `homeCurrency` gets the dropdown end icon too
+      (`RuleEditFragment.showCurrencyPicker`) - a plain list of the
+      user-maintained `CurrenciesDb` codes (e.g. "EUR (€)"). Saves a
+      typo turning into a currency `normalizeCurrency` never
+      recognizes.
       Every `TextInputLayout` on this form (and on
       `AddTestMessageFragment`'s) sets `app:expandedHintEnabled="false"`
       so the field label always sits in the compact/floating position -

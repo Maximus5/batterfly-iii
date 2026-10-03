@@ -13,13 +13,19 @@ import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
+import com.google.android.material.textfield.TextInputLayout
 import io.github.maximus5.ffnotifyimporter.R
 import io.github.maximus5.ffnotifyimporter.data.CapturedMessage
 import io.github.maximus5.ffnotifyimporter.data.MessageStore
 import io.github.maximus5.ffnotifyimporter.databinding.FragmentRuleEditBinding
+import io.github.maximus5.ffnotifyimporter.network.FireflyAccount
+import io.github.maximus5.ffnotifyimporter.network.FireflyApiClient
 import io.github.maximus5.ffnotifyimporter.notifications.AppLabelResolver
 import io.github.maximus5.ffnotifyimporter.parser.namedGroupNames
+import io.github.maximus5.ffnotifyimporter.prefs.FireflyPrefs
 import io.github.maximus5.ffnotifyimporter.prefs.MonitoredAppsPrefs
 import io.github.maximus5.ffnotifyimporter.rules.CurrenciesDb
 import io.github.maximus5.ffnotifyimporter.rules.FIXED_MACROS
@@ -29,6 +35,7 @@ import io.github.maximus5.ffnotifyimporter.rules.RuleEngine
 import io.github.maximus5.ffnotifyimporter.rules.RuleKind
 import io.github.maximus5.ffnotifyimporter.rules.RulesDb
 import io.github.maximus5.ffnotifyimporter.rules.validateRule
+import kotlinx.coroutines.launch
 
 /** Create (ruleId == null) or edit (ruleId != null) one [ParseRule]. */
 class RuleEditFragment : Fragment() {
@@ -41,6 +48,12 @@ class RuleEditFragment : Fragment() {
     private var monitoredApps: List<Pair<String, String>> = emptyList()
     private var selectedPackageName: String? = null
     private var selectedKind: RuleKind = RuleKind.WITHDRAWAL
+
+    /** Fetched once per screen session on first use, not re-fetched on every picker tap - a
+     * personal Firefly instance's asset account list changes rarely enough that a stale cache
+     * for the rest of this one editing session is an acceptable trade for not hitting the
+     * network every time. */
+    private var assetAccounts: List<FireflyAccount>? = null
 
     private val kindOrder = listOf(RuleKind.WITHDRAWAL, RuleKind.DEPOSIT, RuleKind.TRANSFER)
 
@@ -80,6 +93,7 @@ class RuleEditFragment : Fragment() {
 
         setupMacroInsertButtons()
         updateAvailableMacros()
+        updateAccountFieldModes()
     }
 
     /** Picks from the user-maintained code<->symbol table (Settings -> Currencies) instead of
@@ -97,18 +111,17 @@ class RuleEditFragment : Fragment() {
     }
 
     /**
-     * Every template field (anything below the regex field that's macro-driven - account names,
-     * description/notes/category/tags) gets a custom end icon that inserts a `{name}` macro at
-     * the cursor, instead of requiring it to be typed out by hand. Deliberately an insert at the
-     * current selection, not a `setText` - the field may already have other text around where the
-     * macro goes. Not home currency - that's a plain comparison value, not a template, and has
-     * its own end icon ([showCurrencyPicker]) that `setText`s the whole field instead.
+     * The always-macro template fields (description/notes/category/tags - never the asset side
+     * of an account pair, see [updateAccountFieldModes]) get a custom end icon that inserts a
+     * `{name}` macro at the cursor, instead of requiring it to be typed out by hand. Deliberately
+     * an insert at the current selection, not a `setText` - the field may already have other text
+     * around where the macro goes. Not home currency - that's a plain comparison value, not a
+     * template, and has its own end icon ([showCurrencyPicker]) that `setText`s the whole field
+     * instead.
      */
     private fun setupMacroInsertButtons() {
         val binding = binding ?: return
         val targets = listOf(
-            binding.sourceAccountLayout to binding.sourceAccountInput,
-            binding.destinationAccountLayout to binding.destinationAccountInput,
             binding.descriptionTemplateLayout to binding.descriptionTemplateInput,
             binding.notesTemplateLayout to binding.notesTemplateInput,
             binding.categoryTemplateLayout to binding.categoryTemplateInput,
@@ -117,6 +130,85 @@ class RuleEditFragment : Fragment() {
         targets.forEach { (layout, input) ->
             layout.setEndIconOnClickListener { showMacroPicker(input) }
         }
+    }
+
+    /**
+     * Source/destination each switch between two different end-icon behaviors depending on
+     * [selectedKind] - which side is the *asset* account Firefly requires to already exist
+     * (picked from [showAccountPicker], `setText`s the whole field) versus the *counterparty*
+     * side Firefly auto-creates by name (stays a `{macro}` template, [showMacroPicker], same as
+     * description/notes/etc): WITHDRAWAL source=asset/destination=counterparty, DEPOSIT
+     * source=counterparty/destination=asset, TRANSFER both=asset (Firefly requires an existing
+     * asset account on both ends of a transfer - see TODO.md/ARCHITECTURE.md for the API
+     * behavior this is built on).
+     */
+    private fun updateAccountFieldModes() {
+        val binding = binding ?: return
+        val (sourceIsAsset, destinationIsAsset) = when (selectedKind) {
+            RuleKind.WITHDRAWAL -> true to false
+            RuleKind.DEPOSIT -> false to true
+            RuleKind.TRANSFER -> true to true
+        }
+        setAccountFieldMode(binding.sourceAccountLayout, binding.sourceAccountInput, sourceIsAsset)
+        setAccountFieldMode(binding.destinationAccountLayout, binding.destinationAccountInput, destinationIsAsset)
+    }
+
+    private fun setAccountFieldMode(layout: TextInputLayout, input: EditText, isAsset: Boolean) {
+        val context = requireContext()
+        if (isAsset) {
+            layout.endIconDrawable = ContextCompat.getDrawable(context, R.drawable.ic_dropdown)
+            layout.endIconContentDescription = getString(R.string.rule_pick_account)
+            layout.setEndIconOnClickListener { showAccountPicker(input) }
+        } else {
+            layout.endIconDrawable = ContextCompat.getDrawable(context, R.drawable.ic_insert_macro)
+            layout.endIconContentDescription = getString(R.string.rule_insert_macro)
+            layout.setEndIconOnClickListener { showMacroPicker(input) }
+        }
+    }
+
+    /** Picks from Firefly's real asset accounts ([FireflyApiClient.listAssetAccounts]) instead of
+     * free-typing a name that has to match one exactly - Firefly only auto-creates the
+     * *counterparty* side of a transaction by name, this side must already exist (see
+     * [updateAccountFieldModes]). Falls back to a Toast, not a blocked field, when Firefly isn't
+     * configured yet - the rule can still be drafted and fixed up once it is. */
+    private fun showAccountPicker(target: EditText) {
+        val context = requireContext()
+        val prefs = FireflyPrefs(context)
+        if (!prefs.isConfigured()) {
+            Toast.makeText(context, R.string.rule_firefly_not_configured, Toast.LENGTH_LONG).show()
+            return
+        }
+
+        val cached = assetAccounts
+        if (cached != null) {
+            showAccountPickerDialog(target, cached)
+            return
+        }
+        viewLifecycleOwner.lifecycleScope.launch {
+            when (val result = FireflyApiClient(prefs.getBaseUrl(), prefs.getToken()).listAssetAccounts()) {
+                is FireflyApiClient.Result.Success -> {
+                    assetAccounts = result.value
+                    showAccountPickerDialog(target, result.value)
+                }
+                is FireflyApiClient.Result.Failure ->
+                    Toast.makeText(
+                        context,
+                        getString(R.string.rule_firefly_accounts_failed, result.message),
+                        Toast.LENGTH_LONG,
+                    ).show()
+            }
+        }
+    }
+
+    private fun showAccountPickerDialog(target: EditText, accounts: List<FireflyAccount>) {
+        if (accounts.isEmpty()) {
+            Toast.makeText(requireContext(), R.string.rule_firefly_no_accounts, Toast.LENGTH_LONG).show()
+            return
+        }
+        AlertDialog.Builder(requireContext())
+            .setTitle(R.string.rule_pick_account)
+            .setItems(accounts.map { it.name }.toTypedArray()) { _, which -> target.setText(accounts[which].name) }
+            .show()
     }
 
     /**
@@ -156,7 +248,10 @@ class RuleEditFragment : Fragment() {
     private fun setupKindDropdown() {
         val binding = binding ?: return
         binding.kindInput.setSimpleItems(kindOrder.map { getString(it.labelRes()) }.toTypedArray())
-        binding.kindInput.setOnItemClickListener { _, _, position, _ -> selectedKind = kindOrder[position] }
+        binding.kindInput.setOnItemClickListener { _, _, position, _ ->
+            selectedKind = kindOrder[position]
+            updateAccountFieldModes()
+        }
     }
 
     private fun setupAppsDropdown() {

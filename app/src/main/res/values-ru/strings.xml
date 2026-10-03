@@ -76,6 +76,10 @@
     <string name="rule_available_macros">Доступные макросы: %1$s</string>
     <string name="rule_insert_macro">Вставить макрос</string>
     <string name="rule_pick_currency">Выбрать валюту</string>
+    <string name="rule_pick_account">Выбрать счёт</string>
+    <string name="rule_firefly_not_configured">Сначала подключите Firefly III в настройках.</string>
+    <string name="rule_firefly_accounts_failed">Не удалось загрузить счета: %1$s</string>
+    <string name="rule_firefly_no_accounts">В Firefly не найдено asset-счетов.</string>
     <string name="rule_field_description_template">Шаблон описания</string>
     <string name="rule_field_notes_template">Шаблон заметок</string>
     <string name="rule_field_category_template">Шаблон категории</string>
