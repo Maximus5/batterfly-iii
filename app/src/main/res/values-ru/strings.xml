@@ -88,8 +88,8 @@
     <string name="no_match_reason_no_rules_for_app">Нет правил для этого приложения.</string>
     <string name="no_match_reason_no_pattern_matched">Ни одно выражение не подошло.</string>
     <string name="no_match_reason_amount_unparsable">Сумму не удалось распознать.</string>
-    <string name="test_match_label_source">Источник:</string>
-    <string name="test_match_label_destination">Назначение:</string>
+    <string name="test_match_label_source">Счёт-источник:</string>
+    <string name="test_match_label_destination">Счёт назначения:</string>
     <string name="test_match_label_amount">Сумма:</string>
     <string name="test_match_amount_missing_value">(отсутствует, см. проблемы ниже)</string>
     <string name="test_match_label_foreign">Валютная сумма:</string>
