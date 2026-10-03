@@ -44,6 +44,54 @@ work.
           phones, not the same phone twice) - not blocking, but needs
           an explicit answer before building the dedup logic, not an
           assumption baked in silently.
+    - `LOCAL_AMOUNT_MISSING` (currency captured by the pattern differs
+      from the rule's `homeCurrency`, no explicit `foreignAmount`/
+      `foreignCurrency` groups to tell us the converted amount - e.g. a
+      CHF card tap on a EUR account) currently has no resolution story
+      beyond "flag it, don't guess" (see the cross-currency chat this
+      came out of). Revisited: looking up a real exchange rate and
+      computing an *approximate* `amount` is better than refusing to
+      post at all, verified against Firefly's own API/docs before
+      deciding this:
+        - Firefly III has its own Currency Exchange Rates API
+          (`GET /v1/exchange-rates/{from}/{to}/{date}`, plus `POST`
+          endpoints to store rates) - confirmed from its OpenAPI spec
+          and docs, not assumed. But its own rates only come from
+          manual entry or an auto-download that - per Firefly's own
+          docs - "only works for the default system provided
+          currencies," runs roughly weekly via cron, and never
+          backfills historical dates. **If Firefly has no rate for a
+          pair, it silently uses 1.0** - a correct-looking but
+          wildly-wrong "conversion" for anything but near-identical
+          currencies, with nothing in the response flagging it as a
+          fallback rather than a real rate. Relying on Firefly's own
+          calculation (just posting `foreign_amount` and letting
+          Firefly derive `amount`) is therefore not safe for an
+          arbitrary/less-common currency pair.
+        - What *is* safe, per the same docs: Firefly treats an
+          explicitly-supplied `foreign_amount` as authoritative over
+          anything it would calculate itself ("if you set a foreign
+          amount in your primary currency, that amount will be used
+          instead of any calculated amount"). So the plan is: fetch a
+          rate from an independent source *we* control - a free,
+          keyless, ECB-based API like Frankfurter is the obvious
+          starting candidate, not investigated in depth yet - compute
+          `amount` ourselves, and post both `amount` (our computed
+          guess) and `foreign_amount`/`foreign_currency_code` (the
+          real captured values) explicitly, rather than leaning on
+          Firefly's own exchange-rate table at all. Optionally also
+          `POST` the fetched rate back into Firefly's table as a
+          side-effect (harmless, and it means Firefly's own future
+          reports/calculations benefit too) - a nice-to-have, not a
+          dependency of the main flow.
+        - Open design question: a computed amount is an approximation
+          of a public market rate, not the bank's actual settled
+          amount (banks apply their own FX markup, and settlement can
+          lag the notification by a day or more) - needs some way to
+          mark the transaction as "amount approximated, verify later"
+          (a tag? a note? a Firefly-side flag?) rather than presenting
+          it with the same confidence as a same-currency transaction.
+          Not decided.
   - A way to reorder rules other than one-step-at-a-time up/down
     buttons (fine for a handful of rules; revisit - e.g. drag handles
     - if the list grows long enough to make that tedious).
