@@ -280,7 +280,11 @@ Single `:app` module, packages under
     `onCreateOptionsMenu` based on whether a selection-delete callback
     is currently set) via `MainActivity.enterSelectionMode`/
     `updateSelectionCount`/`exitSelectionMode`, which `MessagesFragment`
-    drives. This replaced a standard `androidx.appcompat.view.ActionMode`
+    drives. System back (button or gesture, not just the toolbar's own
+    up arrow) also cancels the selection instead of exiting the app -
+    an `OnBackPressedCallback` registered once in `onCreate`, enabled
+    only between `enterSelectionMode`/`exitSelectionMode` so normal
+    back behavior applies the rest of the time. This replaced a standard `androidx.appcompat.view.ActionMode`
     (`startSupportActionMode`) after a real, visible bug: with a
     manually-set `Toolbar` on a `NoActionBar` theme, AppCompat's
     `ActionMode` doesn't replace that toolbar - it renders its own

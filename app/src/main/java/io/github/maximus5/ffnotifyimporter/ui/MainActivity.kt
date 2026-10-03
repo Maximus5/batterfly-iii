@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
+import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import io.github.maximus5.ffnotifyimporter.R
 import io.github.maximus5.ffnotifyimporter.databinding.ActivityMainBinding
@@ -15,6 +16,15 @@ class MainActivity : AppCompatActivity() {
     private var onSelectionDelete: (() -> Unit)? = null
     private var onSelectionCancel: (() -> Unit)? = null
 
+    // Starts disabled (falls through to the default back behavior - exit) and is only enabled
+    // while a selection is active, so system back (button or gesture, not just the toolbar's own
+    // up arrow) cancels the selection instead of closing the app.
+    private val backPressedCallback = object : OnBackPressedCallback(false) {
+        override fun handleOnBackPressed() {
+            onSelectionCancel?.invoke()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
@@ -22,6 +32,7 @@ class MainActivity : AppCompatActivity() {
         useClassicSystemBars(binding.root)
 
         setSupportActionBar(binding.toolbar)
+        onBackPressedDispatcher.addCallback(this, backPressedCallback)
 
         if (savedInstanceState == null) {
             supportFragmentManager.beginTransaction()
@@ -65,6 +76,7 @@ class MainActivity : AppCompatActivity() {
     fun enterSelectionMode(count: Int, onDelete: () -> Unit, onCancel: () -> Unit) {
         onSelectionDelete = onDelete
         onSelectionCancel = onCancel
+        backPressedCallback.isEnabled = true
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         updateSelectionCount(count)
         invalidateOptionsMenu()
@@ -77,6 +89,7 @@ class MainActivity : AppCompatActivity() {
     fun exitSelectionMode() {
         onSelectionDelete = null
         onSelectionCancel = null
+        backPressedCallback.isEnabled = false
         supportActionBar?.setDisplayHomeAsUpEnabled(false)
         supportActionBar?.title = getString(R.string.app_name)
         invalidateOptionsMenu()
