@@ -9,10 +9,11 @@ class AppsAdapter(
     private val onMonitoredChanged: (packageName: String, monitored: Boolean) -> Unit,
 ) : RecyclerView.Adapter<AppsAdapter.ViewHolder>() {
 
-    private var items: List<AppEntry> = emptyList()
+    private val items = mutableListOf<AppEntry>()
 
     fun submitList(newItems: List<AppEntry>) {
-        items = newItems
+        items.clear()
+        items.addAll(newItems)
         notifyDataSetChanged()
     }
 
@@ -36,6 +37,12 @@ class AppsAdapter(
             binding.appMonitoredCheckbox.setOnCheckedChangeListener(null)
             binding.appMonitoredCheckbox.isChecked = entry.monitored
             binding.appMonitoredCheckbox.setOnCheckedChangeListener { _, isChecked ->
+                // Keep the backing item in sync so a recycled-and-rebound row (scroll away and
+                // back) doesn't snap back to the stale value it was first loaded with.
+                val position = bindingAdapterPosition
+                if (position != RecyclerView.NO_POSITION) {
+                    items[position] = items[position].copy(monitored = isChecked)
+                }
                 onMonitoredChanged(entry.packageName, isChecked)
             }
         }

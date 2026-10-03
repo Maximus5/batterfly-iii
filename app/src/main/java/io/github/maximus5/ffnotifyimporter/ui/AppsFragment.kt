@@ -114,7 +114,9 @@ class AppsFragment : Fragment() {
                     null
                 }
             }
-            .sortedBy { it.label.lowercase() }
+            // Monitored apps float to the top - otherwise it's hard to tell at a glance what's
+            // actually being watched in a list of a couple hundred installed apps.
+            .sortedWith(compareByDescending<AppEntry> { it.monitored }.thenBy { it.label.lowercase() })
     }
 
     override fun onDestroyView() {
