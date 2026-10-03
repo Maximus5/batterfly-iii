@@ -2,12 +2,26 @@
 <resources>
     <string name="app_name">FF Notify Importer</string>
 
-    <string name="tab_apps">Apps</string>
-    <string name="tab_messages">Messages</string>
-
     <string name="apps_empty">Could not load the list of installed apps</string>
     <string name="messages_empty">Nothing captured yet. Enable monitoring for the apps you care about and wait for a notification.</string>
 
     <string name="notification_access_missing">Notification access has not been granted. Monitoring will not work without it.</string>
     <string name="notification_access_grant">Open settings</string>
+
+    <string name="action_settings">Settings</string>
+
+    <string name="settings_monitored_apps_title">Monitored apps</string>
+    <string name="settings_monitored_apps_subtitle">Choose which apps\' notifications to watch</string>
+
+    <string name="settings_message_history_title">Message history</string>
+    <string name="settings_message_history_subtitle_off">Off — nothing saved to disk</string>
+    <string name="settings_message_history_subtitle_on_one">Keeping notifications for 1 day</string>
+    <string name="settings_message_history_subtitle_on_many">Keeping notifications for %1$d days</string>
+
+    <string name="message_history_explanation">When enabled, captured notifications are also saved on this device so they survive app updates and restarts. Turning this off deletes everything that was saved.</string>
+    <string name="message_history_option_off">Don\'t save (in-memory only)</string>
+    <string name="message_history_option_1">Keep for 1 day</string>
+    <string name="message_history_option_3">Keep for 3 days</string>
+    <string name="message_history_option_5">Keep for 5 days</string>
+    <string name="message_history_option_7">Keep for 7 days</string>
 </resources>

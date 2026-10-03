@@ -10,6 +10,7 @@
     </queries>
 
     <application
+        android:name=".FfNotifyImporterApp"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
@@ -24,6 +25,10 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name=".ui.SettingsActivity"
+            android:exported="false" />
 
         <service
             android:name=".notifications.BankNotificationListenerService"

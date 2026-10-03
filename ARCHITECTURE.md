@@ -17,15 +17,17 @@ Android app, no backend of its own:
    instance's REST API, using the base URL + personal access token the
    user entered in the app's settings screen.
 
-Nothing is persisted outside the device; Firefly III itself (not part
-of this repo) is the system of record for the resulting transactions.
+Nothing is ever sent off the device; Firefly III itself (not part of
+this repo) will be the system of record for the resulting
+transactions, once posting to it exists. Locally, message content is
+in-memory only by default - nothing written to disk - unless the user
+explicitly opts into on-device message history retention (see below).
 
-Current iteration (first milestone, landed): capture + dedup only -
-listen to notifications from a user-picked set of apps, collapse
-duplicates in memory, show them in a list. No rule matching, no
-Firefly III API calls yet (deliberately deferred, see TODO.md), and no
-persistence of any kind - single Gradle module `app`, Kotlin, classic
-Android Views (no Compose), minSdk 26.
+Current iteration (second milestone, landed): capture + dedup, a
+settings area (monitored apps + opt-in local history), still no rule
+matching and no Firefly III API calls yet (deliberately deferred, see
+TODO.md) - single Gradle module `app`, Kotlin, classic Android Views
+(no Compose), minSdk 26.
 
 Package: `io.github.maximus5.ffnotifyimporter`.
 
@@ -34,15 +36,35 @@ Package: `io.github.maximus5.ffnotifyimporter`.
 Single `:app` module, packages under
 `io.github.maximus5.ffnotifyimporter`:
 
-- `data` - `CapturedMessage` (app/title/text/timestamp) and
-  `MessageStore`, the in-memory, time-windowed dedup store. Pure
-  Kotlin, no Android dependency, so it's unit-testable
-  (`MessageStoreTest`) without instrumentation. `MessageStore.shared`
-  is the one instance used by both the listener service and the UI.
-- `prefs` - `MonitoredAppsPrefs`, a thin `SharedPreferences` wrapper
-  holding the set of package names the user chose to monitor. This is
-  configuration, not notification content, so (unlike captured
-  messages) it is persisted across restarts/reboots on purpose.
+- `data` - the core, Android-independent pure-Kotlin logic, unit
+  tested without instrumentation:
+  - `CapturedMessage` (app/title/text/timestamp).
+  - `MessageStore` - the in-memory, time-windowed dedup store
+    (`MessageStoreTest`). `MessageStore.shared` is the one instance
+    used by the listener service and the UI. `add` dedups and notifies
+    listeners; `restore` bulk-seeds already-deduplicated entries
+    (loaded from disk at startup) without re-running the dedup check;
+    the optional `onNewMessage` hook is how persistence attaches
+    itself without `MessageStore` knowing persistence exists.
+  - `MessageHistoryDb` - the on-disk mirror, plain `SQLiteOpenHelper`
+    (no ORM), one `messages` table. Only ever written to while
+    retention is enabled. `MessageHistoryDb.getInstance(context)` is
+    the one shared instance (a `SQLiteOpenHelper` per call would leak
+    connections).
+  - `RetentionController` (`RetentionControllerTest` for the pure
+    cutoff-date math) - wires `MessageStore` and `MessageHistoryDb`
+    together based on the user's retention setting.
+    `applyOnStartup` (called once, from `FfNotifyImporterApp`) may
+    call `MessageStore.restore`; `applyOnSettingChanged` (called from
+    the settings UI when the user changes the value mid-session) never
+    does, since `restore` has no dedup against what's already in
+    memory and calling it twice would duplicate entries already shown.
+- `prefs` - thin `SharedPreferences` wrappers for configuration (not
+  notification content, so - unlike captured messages by default -
+  persisted across restarts/reboots on purpose):
+  - `MonitoredAppsPrefs` - which package names to monitor.
+  - `RetentionPrefs` - local history retention in days; `0` (default)
+    means off/in-memory-only.
 - `notifications` - `BankNotificationListenerService`
   (`NotificationListenerService` subclass): for every posted
   notification, checks `MonitoredAppsPrefs`, pulls `EXTRA_TITLE`/
@@ -52,34 +74,63 @@ Single `:app` module, packages under
   notification-listener access manually in system settings - there is
   no runtime permission dialog for this, only
   `Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS`.
-- `ui` - `MainActivity` hosting a `ViewPager2` with two tabs:
-  - `AppsFragment` - lists every launchable installed app (via
-    `queryIntentActivities` on `ACTION_MAIN`/`CATEGORY_LAUNCHER`, which
-    needs the `<queries>` entry in the manifest to see apps on API
-    30+), with a checkbox per app that writes straight to
-    `MonitoredAppsPrefs`. Also shows a banner + button to jump to
-    notification-listener settings when access hasn't been granted.
-  - `MessagesFragment` - subscribes to `MessageStore.shared` while
-    visible (`onStart`/`onStop`) and renders the current snapshot,
-    newest first.
+- `ui`:
+  - `MainActivity` - home screen, just hosts `MessagesFragment` plus a
+    toolbar with a settings action. `MessagesFragment` subscribes to
+    `MessageStore.shared` while visible (`onStart`/`onStop`) and
+    renders the current snapshot, newest first.
+  - `SettingsActivity` - everything else, as a stack of fragments
+    pushed via plain `FragmentManager` back-stack transactions (no
+    Navigation Component - the flow is small and linear enough not to
+    need it): `SettingsRootFragment` (the menu: monitored apps,
+    message history, and later Firefly III connection / processing
+    rules / appearance, added one row at a time as each is built) ->
+    `AppsFragment` (reused as-is, just hosted here instead of a tab;
+    lists every launchable installed app via `queryIntentActivities`
+    on `ACTION_MAIN`/`CATEGORY_LAUNCHER`, which needs the `<queries>`
+    entry in the manifest to see apps on API 30+; loads on a
+    background dispatcher, only once the screen is actually opened,
+    not eagerly) or `MessageHistoryFragment` (the retention radio
+    group, writes to `RetentionPrefs` and calls
+    `RetentionController.applyOnSettingChanged`).
+  - `SystemBarInsets.kt` - `useClassicSystemBars(root)`, the shared
+    edge-to-edge-but-padded-back-to-classic logic both activities call
+    (see Known bugs/gotchas below for why it's done this way).
+- `FfNotifyImporterApp` (`Application` subclass, declared in the
+  manifest) - the one place startup wiring happens:
+  `RetentionController.applyOnStartup`.
 
 ## Data flow
 
 `NotificationListenerService.onNotificationPosted` (only for monitored
 packages) -> extract title/text -> `MessageStore.add` (dedups
-app+title+text within a 15-minute window, in-memory only) ->
-`MessagesFragment` re-renders via the store's listener callback. Rule
-matching and the Firefly III API call do not exist yet; they slot in
-after the dedup step, consuming the same `CapturedMessage`.
+app+title+text within a 15-minute window) -> `MessagesFragment`
+re-renders via the store's listener callback; if retention is enabled,
+`MessageStore`'s `onNewMessage` hook also mirrors the entry into
+`MessageHistoryDb` and prunes rows older than the retention window. On
+process start, `FfNotifyImporterApp` hydrates `MessageStore` from
+`MessageHistoryDb` if retention was left enabled. Rule matching and
+the Firefly III API call do not exist yet; they slot in after the
+dedup step, consuming the same `CapturedMessage`.
 
 ## Known bugs / gotchas
 
-- Not yet verified on a real device/emulator - this environment had no
-  `adb devices` target when the first milestone landed. Unit tests and
-  a full `assembleDebug` pass, but the notification listener itself
-  needs a real-device check (per AGENTS.md's workflow rule) before
-  trusting it.
+- Android 15+ (targetSdk 35+, which this app uses) forces the window
+  to draw edge-to-edge with no permanent opt-out -
+  `android:windowOptOutEdgeToEdgeEnforcement` looked like one but is
+  registered in the SDK's own resource table as a `STAGED_ID`
+  (AOSP's flag-guarded-API marker), and had zero effect on a real test
+  device despite matching Google's documented usage. `SystemBarInsets`
+  instead lets the window draw edge-to-edge (as the platform wants)
+  and manually pads the root view by `WindowInsetsCompat.Type
+  .systemBars()`, which doesn't depend on that flag at all and is
+  confirmed working on a real device.
 - `NotificationListenerService` access, once granted, can get silently
   revoked by some OEM battery-optimization/"app hibernation" features.
   No detection for that beyond the existing "is access enabled" banner
   check on resume.
+- The settings area (this milestone) hasn't had a real-device pass
+  yet - unit tests and `assembleDebug` pass, but opening each settings
+  screen, toggling retention, and confirming messages actually survive
+  an app restart with it on needs manual verification per AGENTS.md's
+  workflow rule.

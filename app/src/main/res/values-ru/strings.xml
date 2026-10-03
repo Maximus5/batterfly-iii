@@ -2,12 +2,26 @@
 <resources>
     <string name="app_name">FF Notify Importer</string>
 
-    <string name="tab_apps">Приложения</string>
-    <string name="tab_messages">Сообщения</string>
-
     <string name="apps_empty">Не удалось получить список приложений</string>
     <string name="messages_empty">Пока ничего не поймано. Включите мониторинг для нужных приложений и дождитесь уведомления.</string>
 
     <string name="notification_access_missing">Доступ к уведомлениям не выдан. Без него мониторинг не работает.</string>
     <string name="notification_access_grant">Открыть настройки</string>
+
+    <string name="action_settings">Настройки</string>
+
+    <string name="settings_monitored_apps_title">Приложения для мониторинга</string>
+    <string name="settings_monitored_apps_subtitle">Выберите, чьи уведомления отслеживать</string>
+
+    <string name="settings_message_history_title">История сообщений</string>
+    <string name="settings_message_history_subtitle_off">Выключено — ничего не сохраняется на диск</string>
+    <string name="settings_message_history_subtitle_on_one">Хранится 1 день</string>
+    <string name="settings_message_history_subtitle_on_many">Хранится %1$d дней</string>
+
+    <string name="message_history_explanation">Если включено, пойманные уведомления дополнительно сохраняются на устройстве, чтобы не теряться при обновлении приложения и перезапуске. При выключении все сохранённые данные удаляются.</string>
+    <string name="message_history_option_off">Не сохранять (только в памяти)</string>
+    <string name="message_history_option_1">Хранить 1 день</string>
+    <string name="message_history_option_3">Хранить 3 дня</string>
+    <string name="message_history_option_5">Хранить 5 дней</string>
+    <string name="message_history_option_7">Хранить 7 дней</string>
 </resources>

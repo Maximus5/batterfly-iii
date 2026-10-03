@@ -17,9 +17,18 @@ class MessageStore(
     private val messages = mutableListOf<CapturedMessage>()
     private val listeners = mutableListOf<(List<CapturedMessage>) -> Unit>()
 
+    /**
+     * Invoked (outside the lock) after a genuinely new message is recorded by [add] - used to
+     * mirror it to on-disk storage when the user has opted into message retention. Null by
+     * default, matching the original in-memory-only design: nothing persisted unless something
+     * explicitly wires this up.
+     */
+    var onNewMessage: ((CapturedMessage) -> Unit)? = null
+
     /** Returns true if a new entry was recorded, false if it was dropped as a duplicate. */
     fun add(packageName: String, appLabel: String, title: String, text: String): Boolean {
         val now = clock()
+        val recorded: CapturedMessage
         val snapshot: List<CapturedMessage>
         synchronized(lock) {
             val isDuplicate = messages.any { existing ->
@@ -29,11 +38,30 @@ class MessageStore(
                     now - existing.timestampMillis <= dedupWindowMillis
             }
             if (isDuplicate) return false
-            messages.add(0, CapturedMessage(packageName, appLabel, title, text, now))
+            recorded = CapturedMessage(packageName, appLabel, title, text, now)
+            messages.add(0, recorded)
             snapshot = messages.toList()
         }
         listeners.forEach { it(snapshot) }
+        onNewMessage?.invoke(recorded)
         return true
+    }
+
+    /**
+     * Bulk-seeds already-deduplicated entries (e.g. loaded from on-disk storage at startup)
+     * without re-running the live dedup check in [add] - they were deduplicated when first
+     * recorded. [historical] must be oldest-first; afterwards the newest one is at the front of
+     * the list, same ordering [add] produces. Does not touch [onNewMessage] - restoring is not
+     * the same as capturing something new.
+     */
+    fun restore(historical: List<CapturedMessage>) {
+        if (historical.isEmpty()) return
+        val snapshot: List<CapturedMessage>
+        synchronized(lock) {
+            historical.forEach { messages.add(0, it) }
+            snapshot = messages.toList()
+        }
+        listeners.forEach { it(snapshot) }
     }
 
     fun snapshot(): List<CapturedMessage> = synchronized(lock) { messages.toList() }

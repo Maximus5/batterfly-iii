@@ -68,4 +68,42 @@ class MessageStoreTest {
         assertEquals(2, received.size)
         assertEquals(1, received.last().size)
     }
+
+    @Test
+    fun `add invokes onNewMessage only for genuinely new entries`() {
+        val store = MessageStore(dedupWindowMillis = 1000, clock = { 0L })
+        val notified = mutableListOf<CapturedMessage>()
+        store.onNewMessage = { notified.add(it) }
+
+        store.add("bank.a", "Bank A", "Payment", "You spent 100")
+        store.add("bank.a", "Bank A", "Payment", "You spent 100") // duplicate, no callback
+
+        assertEquals(1, notified.size)
+        assertEquals("Payment", notified.single().title)
+    }
+
+    @Test
+    fun `restore seeds oldest-first input with newest ending up first`() {
+        val store = MessageStore(dedupWindowMillis = 1000, clock = { 0L })
+        val oldestFirst = listOf(
+            CapturedMessage("bank.a", "Bank A", "Oldest", "text", timestampMillis = 1),
+            CapturedMessage("bank.a", "Bank A", "Middle", "text", timestampMillis = 2),
+            CapturedMessage("bank.a", "Bank A", "Newest", "text", timestampMillis = 3),
+        )
+
+        store.restore(oldestFirst)
+
+        assertEquals(listOf("Newest", "Middle", "Oldest"), store.snapshot().map { it.title })
+    }
+
+    @Test
+    fun `restore does not invoke onNewMessage`() {
+        val store = MessageStore(dedupWindowMillis = 1000, clock = { 0L })
+        val notified = mutableListOf<CapturedMessage>()
+        store.onNewMessage = { notified.add(it) }
+
+        store.restore(listOf(CapturedMessage("bank.a", "Bank A", "Payment", "text", 1)))
+
+        assertTrue(notified.isEmpty())
+    }
 }
