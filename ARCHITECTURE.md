@@ -42,7 +42,18 @@ description/notes templates) lives, on top of what `parser` extracts.
 Other decisions worth remembering because they're not obvious from the
 code alone:
 - A notification is always matched as `title + "\n" + body` in one
-  regex - never title and body matched separately.
+  regex - never title and body matched separately. `extractGroups`
+  compiles with `RegexOption.DOT_MATCHES_ALL` so a plain `.`/`.*`/`.+`
+  in the pattern can cross that joining newline too - without it, a
+  pattern expecting to span "the notification text" (as the rule
+  editor's field hint literally promises: "matched against title +
+  text") would silently fail to match whenever what it's trying to
+  span happens to land on both sides of the title/body boundary, for a
+  reason invisible from the pattern text itself (real case: `Zahlung.*?
+  (?<amount>...)` never matched because "Zahlung" was in the title and
+  the amount was in the body). `validateRule`'s trial-compile uses the
+  same option, so a pattern that's only invalid without it never slips
+  through as "valid" at save time.
 - No per-rule `counterparty` title/text fallback logic - counterparty
   extraction is just whatever the pattern's `counterparty` group
   captures from the combined input; if a bank puts it in the title,
@@ -325,25 +336,35 @@ Single `:app` module, packages under
       my regex actually capture what I want" is asking
       (`ParseOutcome.Matched.groups` exposes the raw capture map for
       exactly this); the summary line ("N match(es) found (scanned M)")
-      sits above the list as the dialog's `setMessage`, which
-      `AlertDialog` happily combines with a `setAdapter` list below it.
-      All three of "pick existing"/"pick message"/"test"'s results
-      render through a shared `PickerItemAdapter`
-      (`item_picker_two_line.xml` + `bg_picker_item.xml`, a thin
-      `?attr/colorOutlineVariant` stroke - a Material3 token so it
-      survives light/dark theme switches rather than a hardcoded hex -
-      around each row, with outer *padding* not *margin* creating the
-      gap between rows, since `ListView` silently drops margins on a
-      row's root view) instead of plain `AlertDialog.setItems`/
-      `setMessage` text: each row is a bold header line over a
+      sits above the match rows.
+      "pick existing" and "pick message" render their lists through a
+      shared `PickerItemAdapter` (`item_picker_two_line.xml` +
+      `bg_picker_item.xml`, a thin `?attr/colorOutlineVariant` stroke -
+      a Material3 token so it survives light/dark theme switches rather
+      than a hardcoded hex - around each row, with outer *padding* not
+      *margin* creating the gap between rows, since `ListView` silently
+      drops margins on a row's root view) instead of plain
+      `AlertDialog.setItems` text: each row is a bold header line over a
       normal-weight body line, with the pattern picker's body
       additionally forced to `Typeface.MONOSPACE` (matching the regex
-      field itself) - the message/test-result pickers' bodies stay the
-      default typeface since raw notification text/captured values
-      aren't code. Before this, header and body (and, for "test", every
-      match) rendered as one undifferentiated block of text with
-      `"──────────"` text separators between matches - no visible
-      boundary between a row's two lines or between separate rows.
+      field itself) - the message picker's body stays the default
+      typeface since raw notification text isn't code. "test" reuses the
+      *same* row layout (via a shared `bindPickerItemRow` helper, not
+      `PickerItemAdapter` itself) but can't use `setAdapter` for it -
+      `AlertDialog.Builder`'s `setMessage` and `setAdapter` don't
+      actually combine despite looking like independent content slots:
+      setting both silently drops the adapter's list, rendering only the
+      message (shipped broken this way for one version - v0.26 - before
+      being caught). Fixed by building a plain custom view instead
+      (`dialog_test_results.xml`: a `ScrollView` > `LinearLayout`) with
+      the summary `TextView` and each match's inflated
+      `item_picker_two_line` row added to it programmatically, passed to
+      `setView`. `MAX_TEST_MATCHES` keeps this list short enough that
+      `ListView`'s view-recycling would add nothing here anyway. Before
+      any of this, header/body/separate matches all rendered as one
+      undifferentiated block of text with `"──────────"` separators -
+      no visible boundary between a row's two lines or between separate
+      rows.
       Then the live
       "available macros" hint from `parser.namedGroupNames`, then
       *source/destination account* (moved here, below the regex, from
