@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">FF Notify Importer</string>
+    <string name="app_name">Firefly III Notification Importer</string>
 
     <string name="apps_empty">Could not load the list of installed apps</string>
     <string name="messages_empty">Nothing captured yet. Enable monitoring for the apps you care about and wait for a notification.</string>
