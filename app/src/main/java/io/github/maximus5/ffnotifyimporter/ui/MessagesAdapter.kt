@@ -1,6 +1,7 @@
 package io.github.maximus5.ffnotifyimporter.ui
 
 import android.graphics.Color
+import android.text.format.DateFormat
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
@@ -17,7 +18,6 @@ class MessagesAdapter(
 
     private var items: List<CapturedMessage> = emptyList()
     private val selected = mutableSetOf<CapturedMessage>()
-    private val timeFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
 
     fun submitList(newItems: List<CapturedMessage>) {
         items = newItems
@@ -54,9 +54,21 @@ class MessagesAdapter(
     inner class ViewHolder(private val binding: ItemMessageBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
+        // android.text.format.DateFormat (not java.text's) so the date respects the device's
+        // actual date/time settings (region's date order, 12h/24h clock) instead of guessing
+        // from locale alone. Seconds are kept (unlike the system clock's own display) since
+        // near-duplicate notifications from different apps for the same payment have shown up
+        // seconds apart - losing that precision would make them look identical in this list.
+        private val dateFormat = DateFormat.getDateFormat(binding.root.context)
+        private val timeFormat = SimpleDateFormat(
+            if (DateFormat.is24HourFormat(binding.root.context)) "HH:mm:ss" else "h:mm:ss a",
+            Locale.getDefault(),
+        )
+
         fun bind(message: CapturedMessage) {
             binding.messageAppLabel.text = message.appLabel
-            binding.messageTime.text = timeFormat.format(Date(message.timestampMillis))
+            val timestamp = Date(message.timestampMillis)
+            binding.messageTime.text = "${dateFormat.format(timestamp)} ${timeFormat.format(timestamp)}"
             binding.messageTitle.text = message.title
             binding.messageText.text = message.text
             binding.root.setBackgroundColor(
