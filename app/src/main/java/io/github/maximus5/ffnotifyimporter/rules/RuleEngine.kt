@@ -65,9 +65,9 @@ class RuleEngine(
         // Renders to a non-empty value, or null (field wasn't set / rendered empty). Used for
         // every field that's "this or nothing" rather than always-a-string.
         fun renderOptional(template: String) =
-            renderTemplate(template, groups, message.title, message.text).trim().takeIf { it.isNotEmpty() }
+            renderTemplate(template, groups, message.title, message.text, message.appLabel).trim().takeIf { it.isNotEmpty() }
 
-        val tags = renderTemplate(rule.tagsTemplate, groups, message.title, message.text)
+        val tags = renderTemplate(rule.tagsTemplate, groups, message.title, message.text, message.appLabel)
             .split(",")
             .map { it.trim() }
             .filter { it.isNotEmpty() }
@@ -81,8 +81,8 @@ class RuleEngine(
             foreignCurrencyCode = foreignCurrency,
             sourceName = renderOptional(rule.sourceAccountName),
             destinationName = renderOptional(rule.destinationAccountName),
-            description = renderTemplate(rule.descriptionTemplate, groups, message.title, message.text),
-            notes = renderTemplate(rule.notesTemplate, groups, message.title, message.text),
+            description = renderTemplate(rule.descriptionTemplate, groups, message.title, message.text, message.appLabel),
+            notes = renderTemplate(rule.notesTemplate, groups, message.title, message.text, message.appLabel),
             category = renderOptional(rule.categoryTemplate),
             tags = tags,
             issues = issues,

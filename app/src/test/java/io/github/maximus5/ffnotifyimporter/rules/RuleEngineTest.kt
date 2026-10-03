@@ -162,6 +162,17 @@ class RuleEngineTest {
     }
 
     @Test
+    fun `appname macro renders the captured message's app label`() {
+        val r = rule(
+            pattern = """spent (?<amount>[\d,]+) EUR""",
+            descriptionTemplate = "{appname}",
+        )
+        val outcome = RuleEngine(listOf(r)).match(message()) as ParseOutcome.Matched
+
+        assertEquals("Bank App", outcome.draft.description)
+    }
+
+    @Test
     fun `category and tags templates render and tags split on comma`() {
         val r = rule(
             pattern = """spent (?<amount>[\d,]+) EUR at (?<counterparty>.+)""",

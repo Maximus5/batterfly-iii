@@ -27,7 +27,7 @@ fun validateRule(rule: ParseRule): List<String> {
         errors += "Pattern must define group '${Groups.AMOUNT}'"
     }
 
-    val validMacros = declaredGroups.toSet() + setOf("title", "body")
+    val validMacros = declaredGroups.toSet() + FIXED_MACROS
     val usedMacros = templateMacroNames(rule.sourceAccountName) +
         templateMacroNames(rule.destinationAccountName) +
         templateMacroNames(rule.descriptionTemplate) +
