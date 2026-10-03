@@ -1,4 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.FfNotifyImporter" parent="Theme.Material3.DayNight.NoActionBar" />
+    <!--
+      Android 15+ (targetSdk 35+) force edge-to-edge regardless of the old
+      WindowCompat.setDecorFitsSystemWindows(window, true) call in MainActivity - that call alone
+      is no longer enough. This theme attribute (API 35+, ignored on older OS versions where it's
+      not needed anyway) is the actual opt-out. It's officially a *temporary* escape hatch Google
+      says may stop working in a future Android release - see TODO.md.
+    -->
+    <style name="Theme.FfNotifyImporter" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="android:windowOptOutEdgeToEdgeEnforcement">true</item>
+    </style>
 </resources>

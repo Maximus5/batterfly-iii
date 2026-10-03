@@ -23,11 +23,19 @@ work.
   memory pressure, not just on reboot.
 - `ic_launcher` is a placeholder vector icon, not a real app icon.
 - Optional fullscreen/edge-to-edge mode as a user setting. Default is
-  now non-fullscreen (`WindowCompat.setDecorFitsSystemWindows(window,
-  true)` in `MainActivity`, added because targetSdk 35+ forces
-  edge-to-edge by default and that broke tab switching - see next
-  item); if an edge-to-edge mode is ever added as an opt-in setting,
-  it needs its own insets handling, not just removing that call.
+  now non-fullscreen, via two things together: the
+  `android:windowOptOutEdgeToEdgeEnforcement` theme attribute
+  (`values/themes.xml`) - the actual opt-out on Android 15+/targetSdk
+  35+, where edge-to-edge is forced and the old
+  `WindowCompat.setDecorFitsSystemWindows(window, true)` call alone
+  (still in `MainActivity`, harmless, matters pre-35) is not enough on
+  its own. Google documents `windowOptOutEdgeToEdgeEnforcement` as a
+  *temporary* escape hatch that may stop working in a future Android
+  release - if it does, this whole area needs a real fix (proper
+  `WindowInsets`-based edge-to-edge support, not another opt-out), not
+  just finding a new flag. If an edge-to-edge mode is ever added as an
+  opt-in setting, it needs that same proper insets handling - see next
+  item.
 - Tab switching (`ViewPager2`/`TabLayout` in `MainActivity`) was
   broken in edge-to-edge/fullscreen mode - the status bar and
   gesture-nav areas overlapped the tab strip and the swipe area and
