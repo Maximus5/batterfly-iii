@@ -11,12 +11,27 @@ work.
   real device (see the on-device verification item below). Still
   deliberately missing:
   - The Firefly III API client/actual transaction posting - `rules`
-    deliberately has no dependency on this; `ParseRule.accountName`/
-    `homeCurrency` are free-text placeholders until it exists (see
-    next item).
+    deliberately has no dependency on this; `ParseRule.sourceAccountName`/
+    `destinationAccountName`/`homeCurrency` are free-text placeholders
+    until it exists (see next item).
   - A way to reorder rules other than one-step-at-a-time up/down
     buttons (fine for a handful of rules; revisit - e.g. drag handles
     - if the list grows long enough to make that tedious).
+  - Export/import buttons on the Rules screen (backup, move rules to
+    another device, share a rule). Format: JSON is the pick - `org.json`
+    is already in the Android framework (no new dependency, matches
+    the project's house style of avoiding them), diffs/version-controls
+    fine, and is a natural fit for Android's share sheet/Storage Access
+    Framework for save-to-file and open-from-file. YAML would read
+    nicer for hand-editing (comments, less punctuation) but Android has
+    no built-in parser - would mean pulling in snakeyaml or similar
+    just for this. XML has a built-in parser too but is more verbose,
+    and the regex patterns (full of special characters) are uglier to
+    escape as XML attribute/text content than as JSON strings. A binary
+    format is a clear no - the whole point of export/import is
+    backup/portability/occasionally-eyeballing-it, which an opaque
+    binary blob works against, and it's needlessly fragile across
+    schema changes to boot.
 - Firefly III connection settings screen (base URL + personal access
   token, entered by the user, stored on-device per AGENTS.md's Secrets
   section - never hardcoded, never committed) - not built yet, just a
