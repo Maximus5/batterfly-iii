@@ -30,6 +30,21 @@ class NamedGroupMatcherTest {
     }
 
     @Test
+    fun `a plain dot also crosses the title-body newline, no literal newline needed in the pattern`() {
+        // Real case that prompted DOT_MATCHES_ALL: "Zahlung" is in the title, the amount is on
+        // the body line - without DOTALL, `.*?` can't reach past the title's own line ending.
+        val pattern =
+            """Zahlung.*?(?<amount>[\d.,]+)\s*(?<currency>[A-Z]{3}|[€£$]).*?(?:an)\s+(?<counterparty>.+?)\sgezahlt\.?$"""
+        val combined = "Zahlung erfolgreich\nSie haben 45,30 € an Shop 5678 GmbH gezahlt."
+
+        val groups = extractGroups(pattern, combined)
+
+        assertEquals("45,30", groups?.get("amount"))
+        assertEquals("€", groups?.get("currency"))
+        assertEquals("Shop 5678 GmbH", groups?.get("counterparty"))
+    }
+
+    @Test
     fun `omits a declared group that matched but captured nothing`() {
         val pattern = """(?<amount>\d+)(?<currency>EUR)?"""
         val groups = extractGroups(pattern, "42")

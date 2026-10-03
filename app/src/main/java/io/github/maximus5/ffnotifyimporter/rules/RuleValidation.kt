@@ -20,7 +20,10 @@ fun validateRule(rule: ParseRule): List<String> {
         }
     }
 
-    runCatching { Regex(rule.pattern) }.onFailure { return errors + "Invalid regular expression: ${it.message}" }
+    // Same RegexOption as extractGroups uses at match time - compiled identically here so a
+    // pattern that's only invalid under one of the two never slips through as "valid".
+    runCatching { Regex(rule.pattern, RegexOption.DOT_MATCHES_ALL) }
+        .onFailure { return errors + "Invalid regular expression: ${it.message}" }
     val declaredGroups = namedGroupNames(rule.pattern)
 
     if (Groups.AMOUNT !in declaredGroups) {
