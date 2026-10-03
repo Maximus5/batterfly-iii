@@ -16,9 +16,13 @@ import io.github.maximus5.ffnotifyimporter.databinding.FragmentRuleEditBinding
 import io.github.maximus5.ffnotifyimporter.notifications.AppLabelResolver
 import io.github.maximus5.ffnotifyimporter.parser.namedGroupNames
 import io.github.maximus5.ffnotifyimporter.prefs.MonitoredAppsPrefs
+import io.github.maximus5.ffnotifyimporter.rules.CurrenciesDb
+import io.github.maximus5.ffnotifyimporter.rules.ParseOutcome
 import io.github.maximus5.ffnotifyimporter.rules.ParseRule
+import io.github.maximus5.ffnotifyimporter.rules.RuleEngine
 import io.github.maximus5.ffnotifyimporter.rules.RuleKind
 import io.github.maximus5.ffnotifyimporter.rules.RulesDb
+import io.github.maximus5.ffnotifyimporter.rules.TransactionDraft
 import io.github.maximus5.ffnotifyimporter.rules.validateRule
 
 /** Create (ruleId == null) or edit (ruleId != null) one [ParseRule]. */
@@ -64,6 +68,7 @@ class RuleEditFragment : Fragment() {
 
         binding.pickMessageButton.setOnClickListener { showMessagePicker() }
         binding.pickPatternButton.setOnClickListener { showPatternPicker() }
+        binding.testAgainstHistoryButton.setOnClickListener { testAgainstHistory() }
         binding.saveRuleButton.setOnClickListener { save() }
         binding.deleteRuleButton.setOnClickListener { confirmDelete() }
 
@@ -159,6 +164,60 @@ class RuleEditFragment : Fragment() {
         binding?.patternInput?.setText("${message.title}\n${message.text}")
     }
 
+    /**
+     * Runs the rule as currently drafted (unsaved edits included - deliberately not gated on
+     * `validateRule`, since fields irrelevant to matching like a blank label shouldn't block a
+     * pattern sanity check) against this session's captured messages for the selected app,
+     * newest first, stopping once [MAX_TEST_MATCHES] matches are found - just enough for a
+     * representative sample without scanning a long history for nothing.
+     */
+    private fun testAgainstHistory() {
+        val context = requireContext()
+        val packageName = selectedPackageName
+        if (packageName == null) {
+            Toast.makeText(context, R.string.rule_no_monitored_apps, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val messages = MessageStore.shared.snapshot().filter { it.packageName == packageName }
+        if (messages.isEmpty()) {
+            Toast.makeText(context, R.string.rule_no_captured_messages, Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val engine = RuleEngine(listOf(buildDraft()), CurrenciesDb.getInstance(context).symbolToCodeMap())
+        val matches = mutableListOf<Pair<CapturedMessage, TransactionDraft>>()
+        var scanned = 0
+        for (message in messages) {
+            scanned++
+            val outcome = engine.match(message)
+            if (outcome is ParseOutcome.Matched) matches.add(message to outcome.draft)
+            if (matches.size >= MAX_TEST_MATCHES) break
+        }
+
+        val body = if (matches.isEmpty()) {
+            getString(R.string.rule_test_no_matches, scanned)
+        } else {
+            buildString {
+                append(getString(R.string.rule_test_matches_found, matches.size, scanned))
+                matches.forEachIndexed { index, (message, draft) ->
+                    append("\n${index + 1}. ${message.title} → ")
+                    when {
+                        draft.amount != null -> append("${draft.amount.toPlainString()} ${draft.currencyCode}")
+                        draft.foreignAmount != null ->
+                            append("${draft.foreignAmount.toPlainString()} ${draft.foreignCurrencyCode}")
+                    }
+                    (draft.destinationName ?: draft.sourceName)?.let { append(" ($it)") }
+                }
+            }
+        }
+
+        AlertDialog.Builder(context)
+            .setTitle(R.string.rule_test_title)
+            .setMessage(body)
+            .setPositiveButton(android.R.string.ok, null)
+            .show()
+    }
+
     private fun showPatternPicker() {
         val context = requireContext()
         val saved = rulesDb.distinctPatterns()
@@ -234,6 +293,7 @@ class RuleEditFragment : Fragment() {
     companion object {
         private const val ARG_RULE_ID = "ruleId"
         private const val PATTERN_PREVIEW_LENGTH = 40
+        private const val MAX_TEST_MATCHES = 3
 
         // Shown in the pattern picker only as a fallback when the user has no saved rules yet -
         // just enough to demonstrate the named-group syntax, not meant to match anything real.

@@ -51,6 +51,8 @@
     <string name="rule_duplicate">Duplicate</string>
     <string name="rule_apps_any">any monitored app</string>
     <string name="rule_disabled_label">disabled</string>
+    <string name="rule_subtitle_format">%1$s: %2$s: %3$s → %4$s</string>
+    <string name="rule_account_from_notification">(from notification)</string>
     <string name="rule_default_label">Rule #%1$d</string>
 
     <string name="rule_kind_withdrawal">Withdrawal</string>
@@ -67,6 +69,10 @@
     <string name="rule_pick_existing_pattern">Pick existing…</string>
     <string name="rule_pick_message">Pick message…</string>
     <string name="rule_no_captured_messages">No captured messages for this app yet</string>
+    <string name="rule_test">Test…</string>
+    <string name="rule_test_title">Test results</string>
+    <string name="rule_test_no_matches">No matches in %1$d captured message(s)</string>
+    <string name="rule_test_matches_found">%1$d match(es) found (scanned %2$d)</string>
     <string name="rule_available_macros">Available macros: %1$s</string>
     <string name="rule_field_description_template">Description template</string>
     <string name="rule_field_notes_template">Notes template</string>

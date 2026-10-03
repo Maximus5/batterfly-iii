@@ -213,9 +213,10 @@ Single `:app` module, packages under
     pushed via plain `FragmentManager` back-stack transactions (no
     Navigation Component - the flow is small and linear enough not to
     need it). `SettingsRootFragment` is the menu (monitored apps,
-    rules, currencies, message history, add test message, and later
+    currencies, rules, message history, add test message, and later
     Firefly III connection / appearance, added one row at a time as
-    each is built), linking to:
+    each is built - currencies sits above rules since rules depend on
+    it, same reasoning as monitored apps coming first), linking to:
     - `AppsFragment` (reused as-is, just hosted here instead of a tab;
       lists every launchable installed app via `queryIntentActivities`
       on `ACTION_MAIN`/`CATEGORY_LAUNCHER`, which needs the
@@ -235,7 +236,14 @@ Single `:app` module, packages under
       tap opens `RuleEditFragment` to edit, the overflow (⋮) menu per
       row has move up/down, duplicate, delete - all straight
       `RulesDb` calls followed by a reload. A FAB opens
-      `RuleEditFragment` with no rule id, to create one.
+      `RuleEditFragment` with no rule id, to create one. Each row's
+      subtitle is `"<app>: <kind>: <source> → <destination>"`
+      (`rule_subtitle_format`) - whichever of source/destination isn't
+      fixed on the rule (normal for WITHDRAWAL/DEPOSIT, filled
+      dynamically at match time instead, see the `RuleKind` note
+      above) shows a `"(from notification)"` placeholder rather than
+      leaving a blank gap next to the arrow, which read as if text had
+      gone missing.
     - `RuleEditFragment` - one form for both create (`ruleId == null`)
       and edit, via `RuleEditFragment.newInstance(ruleId)`. App and
       kind are both Material "exposed dropdown menu" fields (an
@@ -252,18 +260,27 @@ Single `:app` module, packages under
       still technically a `Set` for `RuleEngine`'s sake, the UI just
       always writes a singleton set). Field order: identity fields
       first (label, app, kind, source/destination account), then a
-      divider, then the regex section: a "pick message" button (lists
-      `MessageStore.shared.snapshot()` filtered to the currently
+      divider, then the regex section: the pattern field itself, then
+      three left-aligned link-style buttons in one row *below* it
+      (per user feedback - these used to sit above the field,
+      full-width, one per row, which wasted vertical space and put the
+      "fill the field" actions before you'd even seen it) -
+      "pick existing" (falls back to one hardcoded example pattern if
+      nothing's been saved yet, see `RulesDb` below), "pick message"
+      (lists `MessageStore.shared.snapshot()` filtered to the currently
       selected app, in-memory session data only - picking one drops
       its raw `"title\nbody"` into the pattern field as a literal
       starting point to then wrap with named groups, instead of
-      hand-copying the bank's wording from the Messages screen) above
-      a "pick existing" button (falls back to one hardcoded example
-      pattern if nothing's been saved yet, see `RulesDb` below), the
-      pattern field itself, then the live "available macros" hint from
-      `parser.namedGroupNames` - then currency/templates, grouped that
-      way because currency only makes sense once you're thinking about
-      what the regex extracts.
+      hand-copying the bank's wording from the Messages screen), and
+      "test" (runs the rule *as currently drafted* - unsaved edits
+      included, not gated on `validateRule` since fields irrelevant to
+      matching shouldn't block a pattern sanity check - against this
+      session's captured messages for the selected app, newest first,
+      stopping after 3 matches found; shows each match's amount/
+      currency/account inline). Then the live "available macros" hint
+      from `parser.namedGroupNames`, then currency/templates - grouped
+      that way because currency only makes sense once you're thinking
+      about what the regex extracts.
       Every `TextInputLayout` on this form (and on
       `AddTestMessageFragment`'s) sets `app:expandedHintEnabled="false"`
       so the field label always sits in the compact/floating position -

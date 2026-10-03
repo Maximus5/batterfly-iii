@@ -51,6 +51,8 @@
     <string name="rule_duplicate">Дублировать</string>
     <string name="rule_apps_any">любое мониторимое приложение</string>
     <string name="rule_disabled_label">выключено</string>
+    <string name="rule_subtitle_format">%1$s: %2$s: %3$s → %4$s</string>
+    <string name="rule_account_from_notification">(из уведомления)</string>
     <string name="rule_default_label">Правило №%1$d</string>
 
     <string name="rule_kind_withdrawal">Списание</string>
@@ -67,6 +69,10 @@
     <string name="rule_pick_existing_pattern">Выбрать существующее…</string>
     <string name="rule_pick_message">Выбрать сообщение…</string>
     <string name="rule_no_captured_messages">Для этого приложения пока нет пойманных сообщений</string>
+    <string name="rule_test">Проверить…</string>
+    <string name="rule_test_title">Результаты проверки</string>
+    <string name="rule_test_no_matches">Совпадений не найдено (просмотрено сообщений: %1$d)</string>
+    <string name="rule_test_matches_found">Найдено совпадений: %1$d (просмотрено: %2$d)</string>
     <string name="rule_available_macros">Доступные макросы: %1$s</string>
     <string name="rule_field_description_template">Шаблон описания</string>
     <string name="rule_field_notes_template">Шаблон заметок</string>
