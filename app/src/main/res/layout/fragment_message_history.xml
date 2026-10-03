@@ -61,6 +61,14 @@
                 android:paddingBottom="10dp"
                 android:text="@string/message_history_option_7" />
 
+            <RadioButton
+                android:id="@+id/retention30"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingTop="10dp"
+                android:paddingBottom="10dp"
+                android:text="@string/message_history_option_30" />
+
         </RadioGroup>
 
     </LinearLayout>

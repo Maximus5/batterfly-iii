@@ -51,6 +51,7 @@ class MessageHistoryFragment : Fragment() {
             3 -> binding.retention3.id
             5 -> binding.retention5.id
             7 -> binding.retention7.id
+            30 -> binding.retention30.id
             else -> null
         }
     }
@@ -63,6 +64,7 @@ class MessageHistoryFragment : Fragment() {
             binding.retention3.id -> 3
             binding.retention5.id -> 5
             binding.retention7.id -> 7
+            binding.retention30.id -> 30
             else -> null
         }
     }

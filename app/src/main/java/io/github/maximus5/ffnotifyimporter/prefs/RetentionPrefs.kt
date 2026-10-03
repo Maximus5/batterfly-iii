@@ -19,7 +19,7 @@ class RetentionPrefs(context: Context) {
     }
 
     companion object {
-        val ALLOWED_VALUES = setOf(0, 1, 3, 5, 7)
+        val ALLOWED_VALUES = setOf(0, 1, 3, 5, 7, 30)
 
         private const val PREFS_NAME = "retention"
         private const val KEY_RETENTION_DAYS = "retention_days"

@@ -24,6 +24,7 @@
     <string name="message_history_option_3">Keep for 3 days</string>
     <string name="message_history_option_5">Keep for 5 days</string>
     <string name="message_history_option_7">Keep for 7 days</string>
+    <string name="message_history_option_30">Keep for 30 days</string>
 
     <string name="settings_add_test_message_title">Add test message</string>
     <string name="settings_add_test_message_subtitle">Manually add a message, for testing rules later</string>
