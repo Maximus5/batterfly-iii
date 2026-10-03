@@ -62,10 +62,11 @@ class RuleEngine(
             issues += DraftIssue.LOCAL_AMOUNT_MISSING
         }
 
-        val counterparty = groups[Groups.COUNTERPARTY]
-        val category = renderTemplate(rule.categoryTemplate, groups, message.title, message.text)
-            .trim()
-            .takeIf { it.isNotEmpty() }
+        // Renders to a non-empty value, or null (field wasn't set / rendered empty). Used for
+        // every field that's "this or nothing" rather than always-a-string.
+        fun renderOptional(template: String) =
+            renderTemplate(template, groups, message.title, message.text).trim().takeIf { it.isNotEmpty() }
+
         val tags = renderTemplate(rule.tagsTemplate, groups, message.title, message.text)
             .split(",")
             .map { it.trim() }
@@ -78,11 +79,11 @@ class RuleEngine(
             currencyCode = rule.homeCurrency,
             foreignAmount = foreignAmount,
             foreignCurrencyCode = foreignCurrency,
-            sourceName = rule.sourceAccountName ?: counterparty,
-            destinationName = rule.destinationAccountName ?: counterparty,
+            sourceName = renderOptional(rule.sourceAccountName),
+            destinationName = renderOptional(rule.destinationAccountName),
             description = renderTemplate(rule.descriptionTemplate, groups, message.title, message.text),
             notes = renderTemplate(rule.notesTemplate, groups, message.title, message.text),
-            category = category,
+            category = renderOptional(rule.categoryTemplate),
             tags = tags,
             issues = issues,
         )

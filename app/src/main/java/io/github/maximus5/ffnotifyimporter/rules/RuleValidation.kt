@@ -11,12 +11,12 @@ fun validateRule(rule: ParseRule): List<String> {
 
     when (rule.kind) {
         RuleKind.WITHDRAWAL ->
-            if (rule.sourceAccountName.isNullOrBlank()) errors += "Withdrawal rules need a source account"
+            if (rule.sourceAccountName.isBlank()) errors += "Withdrawal rules need a source account"
         RuleKind.DEPOSIT ->
-            if (rule.destinationAccountName.isNullOrBlank()) errors += "Deposit rules need a destination account"
+            if (rule.destinationAccountName.isBlank()) errors += "Deposit rules need a destination account"
         RuleKind.TRANSFER -> {
-            if (rule.sourceAccountName.isNullOrBlank()) errors += "Transfer rules need a source account"
-            if (rule.destinationAccountName.isNullOrBlank()) errors += "Transfer rules need a destination account"
+            if (rule.sourceAccountName.isBlank()) errors += "Transfer rules need a source account"
+            if (rule.destinationAccountName.isBlank()) errors += "Transfer rules need a destination account"
         }
     }
 
@@ -28,7 +28,9 @@ fun validateRule(rule: ParseRule): List<String> {
     }
 
     val validMacros = declaredGroups.toSet() + setOf("title", "body")
-    val usedMacros = templateMacroNames(rule.descriptionTemplate) +
+    val usedMacros = templateMacroNames(rule.sourceAccountName) +
+        templateMacroNames(rule.destinationAccountName) +
+        templateMacroNames(rule.descriptionTemplate) +
         templateMacroNames(rule.notesTemplate) +
         templateMacroNames(rule.categoryTemplate) +
         templateMacroNames(rule.tagsTemplate)

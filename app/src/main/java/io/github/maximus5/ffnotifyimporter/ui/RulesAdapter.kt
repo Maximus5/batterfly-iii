@@ -41,19 +41,18 @@ class RulesAdapter(
 
             val appLabel = rule.packageNames.firstOrNull()?.let { AppLabelResolver.resolve(context, it) }
                 ?: context.getString(R.string.rule_apps_any)
-            // sourceAccountName/destinationAccountName is often intentionally blank on the rule
-            // itself (filled dynamically from the matched notification's counterparty at match
-            // time, see RuleEngine) - show a placeholder instead of leaving a blank gap next to
-            // the arrow, which read as if half the text had gone missing.
-            fun accountLabel(fixed: String?) = fixed ?: context.getString(R.string.rule_account_from_notification)
+            // sourceAccountName/destinationAccountName are macro templates (e.g. "{counterparty}"
+            // is a perfectly normal value, not just a fixed account name) and are often blank on
+            // one side by design - show whichever is set verbatim (a macro expression reads as
+            // self-explanatory to whoever wrote the pattern), arrow only when both are set.
+            val accounts = when {
+                rule.sourceAccountName.isNotBlank() && rule.destinationAccountName.isNotBlank() ->
+                    "${rule.sourceAccountName} → ${rule.destinationAccountName}"
+                rule.sourceAccountName.isNotBlank() -> rule.sourceAccountName
+                else -> rule.destinationAccountName
+            }
 
-            var subtitle = context.getString(
-                R.string.rule_subtitle_format,
-                appLabel,
-                context.getString(rule.kind.labelRes()),
-                accountLabel(rule.sourceAccountName),
-                accountLabel(rule.destinationAccountName),
-            )
+            var subtitle = "$appLabel: ${context.getString(rule.kind.labelRes())}: $accounts"
             if (!rule.enabled) subtitle += " · ${context.getString(R.string.rule_disabled_label)}"
             binding.ruleSubtitle.text = subtitle
 

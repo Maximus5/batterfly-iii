@@ -199,8 +199,9 @@ class RuleEditFragment : Fragment() {
         } else {
             buildString {
                 append(getString(R.string.rule_test_matches_found, matches.size, scanned))
-                matches.forEachIndexed { index, (message, draft) ->
-                    append("\n${index + 1}. ${message.title} → ")
+                matches.forEach { (message, draft) ->
+                    append("\n$MATCH_SEPARATOR\n")
+                    append("${message.title} → ")
                     when {
                         draft.amount != null -> append("${draft.amount.toPlainString()} ${draft.currencyCode}")
                         draft.foreignAmount != null ->
@@ -239,8 +240,8 @@ class RuleEditFragment : Fragment() {
             label = binding.labelInput.text?.toString().orEmpty().trim(),
             packageNames = selectedPackageName?.let { setOf(it) } ?: emptySet(),
             kind = selectedKind,
-            sourceAccountName = binding.sourceAccountInput.text?.toString()?.trim()?.takeIf { it.isNotEmpty() },
-            destinationAccountName = binding.destinationAccountInput.text?.toString()?.trim()?.takeIf { it.isNotEmpty() },
+            sourceAccountName = binding.sourceAccountInput.text?.toString().orEmpty().trim(),
+            destinationAccountName = binding.destinationAccountInput.text?.toString().orEmpty().trim(),
             homeCurrency = binding.homeCurrencyInput.text?.toString().orEmpty().trim(),
             pattern = binding.patternInput.text?.toString().orEmpty(),
             descriptionTemplate = binding.descriptionTemplateInput.text?.toString().orEmpty(),
@@ -294,6 +295,7 @@ class RuleEditFragment : Fragment() {
         private const val ARG_RULE_ID = "ruleId"
         private const val PATTERN_PREVIEW_LENGTH = 40
         private const val MAX_TEST_MATCHES = 3
+        private const val MATCH_SEPARATOR = "──────────"
 
         // Shown in the pattern picker only as a fallback when the user has no saved rules yet -
         // just enough to demonstrate the named-group syntax, not meant to match anything real.

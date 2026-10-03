@@ -36,14 +36,14 @@ class RuleValidationTest {
 
     @Test
     fun `withdrawal rules need a source account`() {
-        val errors = validateRule(validRule().copy(sourceAccountName = null))
+        val errors = validateRule(validRule().copy(sourceAccountName = ""))
         assertTrue(errors.any { it.contains("source", ignoreCase = true) })
     }
 
     @Test
     fun `deposit rules need a destination account`() {
         val errors = validateRule(
-            validRule().copy(kind = RuleKind.DEPOSIT, sourceAccountName = null, destinationAccountName = null),
+            validRule().copy(kind = RuleKind.DEPOSIT, sourceAccountName = "", destinationAccountName = ""),
         )
         assertTrue(errors.any { it.contains("destination", ignoreCase = true) })
     }
@@ -51,10 +51,22 @@ class RuleValidationTest {
     @Test
     fun `transfer rules need both a source and a destination account`() {
         val errors = validateRule(
-            validRule().copy(kind = RuleKind.TRANSFER, sourceAccountName = null, destinationAccountName = null),
+            validRule().copy(kind = RuleKind.TRANSFER, sourceAccountName = "", destinationAccountName = ""),
         )
         assertTrue(errors.any { it.contains("source", ignoreCase = true) })
         assertTrue(errors.any { it.contains("destination", ignoreCase = true) })
+    }
+
+    @Test
+    fun `a macro template counts as set for the source-destination requirement`() {
+        val errors = validateRule(validRule().copy(sourceAccountName = "{counterparty}"))
+        assertTrue(errors.isEmpty())
+    }
+
+    @Test
+    fun `unknown macro in source or destination account is reported`() {
+        val errors = validateRule(validRule().copy(sourceAccountName = "{doesNotExist}"))
+        assertTrue(errors.any { it.contains("doesNotExist") })
     }
 
     @Test

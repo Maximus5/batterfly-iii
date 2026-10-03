@@ -13,8 +13,8 @@ class RuleEngineTest {
         label: String = "Test rule",
         packageNames: Set<String> = emptySet(),
         kind: RuleKind = RuleKind.WITHDRAWAL,
-        sourceAccountName: String? = "Bank Account A",
-        destinationAccountName: String? = null,
+        sourceAccountName: String = "Bank Account A",
+        destinationAccountName: String = "",
         homeCurrency: String = "EUR",
         pattern: String,
         descriptionTemplate: String = "{title}",
@@ -90,8 +90,32 @@ class RuleEngineTest {
         assertEquals("Shop1234", outcome.draft.description)
         assertEquals("raw: You spent 12,50 EUR at Shop1234", outcome.draft.notes)
         assertEquals("Bank Account A", outcome.draft.sourceName)
-        assertEquals("Shop1234", outcome.draft.destinationName)
+        assertEquals(null, outcome.draft.destinationName)
         assertTrue(outcome.draft.issues.isEmpty())
+    }
+
+    @Test
+    fun `destination stays null when not set on the rule - no implicit fallback to anything`() {
+        val r = rule(
+            sourceAccountName = "Bank Account A",
+            destinationAccountName = "",
+            pattern = """spent (?<amount>[\d,]+) EUR at (?<counterparty>.+)""",
+        )
+        val outcome = RuleEngine(listOf(r)).match(message()) as ParseOutcome.Matched
+
+        assertEquals(null, outcome.draft.destinationName)
+    }
+
+    @Test
+    fun `destination can reference a captured group explicitly, same macro mechanism as templates`() {
+        val r = rule(
+            sourceAccountName = "Bank Account A",
+            destinationAccountName = "{counterparty}",
+            pattern = """spent (?<amount>[\d,]+) EUR at (?<counterparty>.+)""",
+        )
+        val outcome = RuleEngine(listOf(r)).match(message()) as ParseOutcome.Matched
+
+        assertEquals("Shop1234", outcome.draft.destinationName)
     }
 
     @Test

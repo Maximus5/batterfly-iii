@@ -22,8 +22,8 @@ class RulesDb(context: Context) : SQLiteOpenHelper(context, DB_NAME, null, DB_VE
                 $COL_LABEL TEXT NOT NULL,
                 $COL_PACKAGE_NAMES TEXT NOT NULL,
                 $COL_KIND TEXT NOT NULL,
-                $COL_SOURCE_ACCOUNT_NAME TEXT,
-                $COL_DESTINATION_ACCOUNT_NAME TEXT,
+                $COL_SOURCE_ACCOUNT_NAME TEXT NOT NULL,
+                $COL_DESTINATION_ACCOUNT_NAME TEXT NOT NULL,
                 $COL_HOME_CURRENCY TEXT NOT NULL,
                 $COL_PATTERN TEXT NOT NULL,
                 $COL_DESCRIPTION_TEMPLATE TEXT NOT NULL,
@@ -169,17 +169,13 @@ class RulesDb(context: Context) : SQLiteOpenHelper(context, DB_NAME, null, DB_VE
 
     private fun Cursor.toRule(): ParseRule {
         fun str(col: String) = getString(getColumnIndexOrThrow(col))
-        fun strOrNull(col: String): String? {
-            val idx = getColumnIndexOrThrow(col)
-            return if (isNull(idx)) null else getString(idx)
-        }
         return ParseRule(
             id = str(COL_ID),
             label = str(COL_LABEL),
             packageNames = str(COL_PACKAGE_NAMES).split(",").filter { it.isNotEmpty() }.toSet(),
             kind = RuleKind.valueOf(str(COL_KIND)),
-            sourceAccountName = strOrNull(COL_SOURCE_ACCOUNT_NAME),
-            destinationAccountName = strOrNull(COL_DESTINATION_ACCOUNT_NAME),
+            sourceAccountName = str(COL_SOURCE_ACCOUNT_NAME),
+            destinationAccountName = str(COL_DESTINATION_ACCOUNT_NAME),
             homeCurrency = str(COL_HOME_CURRENCY),
             pattern = str(COL_PATTERN),
             descriptionTemplate = str(COL_DESCRIPTION_TEMPLATE),
@@ -192,7 +188,7 @@ class RulesDb(context: Context) : SQLiteOpenHelper(context, DB_NAME, null, DB_VE
 
     companion object {
         private const val DB_NAME = "rules.db"
-        private const val DB_VERSION = 4 // v4: dropped decimal_separator (amount parsing auto-detects it now)
+        private const val DB_VERSION = 5 // v5: source/destination_account_name are macro templates now (NOT NULL)
         private const val TABLE = "rules"
         private const val COL_ID = "id"
         private const val COL_LABEL = "label"

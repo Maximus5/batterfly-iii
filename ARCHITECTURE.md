@@ -63,14 +63,22 @@ code alone:
 - `RuleKind` is `WITHDRAWAL`/`DEPOSIT`/`TRANSFER` - no `_OUT`/`_IN`
   split (an earlier version had one). Direction comes directly from
   which of `sourceAccountName`/`destinationAccountName` is filled in,
-  not from the kind. Exactly one of those two is expected to be blank
-  for `WITHDRAWAL`/`DEPOSIT` (`RuleEngine` fills it from the pattern's
-  `counterparty` group - the merchant/payer varies per notification,
-  rarely a fixed value); `TRANSFER` requires both fixed, since neither
-  side of a transfer between your own accounts should come from
-  freeform notification text. A rule only ever picks from the
-  *monitored* apps list (not every installed app) in the UI - it can't
-  match anything else anyway.
+  not from the kind; `TRANSFER` requires both.
+- `sourceAccountName`/`destinationAccountName` are macro templates -
+  the exact same `{macro}` mechanism as `descriptionTemplate`/etc, not
+  a separate "fixed name, with an automatic fallback to whatever the
+  pattern's `counterparty` group captured" behavior. That automatic
+  fallback existed in an earlier version (silently inherited from a
+  third-party draft the user shared early on, never actually
+  requested, and confusing once visible - "where did I ask for this")
+  and was removed outright; there is no implicit behavior here at all
+  now. If a side varies per notification (a merchant/payer name), the
+  rule author writes e.g. `{counterparty}` in that field explicitly,
+  same as they would in a description template - a plain name with no
+  `{}` in it is just a fixed value, same "templates are a strict
+  superset of plain strings" reasoning as the other template fields.
+  A rule only ever picks from the *monitored* apps list (not every
+  installed app) in the UI - it can't match anything else anyway.
 
 Package: `io.github.maximus5.ffnotifyimporter`.
 
@@ -259,28 +267,30 @@ Single `:app` module, packages under
       (simplified after user feedback; `ParseRule.packageNames` is
       still technically a `Set` for `RuleEngine`'s sake, the UI just
       always writes a singleton set). Field order: identity fields
-      first (label, app, kind, source/destination account), then a
-      divider, then the regex section: the pattern field itself, then
-      three left-aligned link-style buttons in one row *below* it
-      (per user feedback - these used to sit above the field,
-      full-width, one per row, which wasted vertical space and put the
-      "fill the field" actions before you'd even seen it) -
-      "pick existing" (falls back to one hardcoded example pattern if
+      first (label, app, kind), then a divider, then the regex
+      section: the pattern field itself, then three left-aligned
+      link-style buttons in one row *below* it, in this order - "pick
+      existing" (falls back to one hardcoded example pattern if
       nothing's been saved yet, see `RulesDb` below), "pick message"
       (lists `MessageStore.shared.snapshot()` filtered to the currently
       selected app, in-memory session data only - picking one drops
       its raw `"title\nbody"` into the pattern field as a literal
       starting point to then wrap with named groups, instead of
-      hand-copying the bank's wording from the Messages screen), and
-      "test" (runs the rule *as currently drafted* - unsaved edits
-      included, not gated on `validateRule` since fields irrelevant to
-      matching shouldn't block a pattern sanity check - against this
-      session's captured messages for the selected app, newest first,
-      stopping after 3 matches found; shows each match's amount/
-      currency/account inline). Then the live "available macros" hint
-      from `parser.namedGroupNames`, then currency/templates - grouped
-      that way because currency only makes sense once you're thinking
-      about what the regex extracts.
+      hand-copying the bank's wording from the Messages screen), "test"
+      (runs the rule *as currently drafted* - unsaved edits included,
+      not gated on `validateRule` since fields irrelevant to matching
+      shouldn't block a pattern sanity check - against this session's
+      captured messages for the selected app, newest first, stopping
+      after 3 matches found; results are separated by a plain line, no
+      numbering - a numbered list of already-multi-line entries read as
+      more clutter than help, per user feedback). Then the live
+      "available macros" hint from `parser.namedGroupNames`, then
+      *source/destination account* (moved here, below the regex, from
+      the identity-fields group above - now that they're macro
+      templates (see the `RuleKind` note above) they only make sense
+      once you're thinking about what the regex extracts, same
+      reasoning `homeCurrency` already had), then `homeCurrency`, then
+      the rest of the templates.
       Every `TextInputLayout` on this form (and on
       `AddTestMessageFragment`'s) sets `app:expandedHintEnabled="false"`
       so the field label always sits in the compact/floating position -
