@@ -64,9 +64,9 @@ class RuleValidationTest {
     }
 
     @Test
-    fun `unknown macro in source or destination account is reported`() {
+    fun `an unknown macro in source or destination account is not reported - renderTemplate handles it gracefully`() {
         val errors = validateRule(validRule().copy(sourceAccountName = "{doesNotExist}"))
-        assertTrue(errors.any { it.contains("doesNotExist") })
+        assertTrue(errors.isEmpty())
     }
 
     @Test
@@ -76,9 +76,13 @@ class RuleValidationTest {
     }
 
     @Test
-    fun `unknown macro in a template is reported`() {
+    fun `an unknown macro in a template is not reported - renderTemplate handles it gracefully`() {
+        // Real case: editing a pattern down to just {amount} while a template field still
+        // mentions a macro from an earlier, richer draft of the pattern used to block saving
+        // outright ("Unknown macro(s): ..."), even though it's harmless - renderTemplate just
+        // leaves it as literal text.
         val errors = validateRule(validRule().copy(descriptionTemplate = "{doesNotExist}"))
-        assertTrue(errors.any { it.contains("doesNotExist") })
+        assertTrue(errors.isEmpty())
     }
 
     @Test

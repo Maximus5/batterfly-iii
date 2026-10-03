@@ -179,12 +179,20 @@ Single `:app` module, packages under
     same "plain SQLite, no ORM, `getInstance(context)` singleton"
     shape as `RulesDb`/`MessageHistoryDb`. Seeded with EUR/USD/GBP on
     first creation; the user edits it from Settings -> Currencies.
-  - `validateRule(rule)` (`RuleValidationTest`) - checks a pattern
-    defines `amount`, at least one app is picked, the right
-    source/destination account is filled per kind (see the `RuleKind`
-    note above), and every macro referenced in the templates is either
-    a declared group or `title`/`body`. The rule editor calls this
-    before letting a save through.
+  - `validateRule(rule)` (`RuleValidationTest`) - checks the pattern
+    compiles and defines `amount`, at least one app is picked, and the
+    right source/destination account is filled per kind (see the
+    `RuleKind` note above). The rule editor calls this before letting a
+    save through. Deliberately *doesn't* check that every macro
+    referenced in a template resolves to a declared group - that used
+    to be a save-blocking "Unknown macro(s): ..." error, but it doubled
+    up with `renderTemplate`'s own graceful handling (an unknown macro
+    renders as literal text) and blocked saving over something
+    harmless, e.g. simplifying a pattern down to just `amount` while a
+    template field still mentions a macro from an earlier, richer draft
+    of it. `currency`/`counterparty`/`foreignAmount`/`foreignCurrency`
+    are all optional in the pattern for the same reason the fields that
+    would reference them are optional.
   - `RulesDb` - plain SQLite (no ORM), one row per rule plus an
     explicit `sort_order` column - the only priority mechanism
     `RuleEngine` uses, so `moveUp`/`moveDown` just swap two rows'
