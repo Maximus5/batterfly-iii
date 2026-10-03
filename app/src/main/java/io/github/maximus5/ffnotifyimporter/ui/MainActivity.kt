@@ -28,11 +28,13 @@ class MainActivity : AppCompatActivity() {
         binding.viewPager.adapter = MainPagerAdapter(supportFragmentManager, lifecycle)
         TabLayoutMediator(binding.tabLayout, binding.viewPager) { tab, position ->
             tab.text = getString(
-                if (position == 0) R.string.tab_apps else R.string.tab_messages
+                if (position == 0) R.string.tab_messages else R.string.tab_apps
             )
         }.attach()
     }
 
+    // Messages first: it's the tab you actually want to check day to day, and unlike the
+    // apps list (which enumerates every installed package) it's cheap to show immediately.
     private class MainPagerAdapter(
         fragmentManager: FragmentManager,
         lifecycle: Lifecycle,
@@ -40,6 +42,6 @@ class MainActivity : AppCompatActivity() {
         override fun getItemCount() = 2
 
         override fun createFragment(position: Int): Fragment =
-            if (position == 0) AppsFragment() else MessagesFragment()
+            if (position == 0) MessagesFragment() else AppsFragment()
     }
 }
