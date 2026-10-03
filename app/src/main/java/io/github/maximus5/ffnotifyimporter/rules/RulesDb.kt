@@ -26,7 +26,6 @@ class RulesDb(context: Context) : SQLiteOpenHelper(context, DB_NAME, null, DB_VE
                 $COL_DESTINATION_ACCOUNT_NAME TEXT,
                 $COL_HOME_CURRENCY TEXT NOT NULL,
                 $COL_PATTERN TEXT NOT NULL,
-                $COL_DECIMAL_SEPARATOR TEXT NOT NULL,
                 $COL_DESCRIPTION_TEMPLATE TEXT NOT NULL,
                 $COL_NOTES_TEMPLATE TEXT NOT NULL,
                 $COL_CATEGORY_TEMPLATE TEXT NOT NULL,
@@ -160,7 +159,6 @@ class RulesDb(context: Context) : SQLiteOpenHelper(context, DB_NAME, null, DB_VE
         put(COL_DESTINATION_ACCOUNT_NAME, destinationAccountName)
         put(COL_HOME_CURRENCY, homeCurrency)
         put(COL_PATTERN, pattern)
-        put(COL_DECIMAL_SEPARATOR, decimalSeparator.toString())
         put(COL_DESCRIPTION_TEMPLATE, descriptionTemplate)
         put(COL_NOTES_TEMPLATE, notesTemplate)
         put(COL_CATEGORY_TEMPLATE, categoryTemplate)
@@ -184,7 +182,6 @@ class RulesDb(context: Context) : SQLiteOpenHelper(context, DB_NAME, null, DB_VE
             destinationAccountName = strOrNull(COL_DESTINATION_ACCOUNT_NAME),
             homeCurrency = str(COL_HOME_CURRENCY),
             pattern = str(COL_PATTERN),
-            decimalSeparator = str(COL_DECIMAL_SEPARATOR).first(),
             descriptionTemplate = str(COL_DESCRIPTION_TEMPLATE),
             notesTemplate = str(COL_NOTES_TEMPLATE),
             categoryTemplate = str(COL_CATEGORY_TEMPLATE),
@@ -195,7 +192,7 @@ class RulesDb(context: Context) : SQLiteOpenHelper(context, DB_NAME, null, DB_VE
 
     companion object {
         private const val DB_NAME = "rules.db"
-        private const val DB_VERSION = 3 // v3: added category_template/tags_template
+        private const val DB_VERSION = 4 // v4: dropped decimal_separator (amount parsing auto-detects it now)
         private const val TABLE = "rules"
         private const val COL_ID = "id"
         private const val COL_LABEL = "label"
@@ -205,7 +202,6 @@ class RulesDb(context: Context) : SQLiteOpenHelper(context, DB_NAME, null, DB_VE
         private const val COL_DESTINATION_ACCOUNT_NAME = "destination_account_name"
         private const val COL_HOME_CURRENCY = "home_currency"
         private const val COL_PATTERN = "pattern"
-        private const val COL_DECIMAL_SEPARATOR = "decimal_separator"
         private const val COL_DESCRIPTION_TEMPLATE = "description_template"
         private const val COL_NOTES_TEMPLATE = "notes_template"
         private const val COL_CATEGORY_TEMPLATE = "category_template"

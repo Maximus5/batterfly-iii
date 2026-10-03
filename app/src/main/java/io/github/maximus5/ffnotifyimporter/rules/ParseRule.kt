@@ -23,7 +23,6 @@ data class ParseRule(
     val destinationAccountName: String? = null,
     val homeCurrency: String,
     val pattern: String, // regex over title + "\n" + text, see Groups for the group conventions
-    val decimalSeparator: Char = ',',
     val descriptionTemplate: String = "",
     val notesTemplate: String = "",
     val categoryTemplate: String = "", // renders to one category name; blank = none

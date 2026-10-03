@@ -109,7 +109,6 @@ class RuleEditFragment : Fragment() {
         binding.destinationAccountInput.setText(rule?.destinationAccountName.orEmpty())
         binding.homeCurrencyInput.setText(rule?.homeCurrency.orEmpty())
         binding.patternInput.setText(rule?.pattern.orEmpty())
-        binding.decimalSeparatorInput.setText(rule?.decimalSeparator?.toString().orEmpty())
         binding.descriptionTemplateInput.setText(rule?.descriptionTemplate.orEmpty())
         binding.notesTemplateInput.setText(rule?.notesTemplate.orEmpty())
         binding.categoryTemplateInput.setText(rule?.categoryTemplate.orEmpty())
@@ -128,11 +127,10 @@ class RuleEditFragment : Fragment() {
 
     private fun showPatternPicker() {
         val context = requireContext()
-        val patterns = rulesDb.distinctPatterns()
-        if (patterns.isEmpty()) {
-            Toast.makeText(context, R.string.rule_no_existing_patterns, Toast.LENGTH_SHORT).show()
-            return
-        }
+        val saved = rulesDb.distinctPatterns()
+        // Nothing saved yet (e.g. the very first rule ever) - offer one illustrative example
+        // instead of leaving the picker with nothing to show at all.
+        val patterns = saved.ifEmpty { listOf(EXAMPLE_PATTERN to getString(R.string.rule_pattern_example_label)) }
         val labels = patterns.map { (pattern, label) -> "$label: ${pattern.take(PATTERN_PREVIEW_LENGTH)}" }.toTypedArray()
 
         AlertDialog.Builder(context)
@@ -152,7 +150,6 @@ class RuleEditFragment : Fragment() {
             destinationAccountName = binding.destinationAccountInput.text?.toString()?.trim()?.takeIf { it.isNotEmpty() },
             homeCurrency = binding.homeCurrencyInput.text?.toString().orEmpty().trim(),
             pattern = binding.patternInput.text?.toString().orEmpty(),
-            decimalSeparator = binding.decimalSeparatorInput.text?.toString()?.firstOrNull() ?: ' ',
             descriptionTemplate = binding.descriptionTemplateInput.text?.toString().orEmpty(),
             notesTemplate = binding.notesTemplateInput.text?.toString().orEmpty(),
             categoryTemplate = binding.categoryTemplateInput.text?.toString().orEmpty(),
@@ -203,6 +200,11 @@ class RuleEditFragment : Fragment() {
     companion object {
         private const val ARG_RULE_ID = "ruleId"
         private const val PATTERN_PREVIEW_LENGTH = 40
+
+        // Shown in the pattern picker only as a fallback when the user has no saved rules yet -
+        // just enough to demonstrate the named-group syntax, not meant to match anything real.
+        private const val EXAMPLE_PATTERN =
+            """(?<amount>[\d.,]+)\s*(?<currency>[A-Z]{3}).*?(?:at|bei)\s+(?<counterparty>.+)"""
 
         fun newInstance(ruleId: String?): RuleEditFragment = RuleEditFragment().apply {
             arguments = Bundle().apply { putString(ARG_RULE_ID, ruleId) }

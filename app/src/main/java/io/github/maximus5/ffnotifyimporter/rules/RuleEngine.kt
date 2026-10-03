@@ -38,9 +38,9 @@ class RuleEngine(private val rules: List<ParseRule>) {
         groups: Map<String, String>,
         message: CapturedMessage,
     ): TransactionDraft? {
-        val amount = groups[Groups.AMOUNT]?.let { parseAmount(it, rule.decimalSeparator) } ?: return null
+        val amount = groups[Groups.AMOUNT]?.let { parseAmount(it) } ?: return null
         val currency = groups[Groups.CURRENCY]
-        var foreignAmount = groups[Groups.FOREIGN_AMOUNT]?.let { parseAmount(it, rule.decimalSeparator) }
+        var foreignAmount = groups[Groups.FOREIGN_AMOUNT]?.let { parseAmount(it) }
         var foreignCurrency = groups[Groups.FOREIGN_CURRENCY]
         var localAmount: BigDecimal? = amount
         val issues = mutableSetOf<DraftIssue>()

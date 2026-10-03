@@ -108,7 +108,17 @@ Single `:app` module, packages under
   Firefly, or what any group name means:
   - `extractGroups(pattern, input): Map<String,String>?` /
     `namedGroupNames(pattern)` (`NamedGroupMatcherTest`).
-  - `parseAmount(raw, decimalSeparator)` (`AmountParserTest`).
+  - `parseAmount(raw)` (`AmountParserTest`) - no configured decimal
+    separator (there used to be a per-rule one; removed after user
+    feedback that it was unnecessary friction). Auto-detects instead:
+    the *last* separator character (`,`/`.`/`'`/space/NBSP) is the
+    decimal point only if exactly two digits follow it - real currency
+    amounts are written with 0 or 2 decimal digits, never anything
+    else, so that distinguishes a decimal point from a thousands
+    separator (`"12,50"` -> 12.50, but `"1,234"` -> 1234, not 1.234).
+    Known gap: single-digit cents (`"12,5"`) aren't detected - hasn't
+    come up with real bank notifications, which always pad to two
+    digits.
 - `rules` - the Firefly-*flavored* domain, still Firefly-API-free
   (string placeholders - see Overview):
   - `ParseRule` - one parsing template scoped to one app
@@ -140,18 +150,23 @@ Single `:app` module, packages under
     and inserts the copy right after the original, in a transaction.
     `distinctPatterns()` is the "pick an existing pattern" source for
     the rule editor - a derived query over this same table, newest
-    first, one entry per distinct pattern; no separate library table,
-    and deliberately no built-in/canned example patterns either - only
-    what the user has actually saved. `RulesDb.getInstance(context)`
-    is the one shared instance (same reasoning as
-    `MessageHistoryDb.getInstance`). `DB_VERSION` has been bumped twice
-    already as the rule shape settled (2:
-    `account_name`/`counterparty_account_name` columns ->
+    first, one entry per distinct pattern; no separate library table.
+    Still no built-in/canned patterns *in this table* - but
+    `RuleEditFragment.showPatternPicker` falls back to showing one
+    hardcoded illustrative example (`EXAMPLE_PATTERN`, labeled
+    "Example") when the table is empty, so the very first rule a user
+    ever creates isn't a blank textarea with zero clue about named-group
+    syntax; once at least one real rule exists, only real saved
+    patterns show. `RulesDb.getInstance(context)` is the one shared
+    instance (same reasoning as `MessageHistoryDb.getInstance`).
+    `DB_VERSION` has been bumped three times already as the rule shape
+    settled (2: `account_name`/`counterparty_account_name` columns ->
     `source_account_name`/`destination_account_name`; 3: added
-    `category_template`/`tags_template`) - `onUpgrade` just drops and
-    recreates the table, fine for a personal, not-yet-relied-upon rules
-    list; revisit if that's ever not true. Not unit tested - like
-    `MessageHistoryDb`, it's thin glue over real
+    `category_template`/`tags_template`; 4: dropped
+    `decimal_separator` - see `parseAmount` above) - `onUpgrade` just
+    drops and recreates the table, fine for a personal,
+    not-yet-relied-upon rules list; revisit if that's ever not true.
+    Not unit tested - like `MessageHistoryDb`, it's thin glue over real
     `SQLiteOpenHelper`/Android framework classes that don't run under
     plain JVM unit tests.
 - `prefs` - thin `SharedPreferences` wrappers for configuration (not
@@ -224,16 +239,31 @@ Single `:app` module, packages under
       still technically a `Set` for `RuleEngine`'s sake, the UI just
       always writes a singleton set). Field order: identity fields
       first (label, app, kind, source/destination account), then a
-      divider, then the regex section (pick-existing button, the
-      field itself, the live "available macros" hint from
-      `parser.namedGroupNames`), then currency/decimal
-      separator/templates - grouped that way because currency only
+      divider, then the regex section (pick-existing button - falls
+      back to one hardcoded example pattern if nothing's been saved
+      yet, see `RulesDb` below - the field itself, the live "available
+      macros" hint from `parser.namedGroupNames`), then
+      currency/templates - grouped that way because currency only
       makes sense once you're thinking about what the regex extracts.
-      Save runs `validateRule` and shows every error in one dialog
-      before writing anything.
+      Every `TextInputLayout` on this form (and on
+      `AddTestMessageFragment`'s) sets `app:expandedHintEnabled="false"`
+      so the field label always sits in the compact/floating position -
+      without it, an empty unfocused field shows its hint as large
+      inline placeholder text instead, and a form with some fields
+      focused/filled and others not looks visually inconsistent ("zoo
+      of labels", per user feedback). Save runs `validateRule` and
+      shows every error in one dialog before writing anything.
   - `SystemBarInsets.kt` - `useClassicSystemBars(root)`, the shared
     edge-to-edge-but-padded-back-to-classic logic both activities call
-    (see Known bugs/gotchas below for why it's done this way).
+    (see Known bugs/gotchas below for why it's done this way). Also
+    folds `WindowInsetsCompat.Type.ime()` into the same padding calc,
+    not just `systemBars()` - needed because edge-to-edge opts the app
+    out of the classic `adjustResize` auto-scroll-the-keyboard-out-of-
+    the-way behavior, which otherwise left a focused field on a form
+    (e.g. `RuleEditFragment`) hidden behind the keyboard. Both
+    activities also declare `android:windowSoftInputMode="adjustResize"`
+    in the manifest, which this relies on for reliable IME inset
+    dispatch.
 - `FfNotifyImporterApp` (`Application` subclass, declared in the
   manifest) - the one place startup wiring happens:
   `RetentionController.applyOnStartup`.

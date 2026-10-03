@@ -8,7 +8,6 @@ fun validateRule(rule: ParseRule): List<String> {
     if (rule.label.isBlank()) errors += "Label can't be empty"
     if (rule.packageNames.isEmpty()) errors += "Pick an app"
     if (rule.homeCurrency.isBlank()) errors += "Currency can't be empty"
-    if (rule.decimalSeparator.isWhitespace()) errors += "Decimal separator can't be empty"
 
     when (rule.kind) {
         RuleKind.WITHDRAWAL ->

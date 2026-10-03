@@ -13,13 +13,22 @@ import androidx.core.view.WindowInsetsCompat
  * the status/navigation bars ourselves via insets padding on [root]. That keeps the classic
  * non-overlapping look the user wants, regardless of API level.
  *
- * Call once per activity, right after setContentView.
+ * Also folds in the IME (keyboard) inset, not just the system bars: under edge-to-edge, the
+ * classic `android:windowSoftInputMode="adjustResize"` auto-resize-around-the-keyboard behavior
+ * no longer happens for free - the app has to account for `Type.ime()` itself, or a focused
+ * field at the bottom of a scrollable form ends up hidden behind the keyboard. Combining both
+ * types in one `getInsets` call takes the larger of the two at the bottom edge, so this still
+ * behaves exactly like the systemBars-only version when the keyboard is hidden.
+ *
+ * Call once per activity, right after setContentView. The activity's
+ * `android:windowSoftInputMode` should be `adjustResize` for the IME inset to be dispatched
+ * reliably.
  */
 fun AppCompatActivity.useClassicSystemBars(root: View) {
     WindowCompat.setDecorFitsSystemWindows(window, false)
     ViewCompat.setOnApplyWindowInsetsListener(root) { view, windowInsets ->
-        val systemBars = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
-        view.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
+        val insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.ime())
+        view.setPadding(insets.left, insets.top, insets.right, insets.bottom)
         windowInsets
     }
 }
