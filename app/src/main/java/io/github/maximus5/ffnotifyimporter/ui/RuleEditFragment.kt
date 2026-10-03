@@ -196,7 +196,7 @@ class RuleEditFragment : Fragment() {
             Toast.makeText(context, R.string.rule_no_captured_messages, Toast.LENGTH_SHORT).show()
             return
         }
-        val labels = messages.map { "${it.title}: ${it.text}".take(PATTERN_PREVIEW_LENGTH) }.toTypedArray()
+        val labels = messages.map { previewOf("${it.title}: ${it.text}") }.toTypedArray()
 
         AlertDialog.Builder(context)
             .setTitle(R.string.rule_pick_message)
@@ -266,14 +266,34 @@ class RuleEditFragment : Fragment() {
     private fun showPatternPicker() {
         val context = requireContext()
         val saved = rulesDb.distinctPatterns()
-        // Nothing saved yet (e.g. the very first rule ever) - offer one illustrative example
-        // instead of leaving the picker with nothing to show at all.
-        val patterns = saved.ifEmpty { listOf(EXAMPLE_PATTERN to getString(R.string.rule_pattern_example_label)) }
-        val labels = patterns.map { (pattern, label) -> "$label: ${pattern.take(PATTERN_PREVIEW_LENGTH)}" }.toTypedArray()
+        // The illustrative example is always offered too, not just when nothing's saved yet -
+        // it's a handy syntax reminder regardless of how many real rules already exist.
+        // distinctBy guards against listing it twice if a saved pattern happens to match it
+        // verbatim.
+        val patterns = (saved + (EXAMPLE_PATTERN to getString(R.string.rule_pattern_example_label)))
+            .distinctBy { it.first }
+        val labels = patterns.map { (pattern, label) -> "$label: ${previewOf(pattern)}" }.toTypedArray()
 
         AlertDialog.Builder(context)
             .setTitle(R.string.rule_pick_existing_pattern)
-            .setItems(labels) { _, which -> binding?.patternInput?.setText(patterns[which].first) }
+            .setItems(labels) { _, which -> confirmApplyPattern(patterns[which].first) }
+            .show()
+    }
+
+    /** Truncates with a visible "…" so a cut-off preview doesn't look like a rendering glitch. */
+    private fun previewOf(text: String): String =
+        if (text.length > PATTERN_PREVIEW_LENGTH) text.take(PATTERN_PREVIEW_LENGTH) + "…" else text
+
+    /**
+     * Patterns are easy to misread in a one-line truncated preview, so picking one from the list
+     * shows it in full here before it actually overwrites whatever's in the pattern field.
+     */
+    private fun confirmApplyPattern(pattern: String) {
+        AlertDialog.Builder(requireContext())
+            .setTitle(R.string.rule_pattern_preview_title)
+            .setMessage(pattern)
+            .setPositiveButton(R.string.action_apply) { _, _ -> binding?.patternInput?.setText(pattern) }
+            .setNegativeButton(android.R.string.cancel, null)
             .show()
     }
 
@@ -341,10 +361,10 @@ class RuleEditFragment : Fragment() {
         private const val MAX_TEST_MATCHES = 3
         private const val MATCH_SEPARATOR = "──────────"
 
-        // Shown in the pattern picker only as a fallback when the user has no saved rules yet -
-        // just enough to demonstrate the named-group syntax, not meant to match anything real.
+        // Always offered in the pattern picker, alongside any saved patterns - just enough to
+        // demonstrate the named-group syntax, not meant to match anything real.
         private const val EXAMPLE_PATTERN =
-            """(?<amount>[\d.,]+)\s*(?<currency>[A-Z]{3}).*?(?:at|bei)\s+(?<counterparty>.+)"""
+            """(?<amount>[\d.,]+)\s*(?<currency>[A-Z]{3}|[€£$]).*?(?:at|bei)\s+(?<counterparty>.+?)\.?$"""
 
         fun newInstance(ruleId: String?): RuleEditFragment = RuleEditFragment().apply {
             arguments = Bundle().apply { putString(ARG_RULE_ID, ruleId) }

@@ -182,13 +182,24 @@ Single `:app` module, packages under
     the rule editor - a derived query over this same table, newest
     first, one entry per distinct pattern; no separate library table.
     Still no built-in/canned patterns *in this table* - but
-    `RuleEditFragment.showPatternPicker` falls back to showing one
-    hardcoded illustrative example (`EXAMPLE_PATTERN`, labeled
-    "Example") when the table is empty, so the very first rule a user
-    ever creates isn't a blank textarea with zero clue about named-group
-    syntax; once at least one real rule exists, only real saved
-    patterns show. `RulesDb.getInstance(context)` is the one shared
-    instance (same reasoning as `MessageHistoryDb.getInstance`).
+    `RuleEditFragment.showPatternPicker` always appends one hardcoded
+    illustrative example (`EXAMPLE_PATTERN`, labeled "Example") after
+    whatever's actually saved, so the very first rule a user ever
+    creates isn't a blank textarea with zero clue about named-group
+    syntax, and it stays available as a syntax reference even once real
+    rules exist (it used to be an empty-state-only fallback; removed
+    once any real rule existed, which the user flagged as the example
+    disappearing right when they'd want to compare against it).
+    `EXAMPLE_PATTERN`'s `currency` group accepts `[A-Z]{3}` *or*
+    `[€£$]` (banks print symbols far more than ISO codes, same reason
+    `CurrenciesDb`/`normalizeCurrency` exist), and its `counterparty`
+    group is `(?<counterparty>.+?)\.?$` - lazily matched with an
+    optional trailing literal period stripped, not plain `.+`, because
+    a notification's sentence-ending "." isn't part of the merchant
+    name (real example: "...at Shop 9012 Markt GmbH-Zw." was capturing the
+    period into `counterparty` before this).
+    `RulesDb.getInstance(context)` is the one shared instance (same
+    reasoning as `MessageHistoryDb.getInstance`).
     `DB_VERSION` has been bumped three times already as the rule shape
     settled (2: `account_name`/`counterparty_account_name` columns ->
     `source_account_name`/`destination_account_name`; 3: added
@@ -279,8 +290,15 @@ Single `:app` module, packages under
       first (label, app, kind), then a divider, then the regex
       section: the pattern field itself, then three left-aligned
       link-style buttons in one row *below* it, in this order - "pick
-      existing" (falls back to one hardcoded example pattern if
-      nothing's been saved yet, see `RulesDb` below), "pick message"
+      existing" (every saved rule's distinct pattern, *plus* one
+      hardcoded illustrative example always appended at the end
+      regardless of how many real patterns already exist - it's a
+      syntax reminder, not just an empty-state filler, see `RulesDb`
+      below; list previews are truncated with a visible "…" rather than
+      cut off silently, and picking one shows the pattern in full in a
+      confirm dialog - Apply/Cancel - before it overwrites the pattern
+      field, since a one-line truncated preview is easy to misread),
+      "pick message"
       (lists `MessageStore.shared.snapshot()` filtered to the currently
       selected app, in-memory session data only - picking one drops
       its raw `"title\nbody"` into the pattern field as a literal
