@@ -306,8 +306,8 @@ Single `:app` module, packages under
       each list item shows its label on one line and the *full* regex
       on the next - not truncated - so it's shown in full before being
       applied without needing a separate confirm step on top of that;
-      tapping an item applies it immediately), "pick message"
-      (lists `MessageStore.shared.snapshot()` filtered to the currently
+      tapping an item applies it immediately), "pick message" (lists
+      `MessageStore.shared.snapshot()` filtered to the currently
       selected app, in-memory session data only - picking one drops
       its raw `"title\nbody"` into the pattern field as a literal
       starting point to then wrap with named groups, instead of
@@ -325,7 +325,23 @@ Single `:app` module, packages under
       rule config that may still be unfilled while iterating on a
       pattern and so aren't what "does my regex actually capture what I
       want" is asking (`ParseOutcome.Matched.groups` exposes the raw
-      capture map for exactly this). Then the live
+      capture map for exactly this).
+      The "pick existing"/"pick message" dialogs both render through a
+      shared `PickerItemAdapter` (`item_picker_two_line.xml` +
+      `bg_picker_item.xml`, a thin `?attr/colorOutlineVariant` stroke -
+      a Material3 token so it survives light/dark theme switches rather
+      than a hardcoded hex - around each row, with outer *padding* not
+      *margin* creating the gap between rows, since `ListView` silently
+      drops margins on a row's root view) instead of plain
+      `AlertDialog.setItems` text: each row is a bold header line over a
+      normal-weight body line, with the pattern picker's body
+      additionally forced to `Typeface.MONOSPACE` (matching the regex
+      field itself) - the message picker's body stays the default
+      typeface since raw notification text isn't code. Before this,
+      header and body rendered as one undifferentiated block of text
+      with no visible boundary between a row's two lines or between
+      separate rows.
+      Then the live
       "available macros" hint from `parser.namedGroupNames`, then
       *source/destination account* (moved here, below the regex, from
       the identity-fields group above - now that they're macro

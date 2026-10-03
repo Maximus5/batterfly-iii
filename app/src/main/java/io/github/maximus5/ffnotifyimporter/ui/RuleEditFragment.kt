@@ -1,12 +1,16 @@
 package io.github.maximus5.ffnotifyimporter.ui
 
+import android.content.Context
+import android.graphics.Typeface
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ArrayAdapter
 import android.widget.EditText
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
@@ -203,11 +207,11 @@ class RuleEditFragment : Fragment() {
             Toast.makeText(context, R.string.rule_no_captured_messages, Toast.LENGTH_SHORT).show()
             return
         }
-        val labels = messages.map { previewOf("${it.title}: ${it.text}") }.toTypedArray()
+        val adapter = PickerItemAdapter(context, messages.map { it.title to it.text }, monospaceBody = false)
 
         AlertDialog.Builder(context)
             .setTitle(R.string.rule_pick_message)
-            .setItems(labels) { _, which -> setPatternFrom(messages[which]) }
+            .setAdapter(adapter) { _, which -> setPatternFrom(messages[which]) }
             .show()
     }
 
@@ -282,18 +286,19 @@ class RuleEditFragment : Fragment() {
         // Full regex shown right here in the list, label above it - not truncated to one line,
         // since a cut-off regex is too easy to misread (and previously looked like a rendering
         // glitch). Seeing it in full here, before tapping, is the "shown before applying" step -
-        // no separate confirm dialog needed on top of that.
-        val labels = regexes.map { (regex, label) -> "$label\n$regex" }.toTypedArray()
+        // no separate confirm dialog needed on top of that. Monospace matches the pattern field
+        // itself, same reasoning as that field's own font choice.
+        val adapter = PickerItemAdapter(
+            context,
+            regexes.map { (regex, label) -> label to regex },
+            monospaceBody = true,
+        )
 
         AlertDialog.Builder(context)
             .setTitle(R.string.rule_pick_existing_pattern)
-            .setItems(labels) { _, which -> binding?.patternInput?.setText(regexes[which].first) }
+            .setAdapter(adapter) { _, which -> binding?.patternInput?.setText(regexes[which].first) }
             .show()
     }
-
-    /** Truncates with a visible "…" so a cut-off preview doesn't look like a rendering glitch. */
-    private fun previewOf(text: String): String =
-        if (text.length > PATTERN_PREVIEW_LENGTH) text.take(PATTERN_PREVIEW_LENGTH) + "…" else text
 
     private fun buildDraft(): ParseRule {
         val binding = requireBinding()
@@ -355,7 +360,6 @@ class RuleEditFragment : Fragment() {
 
     companion object {
         private const val ARG_RULE_ID = "ruleId"
-        private const val PATTERN_PREVIEW_LENGTH = 40
         private const val MAX_TEST_MATCHES = 3
         private const val MATCH_SEPARATOR = "──────────"
 
@@ -367,5 +371,29 @@ class RuleEditFragment : Fragment() {
         fun newInstance(ruleId: String?): RuleEditFragment = RuleEditFragment().apply {
             arguments = Bundle().apply { putString(ARG_RULE_ID, ruleId) }
         }
+    }
+}
+
+/**
+ * Shared two-line, bordered row for both picker dialogs (existing regex / captured message) -
+ * `item_picker_two_line.xml`'s bold header + normal-or-monospace body, instead of plain
+ * `setItems` text that gave no visual separation between a row's two lines or between rows.
+ */
+private class PickerItemAdapter(
+    context: Context,
+    private val items: List<Pair<String, String>>,
+    private val monospaceBody: Boolean,
+) : ArrayAdapter<Pair<String, String>>(context, 0, items) {
+
+    override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+        val view = convertView
+            ?: LayoutInflater.from(context).inflate(R.layout.item_picker_two_line, parent, false)
+        val (header, body) = items[position]
+        view.findViewById<TextView>(R.id.pickerItemHeader).text = header
+        view.findViewById<TextView>(R.id.pickerItemBody).apply {
+            text = body
+            typeface = if (monospaceBody) Typeface.MONOSPACE else Typeface.DEFAULT
+        }
+        return view
     }
 }
