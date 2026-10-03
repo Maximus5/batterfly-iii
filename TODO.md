@@ -22,3 +22,16 @@ work.
   more likely to be lost if Android kills the backgrounded app under
   memory pressure, not just on reboot.
 - `ic_launcher` is a placeholder vector icon, not a real app icon.
+- Optional fullscreen/edge-to-edge mode as a user setting. Default is
+  now non-fullscreen (`WindowCompat.setDecorFitsSystemWindows(window,
+  true)` in `MainActivity`, added because targetSdk 35+ forces
+  edge-to-edge by default and that broke tab switching - see next
+  item); if an edge-to-edge mode is ever added as an opt-in setting,
+  it needs its own insets handling, not just removing that call.
+- Tab switching (`ViewPager2`/`TabLayout` in `MainActivity`) was
+  broken in edge-to-edge/fullscreen mode - the status bar and
+  gesture-nav areas overlapped the tab strip and the swipe area and
+  ate touches. Fixed for the current non-fullscreen default; needs a
+  real fix (proper `WindowInsets` padding on the tab layout and
+  view pager) before any future fullscreen setting re-enables
+  edge-to-edge.
