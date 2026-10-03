@@ -269,11 +269,26 @@ Single `:app` module, packages under
   - `MainActivity` - home screen, just hosts `MessagesFragment` plus a
     toolbar with a settings action. `MessagesFragment` subscribes to
     `MessageStore.shared` while visible (`onStart`/`onStop`) and
-    renders the current snapshot, newest first. Long-press starts a
-    standard `androidx.appcompat.view.ActionMode` multi-select (tap
-    toggles more items in or out); its delete action calls
-    `MessageStore.shared.remove` for each selected message after a
-    confirmation dialog. A plain tap *outside* of that selection mode
+    renders the current snapshot, newest first. Long-press starts
+    multi-select (tap toggles more items in or out); its delete action
+    calls `MessageStore.shared.remove` for each selected message after
+    a confirmation dialog. Multi-select is a hand-rolled toggle of
+    `MainActivity`'s own single `Toolbar` - swapping its title to
+    "N selected", enabling the up/back arrow (`onSupportNavigateUp`
+    cancels selection), and swapping its menu to just a delete action
+    (`menu_selection.xml` vs. the normal `menu_main.xml`, chosen in
+    `onCreateOptionsMenu` based on whether a selection-delete callback
+    is currently set) via `MainActivity.enterSelectionMode`/
+    `updateSelectionCount`/`exitSelectionMode`, which `MessagesFragment`
+    drives. This replaced a standard `androidx.appcompat.view.ActionMode`
+    (`startSupportActionMode`) after a real, visible bug: with a
+    manually-set `Toolbar` on a `NoActionBar` theme, AppCompat's
+    `ActionMode` doesn't replace that toolbar - it renders its own
+    contextual bar as an *extra* bar stacked above it, and the combined
+    height of both bars pushed the list down enough to cover the first
+    row. Reusing the one real `Toolbar` for both states has no such
+    ambiguity - it's the same view in the same layout slot throughout,
+    just different content. A plain tap *outside* of that selection mode
     runs `RuleEngine.match` against the tapped message and shows the
     result (source/destination account, amounts/currencies, rendered
     description/notes, issues) in a dialog - "test match". The dialog's

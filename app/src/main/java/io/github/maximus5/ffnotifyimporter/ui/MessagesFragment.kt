@@ -6,13 +6,9 @@ import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.text.style.StyleSpan
 import android.view.LayoutInflater
-import android.view.Menu
-import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
 import androidx.appcompat.app.AlertDialog
-import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.view.ActionMode
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import io.github.maximus5.ffnotifyimporter.R
@@ -31,35 +27,13 @@ class MessagesFragment : Fragment() {
 
     private var binding: FragmentMessagesBinding? = null
     private lateinit var adapter: MessagesAdapter
-    private var actionMode: ActionMode? = null
+    private var inSelectionMode = false
 
     private val listener: (List<CapturedMessage>) -> Unit = { messages ->
         adapter.submitList(messages)
         binding?.messagesEmptyText?.visibility = if (messages.isEmpty()) View.VISIBLE else View.GONE
-        if (adapter.selectedCount() == 0) actionMode?.finish() else updateActionModeTitle()
-    }
-
-    private val actionModeCallback = object : ActionMode.Callback {
-        override fun onCreateActionMode(mode: ActionMode, menu: Menu): Boolean {
-            menu.add(Menu.NONE, MENU_ITEM_DELETE, Menu.NONE, R.string.action_delete)
-                .setIcon(android.R.drawable.ic_menu_delete)
-                .setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
-            return true
-        }
-
-        override fun onPrepareActionMode(mode: ActionMode, menu: Menu) = false
-
-        override fun onActionItemClicked(mode: ActionMode, item: MenuItem): Boolean {
-            if (item.itemId == MENU_ITEM_DELETE) {
-                confirmDeleteSelected()
-                return true
-            }
-            return false
-        }
-
-        override fun onDestroyActionMode(mode: ActionMode) {
-            actionMode = null
-            adapter.clearSelection()
+        if (inSelectionMode) {
+            if (adapter.selectedCount() == 0) clearSelectionAndExit() else updateSelectionCountDisplay()
         }
     }
 
@@ -80,9 +54,9 @@ class MessagesFragment : Fragment() {
     }
 
     private fun handleClick(message: CapturedMessage) {
-        if (actionMode != null) {
+        if (inSelectionMode) {
             adapter.toggleSelection(message)
-            if (adapter.selectedCount() == 0) actionMode?.finish() else updateActionModeTitle()
+            if (adapter.selectedCount() == 0) clearSelectionAndExit() else updateSelectionCountDisplay()
         } else {
             showTestMatch(message)
         }
@@ -165,16 +139,29 @@ class MessagesFragment : Fragment() {
     }
 
     private fun handleLongClick(message: CapturedMessage): Boolean {
-        if (actionMode == null) {
-            actionMode = (requireActivity() as AppCompatActivity).startSupportActionMode(actionModeCallback)
+        if (!inSelectionMode) {
+            inSelectionMode = true
+            adapter.toggleSelection(message)
+            (requireActivity() as MainActivity).enterSelectionMode(
+                count = adapter.selectedCount(),
+                onDelete = ::confirmDeleteSelected,
+                onCancel = ::clearSelectionAndExit,
+            )
+        } else {
+            adapter.toggleSelection(message)
+            if (adapter.selectedCount() == 0) clearSelectionAndExit() else updateSelectionCountDisplay()
         }
-        adapter.toggleSelection(message)
-        if (adapter.selectedCount() == 0) actionMode?.finish() else updateActionModeTitle()
         return true
     }
 
-    private fun updateActionModeTitle() {
-        actionMode?.title = getString(R.string.messages_selected_count, adapter.selectedCount())
+    private fun updateSelectionCountDisplay() {
+        (requireActivity() as MainActivity).updateSelectionCount(adapter.selectedCount())
+    }
+
+    private fun clearSelectionAndExit() {
+        adapter.clearSelection()
+        inSelectionMode = false
+        (activity as? MainActivity)?.exitSelectionMode()
     }
 
     private fun confirmDeleteSelected() {
@@ -184,7 +171,7 @@ class MessagesFragment : Fragment() {
             .setMessage(R.string.delete_messages_confirm_message)
             .setPositiveButton(R.string.action_delete) { _, _ ->
                 toDelete.forEach { MessageStore.shared.remove(it) }
-                actionMode?.finish()
+                clearSelectionAndExit()
             }
             .setNegativeButton(android.R.string.cancel, null)
             .show()
@@ -202,11 +189,7 @@ class MessagesFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
-        actionMode?.finish()
+        if (inSelectionMode) clearSelectionAndExit()
         binding = null
-    }
-
-    private companion object {
-        const val MENU_ITEM_DELETE = 1
     }
 }
