@@ -2,7 +2,7 @@
 <resources>
     <string name="app_name">Firefly III Notification Importer</string>
 
-    <string name="apps_empty">Не удалось получить список приложений</string>
+    <string name="apps_empty">Не удалось получить список приложений.</string>
     <string name="messages_empty">Пока ничего не поймано. Включите мониторинг для нужных приложений и дождитесь уведомления.</string>
 
     <string name="notification_access_missing">Доступ к уведомлениям не выдан. Без него мониторинг не работает.</string>
@@ -33,9 +33,9 @@
     <string name="add_test_message_title_label">Заголовок</string>
     <string name="add_test_message_text_label">Текст</string>
     <string name="add_test_message_add_button">Добавить в историю</string>
-    <string name="add_test_message_empty_error">Заголовок и текст не могут быть пустыми одновременно</string>
+    <string name="add_test_message_empty_error">Заголовок и текст не могут быть пустыми одновременно.</string>
     <string name="add_test_message_added">Добавлено</string>
-    <string name="add_test_message_duplicate">Отброшено как дубликат (то же приложение/заголовок/текст в пределах окна дедупликации)</string>
+    <string name="add_test_message_duplicate">Отброшено как дубликат (то же приложение/заголовок/текст в пределах окна дедупликации).</string>
 
     <string name="action_delete">Удалить</string>
     <string name="messages_selected_count">Выбрано: %1$d</string>
@@ -66,11 +66,11 @@
     <string name="rule_field_pattern">Регулярное выражение (матчится против title + text)</string>
     <string name="rule_pick_existing_pattern">Выбрать существующее…</string>
     <string name="rule_pick_message">Выбрать сообщение…</string>
-    <string name="rule_no_captured_messages">Для этого приложения пока нет пойманных сообщений</string>
+    <string name="rule_no_captured_messages">Для этого приложения пока нет пойманных сообщений.</string>
     <string name="rule_test">Проверить…</string>
     <string name="rule_test_title">Результаты проверки</string>
-    <string name="rule_test_no_matches">Совпадений не найдено (просмотрено сообщений: %1$d)</string>
-    <string name="rule_test_matches_found">Найдено совпадений: %1$d (просмотрено: %2$d)</string>
+    <string name="rule_test_no_matches">Совпадений не найдено (просмотрено сообщений: %1$d).</string>
+    <string name="rule_test_matches_found">Найдено совпадений: %1$d (просмотрено: %2$d).</string>
     <string name="rule_available_macros">Доступные макросы: %1$s</string>
     <string name="rule_insert_macro">Вставить макрос</string>
     <string name="rule_field_description_template">Шаблон описания</string>
@@ -79,7 +79,7 @@
     <string name="rule_field_tags_template">Шаблон тегов (через запятую)</string>
     <string name="rule_field_enabled">Включено</string>
     <string name="action_save">Сохранить</string>
-    <string name="rule_no_monitored_apps">Нет приложений для мониторинга — сначала выберите в разделе «Приложения для мониторинга»</string>
+    <string name="rule_no_monitored_apps">Нет приложений для мониторинга — сначала выберите в разделе «Приложения для мониторинга».</string>
     <string name="rule_pattern_example_label">Пример</string>
     <string name="rule_validation_failed">Сначала исправьте</string>
     <string name="rule_delete_confirm_title">Удалить это правило?</string>
@@ -97,7 +97,7 @@
     <string name="test_match_label_notes">Заметки:</string>
     <string name="test_match_label_category">Категория:</string>
     <string name="test_match_label_tags">Теги:</string>
-    <string name="test_match_issue_local_amount_missing">⚠ Нет суммы в родной валюте — ввести вручную</string>
+    <string name="test_match_issue_local_amount_missing">⚠ Нет суммы в родной валюте — ввести вручную.</string>
 
     <string name="settings_currencies_title">Валюты</string>
     <string name="settings_currencies_subtitle">Таблица код↔символ, напр. EUR↔€ — для чтения банковских уведомлений</string>
@@ -105,6 +105,6 @@
     <string name="currency_edit_title">Редактировать валюту</string>
     <string name="currency_field_code">Код (напр. EUR)</string>
     <string name="currency_field_symbol">Символ (напр. €)</string>
-    <string name="currency_code_required">Код не может быть пустым</string>
+    <string name="currency_code_required">Код не может быть пустым.</string>
     <string name="currency_delete_confirm_title">Удалить %1$s?</string>
 </resources>

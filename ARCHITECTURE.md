@@ -316,31 +316,34 @@ Single `:app` module, packages under
       not gated on `validateRule` since fields irrelevant to matching
       shouldn't block a pattern sanity check - against this session's
       captured messages for the selected app, newest first, stopping
-      after 3 matches found; results are separated by a plain line, no
-      numbering - a numbered list of already-multi-line entries read as
-      more clutter than help, per user feedback). Each match is shown as
-      the notification's raw `title` followed by one `groupname: value`
-      line per named group the pattern declares - not the derived
-      `TransactionDraft` fields (amount/account/etc), which depend on
-      rule config that may still be unfilled while iterating on a
-      pattern and so aren't what "does my regex actually capture what I
-      want" is asking (`ParseOutcome.Matched.groups` exposes the raw
-      capture map for exactly this).
-      The "pick existing"/"pick message" dialogs both render through a
-      shared `PickerItemAdapter` (`item_picker_two_line.xml` +
-      `bg_picker_item.xml`, a thin `?attr/colorOutlineVariant` stroke -
-      a Material3 token so it survives light/dark theme switches rather
-      than a hardcoded hex - around each row, with outer *padding* not
-      *margin* creating the gap between rows, since `ListView` silently
-      drops margins on a row's root view) instead of plain
-      `AlertDialog.setItems` text: each row is a bold header line over a
+      after 3 matches found). Each match is shown as the notification's
+      raw `title` as the row's bold header, followed by one
+      `groupname: value` line per named group the pattern declares as
+      the body - not the derived `TransactionDraft` fields
+      (amount/account/etc), which depend on rule config that may still
+      be unfilled while iterating on a pattern and so aren't what "does
+      my regex actually capture what I want" is asking
+      (`ParseOutcome.Matched.groups` exposes the raw capture map for
+      exactly this); the summary line ("N match(es) found (scanned M)")
+      sits above the list as the dialog's `setMessage`, which
+      `AlertDialog` happily combines with a `setAdapter` list below it.
+      All three of "pick existing"/"pick message"/"test"'s results
+      render through a shared `PickerItemAdapter`
+      (`item_picker_two_line.xml` + `bg_picker_item.xml`, a thin
+      `?attr/colorOutlineVariant` stroke - a Material3 token so it
+      survives light/dark theme switches rather than a hardcoded hex -
+      around each row, with outer *padding* not *margin* creating the
+      gap between rows, since `ListView` silently drops margins on a
+      row's root view) instead of plain `AlertDialog.setItems`/
+      `setMessage` text: each row is a bold header line over a
       normal-weight body line, with the pattern picker's body
       additionally forced to `Typeface.MONOSPACE` (matching the regex
-      field itself) - the message picker's body stays the default
-      typeface since raw notification text isn't code. Before this,
-      header and body rendered as one undifferentiated block of text
-      with no visible boundary between a row's two lines or between
-      separate rows.
+      field itself) - the message/test-result pickers' bodies stay the
+      default typeface since raw notification text/captured values
+      aren't code. Before this, header and body (and, for "test", every
+      match) rendered as one undifferentiated block of text with
+      `"──────────"` text separators between matches - no visible
+      boundary between a row's two lines or between separate rows.
       Then the live
       "available macros" hint from `parser.namedGroupNames`, then
       *source/destination account* (moved here, below the regex, from

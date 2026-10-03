@@ -253,23 +253,28 @@ class RuleEditFragment : Fragment() {
 
         // Shows what the pattern actually captured for each match - amount/account/etc are
         // derived from rule config that may not be filled in yet, which isn't what "does my
-        // regex work" is asking.
-        val body = if (matches.isEmpty()) {
-            getString(R.string.rule_test_no_matches, scanned)
-        } else {
-            buildString {
-                append(getString(R.string.rule_test_matches_found, matches.size, scanned))
-                matches.forEach { (message, groups) ->
-                    append("\n$MATCH_SEPARATOR\n")
-                    append(message.title)
-                    declaredGroups.forEach { name -> groups[name]?.let { append("\n$name: $it") } }
-                }
-            }
+        // regex work" is asking. Same bordered-card rows as the message/pattern pickers (title
+        // bold, captured groups normal weight below it) instead of one long message string with
+        // "──────────" text separators between matches.
+        if (matches.isEmpty()) {
+            AlertDialog.Builder(context)
+                .setTitle(R.string.rule_test_title)
+                .setMessage(getString(R.string.rule_test_no_matches, scanned))
+                .setPositiveButton(android.R.string.ok, null)
+                .show()
+            return
         }
+
+        val items = matches.map { (message, groups) ->
+            val capturedGroups = declaredGroups.mapNotNull { name -> groups[name]?.let { "$name: $it" } }
+            message.title to capturedGroups.joinToString("\n")
+        }
+        val adapter = PickerItemAdapter(context, items, monospaceBody = false)
 
         AlertDialog.Builder(context)
             .setTitle(R.string.rule_test_title)
-            .setMessage(body)
+            .setMessage(getString(R.string.rule_test_matches_found, matches.size, scanned))
+            .setAdapter(adapter, null)
             .setPositiveButton(android.R.string.ok, null)
             .show()
     }
@@ -361,7 +366,6 @@ class RuleEditFragment : Fragment() {
     companion object {
         private const val ARG_RULE_ID = "ruleId"
         private const val MAX_TEST_MATCHES = 3
-        private const val MATCH_SEPARATOR = "──────────"
 
         // Always offered in the pattern picker, alongside any saved patterns - just enough to
         // demonstrate the named-group syntax, not meant to match anything real.
