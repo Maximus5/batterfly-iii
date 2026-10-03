@@ -15,6 +15,11 @@ import io.github.maximus5.ffnotifyimporter.R
 import io.github.maximus5.ffnotifyimporter.data.CapturedMessage
 import io.github.maximus5.ffnotifyimporter.data.MessageStore
 import io.github.maximus5.ffnotifyimporter.databinding.FragmentMessagesBinding
+import io.github.maximus5.ffnotifyimporter.rules.DraftIssue
+import io.github.maximus5.ffnotifyimporter.rules.NoMatchReason
+import io.github.maximus5.ffnotifyimporter.rules.ParseOutcome
+import io.github.maximus5.ffnotifyimporter.rules.RuleEngine
+import io.github.maximus5.ffnotifyimporter.rules.RulesDb
 
 class MessagesFragment : Fragment() {
 
@@ -69,9 +74,62 @@ class MessagesFragment : Fragment() {
     }
 
     private fun handleClick(message: CapturedMessage) {
-        if (actionMode == null) return // no detail view to open (yet)
-        adapter.toggleSelection(message)
-        if (adapter.selectedCount() == 0) actionMode?.finish() else updateActionModeTitle()
+        if (actionMode != null) {
+            adapter.toggleSelection(message)
+            if (adapter.selectedCount() == 0) actionMode?.finish() else updateActionModeTitle()
+        } else {
+            showTestMatch(message)
+        }
+    }
+
+    private fun showTestMatch(message: CapturedMessage) {
+        val rules = RulesDb.getInstance(requireContext()).loadAllOrdered()
+        val outcome = RuleEngine(rules).match(message)
+
+        val body = when (outcome) {
+            is ParseOutcome.NoMatch -> getString(R.string.test_match_no_match, getString(reasonStringRes(outcome.reason)))
+            is ParseOutcome.Matched -> buildString {
+                val draft = outcome.draft
+                appendLine(getString(R.string.test_match_rule_label, outcome.rule.label))
+                appendLine(getString(R.string.test_match_account, draft.ownAccountName))
+                if (draft.amount != null) {
+                    appendLine(getString(R.string.test_match_amount, draft.amount.toPlainString(), draft.currencyCode))
+                } else {
+                    appendLine(getString(R.string.test_match_amount_missing))
+                }
+                if (draft.foreignAmount != null) {
+                    appendLine(
+                        getString(
+                            R.string.test_match_foreign_amount,
+                            draft.foreignAmount.toPlainString(),
+                            draft.foreignCurrencyCode.orEmpty(),
+                        ),
+                    )
+                }
+                draft.counterpartyName?.let { appendLine(getString(R.string.test_match_counterparty, it)) }
+                appendLine(getString(R.string.test_match_description, draft.description))
+                appendLine(getString(R.string.test_match_notes, draft.notes))
+                draft.issues.forEach { issue ->
+                    appendLine(
+                        when (issue) {
+                            DraftIssue.LOCAL_AMOUNT_MISSING -> getString(R.string.test_match_issue_local_amount_missing)
+                        },
+                    )
+                }
+            }
+        }
+
+        AlertDialog.Builder(requireContext())
+            .setTitle(R.string.test_match_title)
+            .setMessage(body.trim())
+            .setPositiveButton(android.R.string.ok, null)
+            .show()
+    }
+
+    private fun reasonStringRes(reason: NoMatchReason) = when (reason) {
+        NoMatchReason.NO_RULES_FOR_APP -> R.string.no_match_reason_no_rules_for_app
+        NoMatchReason.NO_PATTERN_MATCHED -> R.string.no_match_reason_no_pattern_matched
+        NoMatchReason.AMOUNT_UNPARSABLE -> R.string.no_match_reason_amount_unparsable
     }
 
     private fun handleLongClick(message: CapturedMessage): Boolean {

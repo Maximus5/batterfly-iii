@@ -41,4 +41,49 @@
     <string name="messages_selected_count">%1$d selected</string>
     <string name="delete_messages_confirm_title">Delete message(s)?</string>
     <string name="delete_messages_confirm_message">This can\'t be undone. If local history is enabled, they\'re removed there too.</string>
+
+    <string name="settings_rules_title">Rules</string>
+    <string name="settings_rules_subtitle">Match notifications to Firefly III transactions</string>
+    <string name="rules_empty">No rules yet. Tap + to add one.</string>
+    <string name="rules_add">Add rule</string>
+    <string name="rule_move_up">Move up</string>
+    <string name="rule_move_down">Move down</string>
+    <string name="rule_duplicate">Duplicate</string>
+    <string name="rule_apps_any">any monitored app</string>
+    <string name="rule_apps_count">%1$d apps</string>
+    <string name="rule_disabled_label">disabled</string>
+
+    <string name="rule_field_label">Label</string>
+    <string name="rule_field_apps">Apps</string>
+    <string name="rule_field_kind">Type</string>
+    <string name="rule_field_account_name">Account</string>
+    <string name="rule_field_home_currency">Currency</string>
+    <string name="rule_field_counterparty_account">Counterparty account</string>
+    <string name="rule_field_pattern">Pattern (regex, matched against title+text)</string>
+    <string name="rule_pick_existing_pattern">Pick existing pattern…</string>
+    <string name="rule_available_macros">Available macros: %1$s</string>
+    <string name="rule_field_decimal_separator">Decimal separator</string>
+    <string name="rule_field_description_template">Description template</string>
+    <string name="rule_field_notes_template">Notes template</string>
+    <string name="rule_field_enabled">Enabled</string>
+    <string name="action_save">Save</string>
+    <string name="rule_no_monitored_apps">No monitored apps yet - pick some in Monitored apps first</string>
+    <string name="rule_no_existing_patterns">No existing patterns yet</string>
+    <string name="rule_validation_failed">Fix these first</string>
+    <string name="rule_delete_confirm_title">Delete this rule?</string>
+
+    <string name="test_match_title">Test match</string>
+    <string name="test_match_no_match">No match (%1$s)</string>
+    <string name="no_match_reason_no_rules_for_app">no rules for this app</string>
+    <string name="no_match_reason_no_pattern_matched">no pattern matched</string>
+    <string name="no_match_reason_amount_unparsable">amount unparsable</string>
+    <string name="test_match_rule_label">Rule: %1$s</string>
+    <string name="test_match_account">Account: %1$s</string>
+    <string name="test_match_amount">Amount: %1$s %2$s</string>
+    <string name="test_match_amount_missing">Amount: (missing, see issues below)</string>
+    <string name="test_match_foreign_amount">Foreign: %1$s %2$s</string>
+    <string name="test_match_counterparty">Counterparty: %1$s</string>
+    <string name="test_match_description">Description: %1$s</string>
+    <string name="test_match_notes">Notes: %1$s</string>
+    <string name="test_match_issue_local_amount_missing">⚠ Local amount missing - enter manually</string>
 </resources>

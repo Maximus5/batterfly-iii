@@ -23,14 +23,15 @@ transactions, once posting to it exists. Locally, message content is
 in-memory only by default - nothing written to disk - unless the user
 explicitly opts into on-device message history retention (see below).
 
-Current iteration (third milestone, landed): capture + dedup, a
-settings area (monitored apps + opt-in local history), and a rule
-*matching* engine (`parser`/`rules` packages - pure Kotlin, unit
-tested, not wired into any UI yet). Still no Firefly III API calls -
-`rules` deliberately has no dependency on Firefly, using free-text
-placeholders for accounts/currencies until that connection exists (see
-TODO.md) - single Gradle module `app`, Kotlin, classic Android Views
-(no Compose), minSdk 26.
+Current iteration (fourth milestone, landed): capture + dedup, a
+settings area (monitored apps + opt-in local history), and a full
+rule-matching flow - create/edit/duplicate/reorder rules in Settings,
+"test match" a captured message by tapping it on the Messages screen.
+Still no Firefly III API calls - `rules` deliberately has no
+dependency on Firefly, using free-text placeholders for
+accounts/currencies until that connection exists (see TODO.md) -
+single Gradle module `app`, Kotlin, classic Android Views (no
+Compose), minSdk 26.
 
 A deliberate two-layer split for the matching engine, settled after
 some back-and-forth on an earlier draft that mixed them:
@@ -112,8 +113,21 @@ Single `:app` module, packages under
   - `validateRule(rule)` (`RuleValidationTest`) - checks a pattern
     defines `amount`, transfer rules have a counterparty, and every
     macro referenced in the templates is either a declared group or
-    `title`/`body`. For the (not yet built) rule editor to call before
-    letting a save through.
+    `title`/`body`. The rule editor calls this before letting a save
+    through.
+  - `RulesDb` - plain SQLite (no ORM), one row per rule plus an
+    explicit `sort_order` column - the only priority mechanism
+    `RuleEngine` uses, so `moveUp`/`moveDown` just swap two rows'
+    `sort_order`. `duplicate` shifts every later row's order up by one
+    and inserts the copy right after the original, in a transaction.
+    `distinctPatterns()` is the "pick an existing pattern" source for
+    the rule editor - a derived query over this same table, newest
+    first, one entry per distinct pattern; no separate library table.
+    `RulesDb.getInstance(context)` is the one shared instance (same
+    reasoning as `MessageHistoryDb.getInstance`). Not unit tested -
+    like `MessageHistoryDb`, it's thin glue over real
+    `SQLiteOpenHelper`/Android framework classes that don't run under
+    plain JVM unit tests.
 - `prefs` - thin `SharedPreferences` wrappers for configuration (not
   notification content, so - unlike captured messages by default -
   persisted across restarts/reboots on purpose):
@@ -137,27 +151,48 @@ Single `:app` module, packages under
     standard `androidx.appcompat.view.ActionMode` multi-select (tap
     toggles more items in or out); its delete action calls
     `MessageStore.shared.remove` for each selected message after a
-    confirmation dialog.
+    confirmation dialog. A plain tap *outside* of that selection mode
+    runs `RuleEngine.match` against the tapped message and shows the
+    result (rule, account, amounts/currencies, counterparty,
+    rendered description/notes, issues) in a dialog - "test match".
   - `SettingsActivity` - everything else, as a stack of fragments
     pushed via plain `FragmentManager` back-stack transactions (no
     Navigation Component - the flow is small and linear enough not to
-    need it): `SettingsRootFragment` (the menu: monitored apps,
-    message history, add test message, and later Firefly III
-    connection / processing rules / appearance, added one row at a
-    time as each is built) -> `AppsFragment` (reused as-is, just
-    hosted here instead of a tab; lists every launchable installed app
-    via `queryIntentActivities` on `ACTION_MAIN`/`CATEGORY_LAUNCHER`,
-    which needs the `<queries>` entry in the manifest to see apps on
-    API 30+; loads on a background dispatcher, only once the screen is
-    actually opened, not eagerly), `MessageHistoryFragment` (the
-    retention radio group, writes to `RetentionPrefs` and calls
-    `RetentionController.applyOnSettingChanged`), or
-    `AddTestMessageFragment` - a debug tool: picks from the monitored
-    apps list and calls `MessageStore.shared.add(...)` directly with
-    user-entered title/text, exactly like
-    `BankNotificationListenerService` would for a real notification
-    (same dedup, same persistence-if-enabled) - lets rule processing
-    be tested without waiting for a real bank notification.
+    need it). `SettingsRootFragment` is the menu (monitored apps,
+    rules, message history, add test message, and later Firefly III
+    connection / appearance, added one row at a time as each is
+    built), linking to:
+    - `AppsFragment` (reused as-is, just hosted here instead of a tab;
+      lists every launchable installed app via `queryIntentActivities`
+      on `ACTION_MAIN`/`CATEGORY_LAUNCHER`, which needs the
+      `<queries>` entry in the manifest to see apps on API 30+; loads
+      on a background dispatcher, only once the screen is actually
+      opened, not eagerly).
+    - `MessageHistoryFragment` (the retention radio group, writes to
+      `RetentionPrefs` and calls `RetentionController
+      .applyOnSettingChanged`).
+    - `AddTestMessageFragment` - a debug tool: picks from the
+      monitored apps list and calls `MessageStore.shared.add(...)`
+      directly with user-entered title/text, exactly like
+      `BankNotificationListenerService` would for a real notification
+      (same dedup, same persistence-if-enabled) - lets rule processing
+      be tested without waiting for a real bank notification.
+    - `RulesListFragment` - the ordered rule list (`RulesAdapter`);
+      tap opens `RuleEditFragment` to edit, the overflow (⋮) menu per
+      row has move up/down, duplicate, delete - all straight
+      `RulesDb` calls followed by a reload. A FAB opens
+      `RuleEditFragment` with no rule id, to create one.
+    - `RuleEditFragment` - one form for both create (`ruleId == null`)
+      and edit, via `RuleEditFragment.newInstance(ruleId)`. The apps
+      picker is a multi-choice `AlertDialog` sourced from
+      `MonitoredAppsPrefs` (not a full re-enumeration of installed
+      apps - a rule can only ever match what the listener service
+      already captures). The pattern field has a "pick existing
+      pattern" button backed by `RulesDb.distinctPatterns()`, and a
+      live "available macros" hint computed from
+      `parser.namedGroupNames` on whatever's currently typed. Save
+      runs `validateRule` and shows every error in one dialog before
+      writing anything.
   - `SystemBarInsets.kt` - `useClassicSystemBars(root)`, the shared
     edge-to-edge-but-padded-back-to-classic logic both activities call
     (see Known bugs/gotchas below for why it's done this way).
@@ -174,11 +209,12 @@ re-renders via the store's listener callback; if retention is enabled,
 `MessageStore`'s `onNewMessage` hook also mirrors the entry into
 `MessageHistoryDb` and prunes rows older than the retention window. On
 process start, `FfNotifyImporterApp` hydrates `MessageStore` from
-`MessageHistoryDb` if retention was left enabled. `rules.RuleEngine`
-can already match a `CapturedMessage` against a `List<ParseRule>` and
-produce a `TransactionDraft`, but nothing in the running app calls it
-yet - no rule storage (`RulesDb`), no rules UI, no "test match" tap on
-Messages, no Firefly III API call. See TODO.md for what's left.
+`MessageHistoryDb` if retention was left enabled. Tapping a message
+(outside selection mode) loads rules from `RulesDb`, runs
+`RuleEngine.match`, and shows the `ParseOutcome` in a dialog - nothing
+is written anywhere by this, it's purely a preview. No Firefly III API
+call exists yet; that's the only remaining step once a Firefly
+connection exists (see TODO.md).
 
 ## Known bugs / gotchas
 
@@ -196,8 +232,9 @@ Messages, no Firefly III API call. See TODO.md for what's left.
   revoked by some OEM battery-optimization/"app hibernation" features.
   No detection for that beyond the existing "is access enabled" banner
   check on resume.
-- The settings area (this milestone) hasn't had a real-device pass
-  yet - unit tests and `assembleDebug` pass, but opening each settings
-  screen, toggling retention, and confirming messages actually survive
-  an app restart with it on needs manual verification per AGENTS.md's
-  workflow rule.
+- The settings area, including the whole rules flow added this
+  milestone, hasn't had a real-device pass yet - unit tests and
+  `assembleDebug` pass, but opening each settings screen, toggling
+  retention, and exercising rule create/edit/duplicate/reorder/delete
+  plus "test match" needs manual verification per AGENTS.md's workflow
+  rule.

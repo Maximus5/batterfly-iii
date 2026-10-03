@@ -5,38 +5,33 @@ identified but deliberately not done now (out of scope, needs a
 decision, etc.); remove the entry in the same commit that finishes the
 work.
 
-- Rule engine core (`parser`/`rules` packages - pattern matching,
-  macro templates, `RuleEngine`, `validateRule`) is built and unit
-  tested. Still missing, all deliberately out of scope for that step:
-  - Persistence (`RulesDb` - plain SQLite, like `MessageHistoryDb`,
-    plus an explicit order column since list order is match priority).
-  - The Rules settings screen: list (reorder via up/down, not drag -
-    see ARCHITECTURE.md), add/edit/delete, duplicate-existing-rule,
-    and a "pick an existing pattern" picker sourced from patterns
-    already used by other saved rules (no separate pattern-library
-    screen/table - it's a derived view over `RulesDb`).
-  - "Test match" on the Messages screen: short tap (outside of the
-    existing long-press multi-select) opens a dialog running
-    `RuleEngine.match` against the tapped message and showing the
-    result.
+- Rule engine (`parser`/`rules`, `RulesDb`, the Rules settings screen,
+  and the Messages screen's "test match" tap) is built end to end and
+  reachable in the app - see ARCHITECTURE.md. Not yet verified on a
+  real device (see the on-device verification item below). Still
+  deliberately missing:
   - The Firefly III API client/actual transaction posting - `rules`
     deliberately has no dependency on this; `ParseRule.accountName`/
     `homeCurrency` are free-text placeholders until it exists (see
     next item).
+  - A way to reorder rules other than one-step-at-a-time up/down
+    buttons (fine for a handful of rules; revisit - e.g. drag handles
+    - if the list grows long enough to make that tedious).
 - Firefly III connection settings screen (base URL + personal access
   token, entered by the user, stored on-device per AGENTS.md's Secrets
   section - never hardcoded, never committed) - not built yet, just a
   future row in `SettingsRootFragment`. Once it exists, `ParseRule`'s
   `accountName`/`homeCurrency` placeholders need a migration path to
   real Firefly account/currency references.
-- Real on-device verification of the settings area added in this
-  milestone (monitored-apps screen moved under Settings, and
-  especially message history: toggle retention on, capture a
-  notification, restart the app, confirm it's still there; toggle back
-  off, confirm the on-disk file is actually cleared) - see
-  ARCHITECTURE.md's Known bugs/gotchas. The original notification
-  capture + dedup + fullscreen fix are already confirmed working on a
-  real device.
+- Real on-device verification needed for: message history retention
+  (toggle on, capture a notification, restart the app, confirm it's
+  still there; toggle back off, confirm the on-disk file is actually
+  cleared), and the whole rules flow (add/edit/duplicate/delete/
+  reorder a rule, pick an existing pattern, "test match" tap on a
+  message, including the foreign-currency/LOCAL_AMOUNT_MISSING case)
+  - see ARCHITECTURE.md's Known bugs/gotchas. Notification capture +
+  dedup + fullscreen fix are already confirmed working on a real
+  device.
 - No cap on `MessageStore`'s in-memory list size, or on
   `MessageHistoryDb` beyond the retention-window purge - for personal,
   low-volume bank notifications this is unlikely to matter. Revisit if

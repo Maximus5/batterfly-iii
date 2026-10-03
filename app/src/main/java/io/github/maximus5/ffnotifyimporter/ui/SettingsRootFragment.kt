@@ -32,6 +32,12 @@ class SettingsRootFragment : Fragment() {
                 R.string.settings_monitored_apps_title,
             )
         }
+        binding.rowRules.setOnClickListener {
+            (activity as? SettingsActivity)?.openScreen(
+                RulesListFragment(),
+                R.string.settings_rules_title,
+            )
+        }
         binding.rowMessageHistory.setOnClickListener {
             (activity as? SettingsActivity)?.openScreen(
                 MessageHistoryFragment(),
