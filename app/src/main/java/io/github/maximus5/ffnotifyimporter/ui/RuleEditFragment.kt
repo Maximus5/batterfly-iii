@@ -76,17 +76,33 @@ class RuleEditFragment : Fragment() {
         binding.testAgainstHistoryButton.setOnClickListener { testAgainstHistory() }
         binding.saveRuleButton.setOnClickListener { save() }
         binding.deleteRuleButton.setOnClickListener { confirmDelete() }
+        binding.homeCurrencyLayout.setEndIconOnClickListener { showCurrencyPicker() }
 
         setupMacroInsertButtons()
         updateAvailableMacros()
     }
 
+    /** Picks from the user-maintained code<->symbol table (Settings -> Currencies) instead of
+     * hand-typing a code and risking a typo `normalizeCurrency` would never recognize. */
+    private fun showCurrencyPicker() {
+        val context = requireContext()
+        val entries = CurrenciesDb.getInstance(context).loadAll()
+        if (entries.isEmpty()) return
+        val labels = entries.map { "${it.code} (${it.symbol})" }.toTypedArray()
+
+        AlertDialog.Builder(context)
+            .setTitle(R.string.rule_pick_currency)
+            .setItems(labels) { _, which -> binding?.homeCurrencyInput?.setText(entries[which].code) }
+            .show()
+    }
+
     /**
      * Every template field (anything below the regex field that's macro-driven - account names,
-     * description/notes/category/tags, NOT home currency which is a plain value) gets a custom
-     * end icon that inserts a `{name}` macro at the cursor, instead of requiring it to be typed
-     * out by hand. Deliberately an insert at the current selection, not a `setText` - the field
-     * may already have other text around where the macro goes.
+     * description/notes/category/tags) gets a custom end icon that inserts a `{name}` macro at
+     * the cursor, instead of requiring it to be typed out by hand. Deliberately an insert at the
+     * current selection, not a `setText` - the field may already have other text around where the
+     * macro goes. Not home currency - that's a plain comparison value, not a template, and has
+     * its own end icon ([showCurrencyPicker]) that `setText`s the whole field instead.
      */
     private fun setupMacroInsertButtons() {
         val binding = binding ?: return
@@ -103,31 +119,38 @@ class RuleEditFragment : Fragment() {
         }
     }
 
+    /**
+     * One list mixing two kinds of insertable text: real `{macro}` tokens (declared groups plus
+     * [FIXED_MACROS]), and the current app's name as a plain literal string - not a macro, since
+     * a rule is always scoped to exactly one app (no `{appname}` macro exists; see
+     * `MacroTemplate.kt`'s KDoc for why that was removed).
+     */
     private fun showMacroPicker(target: EditText) {
         val context = requireContext()
         val pattern = binding?.patternInput?.text?.toString().orEmpty()
         val groups = runCatching { namedGroupNames(pattern) }.getOrDefault(emptyList())
-        val macros = (groups + FIXED_MACROS)
-        if (macros.isEmpty()) return
-        val labels = macros.map { "{$it}" }.toTypedArray()
+        val macroEntries = (groups + FIXED_MACROS).map { "{$it}" to "{$it}" }
+        val appLabel = monitoredApps.firstOrNull { it.first == selectedPackageName }?.second
+        val appEntry = appLabel?.let { listOf(getString(R.string.rule_insert_app_name, it) to it) }.orEmpty()
+        val entries = macroEntries + appEntry
+        if (entries.isEmpty()) return
 
         AlertDialog.Builder(context)
             .setTitle(R.string.rule_insert_macro)
-            .setItems(labels) { _, which -> insertMacro(target, macros[which]) }
+            .setItems(entries.map { it.first }.toTypedArray()) { _, which -> insertTextAtCursor(target, entries[which].second) }
             .show()
     }
 
-    private fun insertMacro(target: EditText, macroName: String) {
+    private fun insertTextAtCursor(target: EditText, text: String) {
         val start = target.selectionStart.coerceAtLeast(0)
         val end = target.selectionEnd.coerceAtLeast(0)
         val insertAt = minOf(start, end)
-        val macroText = "{$macroName}"
-        target.text?.replace(insertAt, maxOf(start, end), macroText)
+        target.text?.replace(insertAt, maxOf(start, end), text)
         // The end icon click (and the picker dialog it opened) moved focus away from the field,
         // so the cursor needs to be put back explicitly - otherwise it's left wherever it was
         // (or nowhere), not right after what was just inserted.
         target.requestFocus()
-        target.setSelection(insertAt + macroText.length)
+        target.setSelection(insertAt + text.length)
     }
 
     private fun setupKindDropdown() {

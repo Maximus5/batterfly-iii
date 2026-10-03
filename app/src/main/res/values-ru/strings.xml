@@ -63,7 +63,7 @@
     <string name="rule_field_kind">Тип</string>
     <string name="rule_field_source_account">Счёт-источник</string>
     <string name="rule_field_destination_account">Счёт назначения</string>
-    <string name="rule_field_home_currency">Валюта</string>
+    <string name="rule_field_home_currency">Валюта счёта</string>
     <string name="rule_field_pattern">Регулярное выражение (матчится против title + text)</string>
     <string name="rule_pick_existing_pattern">Выбрать существующее…</string>
     <string name="rule_pick_message">Выбрать сообщение…</string>
@@ -74,6 +74,8 @@
     <string name="rule_test_matches_found">Найдено совпадений: %1$d (просмотрено: %2$d).</string>
     <string name="rule_available_macros">Доступные макросы: %1$s</string>
     <string name="rule_insert_macro">Вставить макрос</string>
+    <string name="rule_insert_app_name">Имя приложения: %1$s</string>
+    <string name="rule_pick_currency">Выбрать валюту</string>
     <string name="rule_field_description_template">Шаблон описания</string>
     <string name="rule_field_notes_template">Шаблон заметок</string>
     <string name="rule_field_category_template">Шаблон категории</string>

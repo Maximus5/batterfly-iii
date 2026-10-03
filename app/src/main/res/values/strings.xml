@@ -63,7 +63,7 @@
     <string name="rule_field_kind">Type</string>
     <string name="rule_field_source_account">Source account</string>
     <string name="rule_field_destination_account">Destination account</string>
-    <string name="rule_field_home_currency">Currency</string>
+    <string name="rule_field_home_currency">Account currency</string>
     <string name="rule_field_pattern">Regular expression (matched against title + text)</string>
     <string name="rule_pick_existing_pattern">Pick existing…</string>
     <string name="rule_pick_message">Pick message…</string>
@@ -74,6 +74,8 @@
     <string name="rule_test_matches_found">%1$d match(es) found (scanned %2$d).</string>
     <string name="rule_available_macros">Available macros: %1$s</string>
     <string name="rule_insert_macro">Insert macro</string>
+    <string name="rule_insert_app_name">App name: %1$s</string>
+    <string name="rule_pick_currency">Pick currency</string>
     <string name="rule_field_description_template">Description template</string>
     <string name="rule_field_notes_template">Notes template</string>
     <string name="rule_field_category_template">Category template</string>

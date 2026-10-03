@@ -23,18 +23,6 @@ class MacroTemplateTest {
     }
 
     @Test
-    fun `appname macro substitutes the app label`() {
-        val result = renderTemplate(
-            "{appname}: {title}",
-            groups = emptyMap(),
-            title = "Payment",
-            body = "b",
-            appName = "Revolut",
-        )
-        assertEquals("Revolut: Payment", result)
-    }
-
-    @Test
     fun `templateMacroNames lists every macro referenced`() {
         assertEquals(setOf("counterparty", "title"), templateMacroNames("{counterparty} wrote: {title}"))
     }

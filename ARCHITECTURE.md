@@ -62,19 +62,20 @@ code alone:
   (app-filtered, in list order) whose pattern matches and yields a
   parsable amount. No `priority` field, no "ambiguous match" outcome.
 - `description`/`notes`/`category`/`tags` are all macro templates
-  (`{groupName}`/`{title}`/`{body}`/`{appname}`), not separate "is this
-  dynamic or static" fields - a template with no `{macro}` in it just
-  behaves like a plain fixed string, so templates are a strict superset
-  of "plain string" at zero extra cost, and keeps one mechanism instead
-  of two. `{title}`/`{body}`/`{appname}` (`MacroTemplate.FIXED_MACROS`)
-  are always available regardless of what the pattern declares -
-  `{appname}` is the monitored app's display label
-  (`CapturedMessage.appLabel`, the same string shown in the app
-  dropdown), not a captured group, for a rule that wants the source app
-  in a description/notes without hardcoding it (useful once one rule's
-  pattern is reused loosely-ish across similarly-worded notifications
-  from different apps). `tags` is the odd one out structurally: its
-  template renders
+  (`{groupName}`/`{title}`/`{body}`), not separate "is this dynamic or
+  static" fields - a template with no `{macro}` in it just behaves like
+  a plain fixed string, so templates are a strict superset of "plain
+  string" at zero extra cost, and keeps one mechanism instead of two.
+  `{title}`/`{body}` (`MacroTemplate.FIXED_MACROS`) are always
+  available regardless of what the pattern declares. There is no
+  `{appname}` macro (an earlier version had one, removed) - a rule is
+  always scoped to exactly one app (`ParseRule.packageNames` is written
+  as a singleton set by the editor), so which app it is never varies
+  per match; a macro that can only ever resolve to one fixed value adds
+  indirection without adding flexibility. The rule editor's insert-macro
+  picker instead offers the app's name as a plain literal string to
+  insert (see the `RuleEditFragment.showMacroPicker` note below).
+  `tags` is the odd one out structurally: its template renders
   to one string, which then gets split on `,` (trimmed, blanks
   dropped) into `TransactionDraft.tags: List<String>`. No default text
   in any of these for a new rule - user feedback was that a silently
@@ -159,7 +160,7 @@ Single `:app` module, packages under
   - `renderTemplate`/`templateMacroNames`/`FIXED_MACROS`
     (`MacroTemplateTest`) - `{x}` macro substitution for
     description/notes/account names/etc, using the match's captured
-    groups plus always-available `{title}`/`{body}`/`{appname}`.
+    groups plus always-available `{title}`/`{body}`.
   - `TransactionDraft`/`DraftIssue`/`ParseOutcome`/`NoMatchReason` -
     what a match produced (or why it didn't match), not yet a Firefly
     API request.
@@ -371,26 +372,41 @@ Single `:app` module, packages under
       the identity-fields group above - now that they're macro
       templates (see the `RuleKind` note above) they only make sense
       once you're thinking about what the regex extracts, same
-      reasoning `homeCurrency` already had), then `homeCurrency`, then
-      the rest of the templates. Every macro-template field (both
-      account fields, description/notes/category/tags - *not*
-      `homeCurrency`, which `renderTemplate` never touches: `RuleEngine`
-      compares the captured currency *against* it literally to decide
-      local vs. foreign amount, so a `{macro}` typed in there wouldn't
-      render to anything - it'd just sit as that literal string and
-      never match a real currency, which is worse than no button at
-      all) has a custom end icon (`TextInputLayout.setEndIconOnClickListener`,
-      `ic_insert_macro`) that opens a picker over the currently declared
-      macros (the pattern's named groups plus `FIXED_MACROS`) and
-      inserts `{name}` at the current cursor position/selection in that
-      field - an `Editable.replace`, not `setText`, so it doesn't
-      clobber whatever else is already typed there. The end icon tap
-      (and the picker dialog it opens) moves focus off the field, so
-      insertion explicitly calls `requestFocus()` +
-      `setSelection(insertAt + macroText.length)` afterward - without
-      it the cursor was left stranded wherever it happened to be
-      instead of right after what was just inserted. Saves having to
-      hand-type e.g. `{currency}` and getting the spelling wrong.
+      reasoning `homeCurrency` already had), then `homeCurrency`
+      (labeled "Account currency" in the UI - "Currency" alone read as
+      ambiguous once cross-currency transactions came up in discussion:
+      it's the *account's* currency, a fixed comparison value, not
+      "whatever currency this transaction happens to be in"), then the
+      rest of the templates.
+      Every macro-template field (both account fields,
+      description/notes/category/tags - *not* `homeCurrency`, which
+      `renderTemplate` never touches: `RuleEngine` compares the captured
+      currency *against* it literally to decide local vs. foreign
+      amount, so a `{macro}` typed in there wouldn't render to
+      anything - it'd just sit as that literal string and never match a
+      real currency) has a custom end icon
+      (`TextInputLayout.setEndIconOnClickListener`, `ic_insert_macro`)
+      that opens a picker (`RuleEditFragment.showMacroPicker`) over the
+      currently declared macros (the pattern's named groups plus
+      `FIXED_MACROS`) *plus* the current app's name as a plain literal
+      string (not a `{macro}` - see the `{appname}` removal note above)
+      and inserts the picked text at the current cursor
+      position/selection in that field - an `Editable.replace`, not
+      `setText`, so it doesn't clobber whatever else is already typed
+      there. The end icon tap (and the picker dialog it opens) moves
+      focus off the field, so insertion explicitly calls
+      `requestFocus()` + `setSelection(insertAt + text.length)`
+      afterward - without it the cursor was left stranded wherever it
+      happened to be instead of right after what was just inserted.
+      Saves having to hand-type e.g. `{currency}` and getting the
+      spelling wrong.
+      `homeCurrency` gets a *different* end icon
+      (`ic_dropdown`, `RuleEditFragment.showCurrencyPicker`) - a plain
+      list of the user-maintained `CurrenciesDb` codes (e.g. "EUR (€)"),
+      picking one `setText`s the whole field rather than inserting at a
+      cursor, since this field holds one fixed value, not a template to
+      build up piece by piece. Saves a typo turning into a currency
+      `normalizeCurrency` never recognizes.
       Every `TextInputLayout` on this form (and on
       `AddTestMessageFragment`'s) sets `app:expandedHintEnabled="false"`
       so the field label always sits in the compact/floating position -
