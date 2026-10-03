@@ -14,6 +14,36 @@ work.
     deliberately has no dependency on this; `ParseRule.sourceAccountName`/
     `destinationAccountName`/`homeCurrency` are free-text placeholders
     until it exists (see next item).
+    - Once posting exists, it needs an automatic-posting setting (post
+      every match immediately vs. require manual review/confirm first)
+      *and* a transaction-level dedup option - two different problems
+      from `MessageStore`'s existing notification-level dedup
+      (`(packageName, title, text)` within a window - see its
+      ARCHITECTURE.md entry):
+        - A bank can re-post the same notification a few times - already
+          handled by that same-app dedup, but it's worth actually
+          confirming against a real repeat-notification case once
+          posting makes a duplicate actually cost something (an extra
+          transaction in Firefly), rather than trusting it untested.
+        - Rules can legitimately exist for *two different apps* that
+          both notify about the *same real-world transaction* - a
+          bank's own app and Google/Apple Wallet both firing for one
+          card tap, for example. `MessageStore`'s dedup never catches
+          this (different `packageName`, so it's two distinct captured
+          messages by design) - each would independently match its own
+          rule and, without something new, produce two Firefly
+          transactions for one real payment.
+        - Open question, not resolved: how to tell "the same payment,
+          reported twice by two apps" apart from "the same payment,
+          genuinely happening twice in a row" (e.g. tapping a phone
+          twice for two separate NFC turnstile entries) - a naive
+          same-amount-same-account-within-a-few-seconds rule would
+          collapse the second real transaction into a false dedup.
+          Likely a minor, low-probability case in practice (two people
+          tapping in close succession would typically use two separate
+          phones, not the same phone twice) - not blocking, but needs
+          an explicit answer before building the dedup logic, not an
+          assumption baked in silently.
   - A way to reorder rules other than one-step-at-a-time up/down
     buttons (fine for a handful of rules; revisit - e.g. drag handles
     - if the list grows long enough to make that tedious).

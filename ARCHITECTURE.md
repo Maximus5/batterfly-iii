@@ -118,7 +118,13 @@ Single `:app` module, packages under
     `remove` deletes one entry (matched by value equality - there's no
     separate id) for the Messages screen's delete action. The optional
     `onNewMessage`/`onMessageRemoved` hooks are how persistence attaches
-    itself without `MessageStore` knowing persistence exists.
+    itself without `MessageStore` knowing persistence exists. Dedup key
+    is `(packageName, title, text)` - *notification*-level, same app
+    only. It says nothing about two *different* apps notifying about
+    the same real-world transaction (e.g. a bank's own app plus
+    Google/Apple Wallet both firing for one card tap) - that's a
+    transaction-level dedup problem for whenever Firefly posting exists,
+    see TODO.md.
   - `MessageHistoryDb` - the on-disk mirror, plain `SQLiteOpenHelper`
     (no ORM), one `messages` table. Only ever written to while
     retention is enabled. `MessageHistoryDb.getInstance(context)` is
