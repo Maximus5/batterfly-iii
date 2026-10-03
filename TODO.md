@@ -72,9 +72,9 @@ work.
           explicitly-supplied `foreign_amount` as authoritative over
           anything it would calculate itself ("if you set a foreign
           amount in your primary currency, that amount will be used
-          instead of any calculated amount"). So the plan is: fetch a
-          rate from an independent source *we* control - a free,
-          keyless, ECB-based API like Frankfurter is the obvious
+          instead of any calculated amount"). Decided: fetch a rate
+          from an independent, free external source *we* control - a
+          free, keyless, ECB-based API like Frankfurter is the obvious
           starting candidate, not investigated in depth yet - compute
           `amount` ourselves, and post both `amount` (our computed
           guess) and `foreign_amount`/`foreign_currency_code` (the
@@ -84,14 +84,17 @@ work.
           side-effect (harmless, and it means Firefly's own future
           reports/calculations benefit too) - a nice-to-have, not a
           dependency of the main flow.
-        - Open design question: a computed amount is an approximation
-          of a public market rate, not the bank's actual settled
-          amount (banks apply their own FX markup, and settlement can
-          lag the notification by a day or more) - needs some way to
-          mark the transaction as "amount approximated, verify later"
-          (a tag? a note? a Firefly-side flag?) rather than presenting
-          it with the same confidence as a same-currency transaction.
-          Not decided.
+        - Decided: mark a computed/approximated transaction with a tag
+          (not a note or a Firefly-side flag) - the tag's *name* is a
+          user-configurable setting (a new Settings field, not
+          hardcoded), so it's a plain, visible Firefly tag the user
+          picks themselves rather than something baked into this app's
+          wording. Applied on top of whatever the rule's own
+          `tagsTemplate` already produces, not instead of it. Where
+          this setting lives (its own tiny prefs class vs. folded into
+          whatever the Firefly connection settings screen ends up
+          being) isn't decided - that connection screen doesn't exist
+          yet either.
   - A way to reorder rules other than one-step-at-a-time up/down
     buttons (fine for a handful of rules; revisit - e.g. drag handles
     - if the list grows long enough to make that tedious).
