@@ -900,10 +900,28 @@ Single `:app` module, packages under
   non-empty, resolves the app's current label via `AppLabelResolver`
   and calls `MessageStore.shared.add(...)` - a non-null (genuinely new,
   not a notification-level duplicate) result is handed straight to
-  `posting.AutoCreateScheduler.scheduleIfEnabled` right after. Requires
-  the user to grant notification-listener access manually in system
-  settings - there is no runtime permission dialog for this, only
-  `Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS`.
+  `posting.AutoCreateScheduler.scheduleIfEnabled` right after.
+  **Fixed a real duplicate-capture bug, caught directly on-device**:
+  `onNotificationPosted` isn't only called for a genuinely new
+  notification - the system also replays every notification still
+  sitting unswiped in the shade whenever this listener (re)connects,
+  which happens on its own whenever Android kills and restarts the
+  service (no foreground service, see TODO.md). `add(...)` is now
+  timestamped with `sbn.postTime` (the system's own record of when the
+  notification was actually posted, unchanged across a replay) instead
+  of `System.currentTimeMillis()` ("now", different every time) - an
+  hour-old unswiped notification replayed on reconnect used to look
+  brand new and get captured (and auto-created) a second time, well
+  outside any dedup window; same `postTime` on both captures now
+  collapses it correctly regardless of how much wall-clock time passed
+  in between. This also makes `TransactionDraft.date`'s own default
+  (`RuleEngine.buildDraft`, from `message.timestampMillis`) and
+  `CreatedTransactionsDb`'s dedup-window check more correct as a side
+  effect - both now reflect when the payment notification actually
+  happened, not when this app's listener happened to (re)process it.
+  Requires the user to grant notification-listener access manually in
+  system settings - there is no runtime permission dialog for this,
+  only `Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS`.
 - `ui`:
   - `MainActivity` - home screen, just hosts `MessagesFragment` plus a
     toolbar with a settings action. `MessagesFragment` subscribes to

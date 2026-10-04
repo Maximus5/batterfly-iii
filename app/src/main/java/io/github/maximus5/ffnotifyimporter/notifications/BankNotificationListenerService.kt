@@ -7,6 +7,15 @@ import io.github.maximus5.ffnotifyimporter.data.MessageStore
 import io.github.maximus5.ffnotifyimporter.posting.AutoCreateScheduler
 import io.github.maximus5.ffnotifyimporter.prefs.MonitoredAppsPrefs
 
+/** `onNotificationPosted` is not only called for a genuinely new notification - the system also
+ * replays every currently-active notification still sitting in the shade whenever this listener
+ * (re)connects (`onListenerConnected`, implicit here - not overridden), which happens on its own
+ * any time Android kills and restarts the service (no foreground service here, see TODO.md/
+ * ARCHITECTURE.md's own note on that trade-off). A real on-device case the user caught: an
+ * unswiped Google Wallet notification from over an hour earlier got replayed and captured again
+ * as if it were new, well outside [MessageStore]'s dedup window, because [MessageStore.add] was
+ * timestamped with "now" (when *this app* happened to receive it) rather than when the
+ * notification was actually posted. */
 class BankNotificationListenerService : NotificationListenerService() {
 
     private lateinit var monitoredAppsPrefs: MonitoredAppsPrefs
@@ -26,7 +35,11 @@ class BankNotificationListenerService : NotificationListenerService() {
         if (title.isEmpty() && text.isEmpty()) return
 
         val appLabel = AppLabelResolver.resolve(applicationContext, packageName)
-        val recorded = MessageStore.shared.add(packageName, appLabel, title, text) ?: return
+        // sbn.postTime, not System.currentTimeMillis() - the system's own record of when this
+        // notification was actually posted, which stays the same across a replay on listener
+        // reconnect (see this class's own KDoc) - "now" would make a stale replay of the exact
+        // same notification look brand new every time, well outside any dedup window.
+        val recorded = MessageStore.shared.add(packageName, appLabel, title, text, sbn.postTime) ?: return
         AutoCreateScheduler.scheduleIfEnabled(applicationContext, recorded)
     }
 }
