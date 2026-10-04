@@ -17,9 +17,18 @@ import io.github.maximus5.ffnotifyimporter.databinding.FragmentNotificationAcces
  * does with notification content *before* sending the user to the system grant screen, not just
  * imply it or leave it to the system permission's own generic wording.
  *
- * Opened from [AppsFragment]'s "grant access" banner button instead of that button jumping
- * straight to system settings itself - [AppsFragment] still lives behind it, so declining here
- * (`consentNotNowButton`) just pops back to the exact same banner, nothing lost.
+ * Two entry points, both leading here: [MainActivity] shows this as the very first screen on any
+ * launch where access isn't granted yet (the user's own call - the app does nothing useful
+ * without this permission, so the disclosure belongs front and center on a fresh install, not
+ * buried behind Settings), and [AppsFragment]'s "grant access" banner button opens it pushed on
+ * top of [SettingsActivity]'s back stack for a later re-prompt. [dismiss] tells the two apart by
+ * whether there's a back stack entry to pop at all, rather than needing an explicit mode
+ * argument: pushed from `AppsFragment` -> pop back to it; sitting as `MainActivity`'s *root*
+ * fragment (nothing to pop) -> swap to `MessagesFragment` instead ([MainActivity.showMessages]).
+ * [onResume] calls the same [dismiss] the moment access is already granted - covers both "Agree,
+ * continue" returning from the system grant screen having actually granted it, *and* simply
+ * reopening the app later after granting it some other way - either way this screen never
+ * lingers once it has nothing left to ask for.
  */
 class NotificationAccessConsentFragment : Fragment() {
 
@@ -42,8 +51,19 @@ class NotificationAccessConsentFragment : Fragment() {
         binding.consentAgreeButton.setOnClickListener {
             startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
         }
-        binding.consentNotNowButton.setOnClickListener {
+        binding.consentNotNowButton.setOnClickListener { dismiss() }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (isNotificationListenerAccessGranted(requireContext())) dismiss()
+    }
+
+    private fun dismiss() {
+        if (parentFragmentManager.backStackEntryCount > 0) {
             parentFragmentManager.popBackStack()
+        } else {
+            (activity as? MainActivity)?.showMessages()
         }
     }
 

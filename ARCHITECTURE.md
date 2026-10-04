@@ -956,8 +956,23 @@ Single `:app` module, packages under
   system settings - there is no runtime permission dialog for this,
   only `Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS`.
 - `ui`:
-  - `MainActivity` - home screen, just hosts `MessagesFragment` plus a
-    toolbar with a settings action. `MessagesFragment` subscribes to
+  - `MainActivity` - home screen, hosts `MessagesFragment` plus a
+    toolbar with a settings action - *unless* notification-listener
+    access isn't granted yet (`ui.isNotificationListenerAccessGranted`),
+    in which case `NotificationAccessConsentFragment` (see its own
+    entry under `AppsFragment` below) takes that spot instead, on
+    *every* launch this remains true, not just a true first run (no
+    separate "has seen onboarding" flag - the permission's own granted
+    state already is that signal). The user's own call, after a first
+    version only surfaced this disclosure behind a banner in Settings ->
+    Monitored apps: the app does nothing useful without this
+    permission, so it belongs front and center on a fresh install, not
+    something to stumble onto. `MainActivity.showMessages()` is how
+    that fragment swaps itself out once dismissed/granted, when it's
+    sitting here as the activity's root fragment rather than pushed on
+    `SettingsActivity`'s own back stack (see
+    `NotificationAccessConsentFragment`'s own KDoc for how it tells the
+    two apart). `MessagesFragment` subscribes to
     `MessageStore.shared` while visible (`onStart`/`onStop`) and
     renders the current snapshot, newest first.
     `MessagesAdapter` shows "#<id>" (`messageTransactionId`, bold,
@@ -1432,9 +1447,11 @@ Single `:app` module, packages under
       `<queries>` entry in the manifest to see apps on API 30+; loads
       on a background dispatcher, only once the screen is actually
       opened, not eagerly). Its "grant access" banner button (shown
-      when `NotificationManagerCompat.getEnabledListenerPackages`
-      doesn't include this app) opens `NotificationAccessConsentFragment`
-      instead of jumping straight to `Settings.
+      when `isNotificationListenerAccessGranted` is false - the one
+      shared check `MainActivity`'s own gate above, this banner, and
+      `NotificationAccessConsentFragment`'s auto-dismiss all use) opens
+      `NotificationAccessConsentFragment` instead of jumping straight to
+      `Settings.
       ACTION_NOTIFICATION_LISTENER_SETTINGS` the way it used to - a
       Google Play review requirement for any app requesting notification-
       listener access: an explicit in-app disclosure of what the app

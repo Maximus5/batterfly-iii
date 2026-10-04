@@ -7,7 +7,6 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.core.app.NotificationManagerCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -71,8 +70,7 @@ class AppsFragment : Fragment() {
 
     private fun updateNotificationAccessBanner() {
         val binding = binding ?: return
-        val enabledPackages = NotificationManagerCompat.getEnabledListenerPackages(requireContext())
-        val hasAccess = requireContext().packageName in enabledPackages
+        val hasAccess = isNotificationListenerAccessGranted(requireContext())
         binding.notificationAccessBanner.visibility = if (hasAccess) View.GONE else View.VISIBLE
     }
 

@@ -46,15 +46,33 @@ class MainActivity : AppCompatActivity() {
         setSupportActionBar(binding.toolbar)
         onBackPressedDispatcher.addCallback(this, backPressedCallback)
 
+        // Gates the very first screen the user sees on notification-listener access, not just
+        // a banner buried in Settings -> Monitored apps - the user's own call: the app does
+        // nothing useful without this permission, so the consent screen belongs front and
+        // center on a fresh install, not something to stumble onto. Every launch, not just a
+        // true first run (no separate "has seen onboarding" flag) - the permission's own granted
+        // state already is that signal, and if it's still missing on a later launch, showing the
+        // disclosure again is more helpful than a dead-looking empty Messages list.
         if (savedInstanceState == null) {
+            val initial = if (isNotificationListenerAccessGranted(this)) MessagesFragment() else NotificationAccessConsentFragment()
             supportFragmentManager.beginTransaction()
-                .replace(R.id.fragmentContainer, MessagesFragment())
+                .replace(R.id.fragmentContainer, initial)
                 .commit()
         }
 
         if (FireflyPrefs(this).isAutoCreateEnabled() && !isNotificationPermissionGranted(this)) {
             notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
+    }
+
+    /** [NotificationAccessConsentFragment]'s own dismiss - called only when it's sitting as this
+     * activity's *root* fragment (no back stack to pop instead, see that class's own KDoc), i.e.
+     * only ever right after the `savedInstanceState == null` branch above chose it over
+     * `MessagesFragment`. Swaps it out the same way, just later. */
+    fun showMessages() {
+        supportFragmentManager.beginTransaction()
+            .replace(R.id.fragmentContainer, MessagesFragment())
+            .commit()
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
