@@ -93,6 +93,7 @@ class RulesListFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
+        (activity as? SettingsActivity)?.setScreenTitle(R.string.settings_rules_title)
         reload()
     }
 

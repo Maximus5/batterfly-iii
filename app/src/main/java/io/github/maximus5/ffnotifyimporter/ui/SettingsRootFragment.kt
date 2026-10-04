@@ -80,6 +80,7 @@ class SettingsRootFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
+        (activity as? SettingsActivity)?.setScreenTitle(R.string.action_settings)
         updateMessageHistorySubtitle()
         updateFireflySubtitle()
     }

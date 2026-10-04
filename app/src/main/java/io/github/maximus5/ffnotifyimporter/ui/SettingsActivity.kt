@@ -44,21 +44,28 @@ class SettingsActivity : AppCompatActivity() {
                 .replace(R.id.fragmentContainer, SettingsRootFragment())
                 .commit()
         }
-
-        supportFragmentManager.addOnBackStackChangedListener {
-            if (supportFragmentManager.backStackEntryCount == 0) {
-                supportActionBar?.title = getString(R.string.action_settings)
-            }
-        }
     }
 
     /** Pushes [fragment] on top of the current screen, titled [titleRes], with a back-stack entry. */
     fun openScreen(fragment: Fragment, titleRes: Int) {
-        supportActionBar?.title = getString(titleRes)
+        setScreenTitle(titleRes)
         supportFragmentManager.beginTransaction()
             .replace(R.id.fragmentContainer, fragment)
             .addToBackStack(null)
             .commit()
+    }
+
+    /** Re-asserts [titleRes] as the toolbar title - [openScreen] already does this once at push
+     * time, but that alone isn't enough: popping back to a screen (root or otherwise) doesn't
+     * re-run it, which used to leave whatever title the screen being left behind had (tracked via
+     * `addOnBackStackChangedListener` resetting to "Settings" only when the back stack emptied
+     * out completely - missed the Rules-list case one level down, and was one more moving part
+     * than needed). Each settings fragment calls this itself from its own `onResume`, so the
+     * title is always correct for whichever fragment is actually visible, regardless of how it
+     * got there (forward navigation, back, or an activity recreation restoring it from the back
+     * stack without going through [openScreen] at all). */
+    fun setScreenTitle(titleRes: Int) {
+        supportActionBar?.title = getString(titleRes)
     }
 
     /** [guard] is called instead of the default back behavior for as long as it's set - passing

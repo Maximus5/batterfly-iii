@@ -744,7 +744,23 @@ Single `:app` module, packages under
   - `SettingsActivity` - everything else, as a stack of fragments
     pushed via plain `FragmentManager` back-stack transactions (no
     Navigation Component - the flow is small and linear enough not to
-    need it). `setBackGuard(guard)` lets whichever fragment is on top
+    need it). Toolbar title: `openScreen(fragment, titleRes)` sets it
+    once at push time, but that alone isn't enough - popping back to a
+    screen doesn't re-run it, which used to leave the *departed*
+    screen's title showing (a real user-reported bug) instead of
+    resetting to whichever screen is now actually visible; tracking this
+    via `addOnBackStackChangedListener` (reset to "Settings" only when
+    the back stack emptied out completely) covered the single-level
+    case but not returning to `RulesListFragment` one level down from
+    `RuleEditFragment`, and was one more moving part than needed anyway.
+    Fixed by having each fragment that can be a "return to" target
+    re-assert its own title itself, from its own `onResume`
+    (`SettingsActivity.setScreenTitle(titleRes)`, a small helper
+    `openScreen` now also calls internally) - correct regardless of how
+    the fragment became visible again (back-pop, or an activity
+    recreation restoring it from the back stack without going through
+    `openScreen` at all), not dependent on back-stack bookkeeping.
+    `setBackGuard(guard)` lets whichever fragment is on top
     intercept *both* the toolbar's up arrow (`onSupportNavigateUp`) and
     system back (an `OnBackPressedCallback`, toggled enabled/disabled
     by the same call) with its own logic instead of the default
