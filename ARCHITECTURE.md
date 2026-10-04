@@ -801,13 +801,23 @@ Single `:app` module, packages under
       finding some fields unlabeled; the amount is also rounded to 2
       decimal places for display (`setScale`), not the raw scale
       Firefly's JSON happened to carry. **User's own call**: when
-      exactly one raw candidate came back, a neutral-slot "Use anyway"
-      button (between "Open search in Firefly" and Cancel, which stays
-      last per the house convention) links the message to it directly,
-      same as "Use Created" does elsewhere - one candidate makes the
-      client-side rejection more likely a field-comparison quirk than a
-      genuinely different transaction, so skip the round trip through
-      Firefly's own web search. Found: the same
+      exactly one raw candidate came back, a "Use anyway" button (between
+      "Open search in Firefly" and Cancel, which stays last per the
+      house convention) links the message to it directly, same as "Use
+      Created" does elsewhere - one candidate makes the client-side
+      rejection more likely a field-comparison quirk than a genuinely
+      different transaction, so skip the round trip through Firefly's
+      own web search. **Fixed a real native-AlertDialog quirk, caught
+      directly from a screenshot**: adding "Use anyway" made this a
+      3-button dialog, and native `setNegativeButton`/`setNeutralButton`/
+      `setPositiveButton` slots stack vertically (each right-aligned)
+      once the combined label text doesn't fit one row - the exact same
+      problem `dialog_duplicate_confirm_3.xml` was built to avoid.
+      `dialog_search_not_found.xml` replaces the native buttons with the
+      same one-row `LinearLayout`+`layout_weight` pattern;
+      `useAnywayButton` is `View.GONE` (not just text-less) when there's
+      no single candidate, so the remaining two buttons fill the row via
+      weight the same way any 2-button case does. Found: the same
       `showDuplicateConfirmDialog` the create flow uses, with
       `showCreateAnyway = false` - inflates `dialog_duplicate_confirm_3.xml`
       (three actions in one row) instead of `dialog_duplicate_confirm_4.xml`

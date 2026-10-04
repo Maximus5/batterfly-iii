@@ -766,10 +766,15 @@ class MessagesFragment : Fragment() {
      * real date/amount/account/description next to what was searched for is what actually shows
      * *why* the match failed (case, whitespace, a stale date, ...) instead of needing another
      * debug round-trip to find out. When exactly one candidate came back, a "Use anyway" button
-     * (neutral slot - between the search-in-Firefly action and Cancel, which stays last per the
-     * house convention) links [message] to it directly - the user's own call: with only one
-     * candidate, the client-side rejection is more likely a field-comparison quirk than a genuine
-     * different transaction, so skip the round trip through Firefly's own search UI. */
+     * links [message] to it directly - the user's own call: with only one candidate, the
+     * client-side rejection is more likely a field-comparison quirk than a genuine different
+     * transaction, so skip the round trip through Firefly's own search UI.
+     *
+     * `dialog_search_not_found.xml`, not native `setNegativeButton`/`setNeutralButton`/
+     * `setPositiveButton` slots: the user caught a real native-AlertDialog quirk directly - once
+     * "Use anyway" made this a 3-button dialog, AlertDialog's own button bar stacked them
+     * vertically (each right-aligned) instead of one row, since the combined label text didn't
+     * fit. Same fix already applied to `dialog_duplicate_confirm_3.xml` for the same reason. */
     private fun showSearchNotFoundDialog(
         context: Context,
         query: String,
@@ -786,22 +791,32 @@ class MessagesFragment : Fragment() {
             getString(R.string.check_not_found_message, query)
         }
         val onlyCandidate = rawCandidates.singleOrNull()
-        // Cancel always rightmost/last (house convention, AGENTS.md).
-        val builder = AlertDialog.Builder(context)
+
+        val view = LayoutInflater.from(context).inflate(R.layout.dialog_search_not_found, null, false)
+        val dialog = AlertDialog.Builder(context)
             .setTitle(R.string.check_not_found_title)
             .setMessage(dialogMessage)
-            .setNegativeButton(R.string.check_open_search_in_firefly) { _, _ ->
-                val baseUrl = FireflyPrefs(context).getBaseUrl()
-                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(searchUrl(baseUrl, query))))
-            }
-            .setPositiveButton(android.R.string.cancel, null)
+            .setView(view)
+            .create()
+
+        view.findViewById<View>(R.id.openSearchButton).setOnClickListener {
+            val baseUrl = FireflyPrefs(context).getBaseUrl()
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(searchUrl(baseUrl, query))))
+            dialog.dismiss()
+        }
+        val useAnywayButton = view.findViewById<View>(R.id.useAnywayButton)
         if (onlyCandidate != null) {
-            builder.setNeutralButton(R.string.check_use_anyway) { _, _ ->
+            useAnywayButton.setOnClickListener {
                 MessageStore.shared.setTransactionId(message, onlyCandidate.groupId)
                 Toast.makeText(context, getString(R.string.create_already_created_linked, onlyCandidate.groupId), Toast.LENGTH_SHORT).show()
+                dialog.dismiss()
             }
+        } else {
+            useAnywayButton.visibility = View.GONE
         }
-        builder.show()
+        view.findViewById<View>(R.id.cancelSearchButton).setOnClickListener { dialog.dismiss() }
+
+        dialog.show()
     }
 
     private fun confirmDeleteSelected() {

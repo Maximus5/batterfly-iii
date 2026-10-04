@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Native AlertDialog.Builder negative/neutral/positive buttons stack vertically (each
+     right-aligned) once their combined text doesn't fit one row - exactly what happened here
+     once "Use anyway" (MessagesFragment.showSearchNotFoundDialog) made it a 3-button dialog,
+     caught directly by the user from a screenshot. Same fix as dialog_duplicate_confirm_3.xml:
+     one explicit row instead of leaving it to AlertDialog's own stacking fallback. useAnywayButton
+     is View.GONE (not just hidden text) when there's no single raw candidate to use - the
+     remaining buttons then fill the row via layout_weight, same as any 2-button case. Order
+     left-to-right: Open search, Use anyway (both act on what was found), Cancel always last. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:paddingTop="4dp"
+    android:paddingBottom="4dp">
+
+    <Button
+        android:id="@+id/openSearchButton"
+        style="?attr/borderlessButtonStyle"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:minHeight="40dp"
+        android:paddingStart="2dp"
+        android:paddingEnd="2dp"
+        android:textAllCaps="false"
+        android:textSize="13sp"
+        android:text="@string/check_open_search_in_firefly" />
+
+    <Button
+        android:id="@+id/useAnywayButton"
+        style="?attr/borderlessButtonStyle"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:minHeight="40dp"
+        android:paddingStart="2dp"
+        android:paddingEnd="2dp"
+        android:textAllCaps="false"
+        android:textSize="13sp"
+        android:text="@string/check_use_anyway" />
+
+    <Button
+        android:id="@+id/cancelSearchButton"
+        style="?attr/borderlessButtonStyle"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:minHeight="40dp"
+        android:paddingStart="2dp"
+        android:paddingEnd="2dp"
+        android:textAllCaps="false"
+        android:textSize="13sp"
+        android:text="@android:string/cancel" />
+
+</LinearLayout>
