@@ -851,7 +851,22 @@ Single `:app` module, packages under
     (confirming whether it's really the same payment means looking at
     that transaction, not the app's own message list) - so getting
     there doesn't need going through the app first, without changing
-    what a plain tap on the body does. Requires `POST_NOTIFICATIONS` on
+    what a plain tap on the body does.
+    **Fixed a real "can't tell what happened without opening Firefly"
+    gap, caught directly on-device**: two notifications from the same
+    app (Google Wallet), worded differently enough that `posting.
+    DuplicateChecker`'s hash didn't match them to each other, each
+    silently auto-created its own Firefly transaction for what was the
+    same real payment - the notification text alone (just the app name
+    and a bare `#id`) gave no way to tell *why*, short of comparing both
+    transactions by hand in Firefly's own UI. `auto_create_success_text`/
+    `auto_create_skipped_text` now include the parsed amount/currency/
+    description (`"%appLabel% · %amount% %currency% · \"%description%\"
+    → #%id%"`, one compact line, the user's own format pick) - for
+    `notifySkippedDuplicate` specifically, the *incoming* (skipped)
+    draft's own fields, not the existing transaction's, since that's the
+    data this worker actually parsed and is what needs comparing against
+    what "Open transaction" shows. Requires `POST_NOTIFICATIONS` on
     API 33+ (declared in the manifest; `posting.
     isNotificationPermissionGranted(context)` is the one shared check,
     always true below API 33 where the permission doesn't exist) - a

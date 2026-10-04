@@ -12,6 +12,7 @@ import io.github.maximus5.ffnotifyimporter.R
 import io.github.maximus5.ffnotifyimporter.data.CapturedMessage
 import io.github.maximus5.ffnotifyimporter.network.transactionUrl
 import io.github.maximus5.ffnotifyimporter.ui.MainActivity
+import java.math.BigDecimal
 
 /**
  * System notifications for [AutoCreateWorker]'s three terminal outcomes - the whole point of
@@ -24,7 +25,10 @@ import io.github.maximus5.ffnotifyimporter.ui.MainActivity
  * The whole-notification tap always opens the app ([MainActivity]) on every outcome - the user's
  * own call, after trying tap-opens-Firefly first. [notifySuccess]/[notifySkippedDuplicate] also
  * carry an explicit "Open transaction" action button for jumping straight to Firefly's page
- * without going through the app first.
+ * without going through the app first, and their text includes the parsed amount/currency/
+ * description - another real catch: without them, there was no way to tell from the notification
+ * alone *why* two notifications were treated as different payments (or the same one), only the
+ * resulting Firefly id.
  *
  * Every call is a no-op if [android.Manifest.permission.POST_NOTIFICATIONS] was never granted
  * (API 33+, requested from `FireflySettingsFragment` when the user turns "Auto-create" on) -
@@ -36,12 +40,20 @@ object AutoCreateNotifications {
 
     private const val CHANNEL_ID = "auto_create"
 
-    fun notifySuccess(context: Context, baseUrl: String, message: CapturedMessage, transactionId: String) {
+    fun notifySuccess(
+        context: Context,
+        baseUrl: String,
+        message: CapturedMessage,
+        amount: BigDecimal,
+        currencyCode: String,
+        description: String,
+        transactionId: String,
+    ) {
         show(
             context,
             id = message.hashCode(),
             title = context.getString(R.string.auto_create_success_title),
-            text = context.getString(R.string.auto_create_success_text, message.appLabel, transactionId),
+            text = context.getString(R.string.auto_create_success_text, message.appLabel, amount.toPlainString(), currencyCode, description, transactionId),
             pendingIntent = mainActivityIntent(context),
             action = transactionIntent(context, baseUrl, transactionId),
         )
@@ -49,13 +61,27 @@ object AutoCreateNotifications {
 
     /** [existingTransactionId] is the transaction the skip was *against* - the action button jumps
      * straight to it, since confirming whether it's really the same payment means looking at that
-     * transaction, not the app's own message list (the tap target still just opens the app). */
-    fun notifySkippedDuplicate(context: Context, baseUrl: String, message: CapturedMessage, existingTransactionId: String) {
+     * transaction, not the app's own message list (the tap target still just opens the app).
+     * [amount]/[currencyCode]/[description] are the *incoming* (skipped) draft's own fields, not
+     * the existing transaction's - a real on-device case prompted this: two notifications from the
+     * same app, worded differently enough that the dedup hash didn't match each other, each
+     * silently auto-created its own transaction. Seeing the skipped draft's own description right
+     * in the notification (without having to open Firefly and compare by hand) is what makes a
+     * case like that diagnosable at a glance. */
+    fun notifySkippedDuplicate(
+        context: Context,
+        baseUrl: String,
+        message: CapturedMessage,
+        amount: BigDecimal,
+        currencyCode: String,
+        description: String,
+        existingTransactionId: String,
+    ) {
         show(
             context,
             id = message.hashCode(),
             title = context.getString(R.string.auto_create_skipped_title),
-            text = context.getString(R.string.auto_create_skipped_text, message.appLabel, existingTransactionId),
+            text = context.getString(R.string.auto_create_skipped_text, message.appLabel, amount.toPlainString(), currencyCode, description, existingTransactionId),
             pendingIntent = mainActivityIntent(context),
             action = transactionIntent(context, baseUrl, existingTransactionId),
         )

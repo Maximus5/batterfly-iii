@@ -20,6 +20,7 @@ import io.github.maximus5.ffnotifyimporter.rules.RulesDb
 import io.github.maximus5.ffnotifyimporter.rules.TransactionDraft
 import io.github.maximus5.ffnotifyimporter.rules.applyApproxConversion
 import io.github.maximus5.ffnotifyimporter.rules.transactionDedupHash
+import java.math.BigDecimal
 
 /**
  * Background counterpart to `ui.MessagesFragment`'s manual "Создать" button - auto-posts a
@@ -71,16 +72,22 @@ class AutoCreateWorker(context: Context, params: WorkerParameters) : CoroutineWo
         // Can't auto-post without a resolved amount - same "flag it, don't guess" precedent as
         // everywhere else LOCAL_AMOUNT_MISSING shows up, not a failure worth retrying or notifying
         // about (the message is still sitting in the Messages list for the user to handle by hand).
-        if (resolved.amount == null) return Result.success()
+        val amount = resolved.amount ?: return Result.success()
 
         return when (val result = checkForDuplicate(applicationContext, resolved)) {
-            is DuplicateCheckResult.None, is DuplicateCheckResult.SearchFailed -> post(resolved, message, prefs)
+            is DuplicateCheckResult.None, is DuplicateCheckResult.SearchFailed -> post(resolved, amount, message, prefs)
             is DuplicateCheckResult.Found -> {
-                AutoCreateNotifications.notifySkippedDuplicate(applicationContext, prefs.getBaseUrl(), message, result.id)
+                AutoCreateNotifications.notifySkippedDuplicate(
+                    applicationContext, prefs.getBaseUrl(), message,
+                    amount, resolved.currencyCode, resolved.description, result.id,
+                )
                 Result.success()
             }
             is DuplicateCheckResult.FoundMultiple -> {
-                AutoCreateNotifications.notifySkippedDuplicate(applicationContext, prefs.getBaseUrl(), message, result.mostRecentId)
+                AutoCreateNotifications.notifySkippedDuplicate(
+                    applicationContext, prefs.getBaseUrl(), message,
+                    amount, resolved.currencyCode, resolved.description, result.mostRecentId,
+                )
                 Result.success()
             }
         }
@@ -97,8 +104,7 @@ class AutoCreateWorker(context: Context, params: WorkerParameters) : CoroutineWo
         }
     }
 
-    private suspend fun post(draft: TransactionDraft, message: CapturedMessage, prefs: FireflyPrefs): Result {
-        val amount = draft.amount ?: return Result.success()
+    private suspend fun post(draft: TransactionDraft, amount: BigDecimal, message: CapturedMessage, prefs: FireflyPrefs): Result {
         val request = FireflyTransactionRequest(
             type = draft.kind.name.lowercase(),
             dateIso = draft.date.toString(),
@@ -125,7 +131,10 @@ class AutoCreateWorker(context: Context, params: WorkerParameters) : CoroutineWo
                     fireflyTransactionId = result.value,
                 )
                 MessageStore.shared.setTransactionId(message, result.value)
-                AutoCreateNotifications.notifySuccess(applicationContext, prefs.getBaseUrl(), message, result.value)
+                AutoCreateNotifications.notifySuccess(
+                    applicationContext, prefs.getBaseUrl(), message,
+                    amount, draft.currencyCode, draft.description, result.value,
+                )
                 Result.success()
             }
             is FireflyApiClient.Result.Failure -> {

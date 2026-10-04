@@ -187,9 +187,9 @@
     <string name="auto_create_channel_name">Автосоздание</string>
     <string name="auto_create_channel_description">Транзакции, созданные автоматически из уведомлений, без открытия приложения</string>
     <string name="auto_create_success_title">Транзакция создана</string>
-    <string name="auto_create_success_text">%1$s → транзакция Firefly #%2$s</string>
+    <string name="auto_create_success_text">%1$s · %2$s %3$s · \"%4$s\" → #%5$s</string>
     <string name="auto_create_skipped_title">Пропущен вероятный дубль</string>
-    <string name="auto_create_skipped_text">%1$s совпадает с транзакцией #%2$s, уже существующей в Firefly - не создано автоматически.</string>
+    <string name="auto_create_skipped_text">%1$s · %2$s %3$s · \"%4$s\" → #%5$s (уже есть в Firefly)</string>
     <string name="auto_create_failed_title">Ошибка автосоздания</string>
     <string name="auto_create_failed_text">%1$s: %2$s</string>
 

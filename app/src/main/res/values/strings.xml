@@ -187,9 +187,9 @@
     <string name="auto_create_channel_name">Auto-create</string>
     <string name="auto_create_channel_description">Transactions created automatically from notifications, without opening the app</string>
     <string name="auto_create_success_title">Transaction created</string>
-    <string name="auto_create_success_text">%1$s → Firefly transaction #%2$s</string>
+    <string name="auto_create_success_text">%1$s · %2$s %3$s · \"%4$s\" → #%5$s</string>
     <string name="auto_create_skipped_title">Skipped a likely duplicate</string>
-    <string name="auto_create_skipped_text">%1$s matches transaction #%2$s already in Firefly - not created automatically.</string>
+    <string name="auto_create_skipped_text">%1$s · %2$s %3$s · \"%4$s\" → #%5$s (already in Firefly)</string>
     <string name="auto_create_failed_title">Auto-create failed</string>
     <string name="auto_create_failed_text">%1$s: %2$s</string>
 
