@@ -47,10 +47,12 @@ class FullBackupJsonTest {
         assertEquals(original.currencies, imported.currencies)
         assertEquals(1, imported.rules.size)
         assertEquals("Test rule", imported.rules.first().label)
-        // Same instance-specific exclusions as RulesJsonTest - a backup restore still re-adds
-        // rules as fresh rows and still can't carry a Firefly account id across re-import.
+        // Unlike RulesJsonTest's sharing format: a backup restore still re-adds rules as fresh
+        // rows (there's nothing meaningful to carry the old row id for), but - deliberately
+        // *unlike* RulesJson - it DOES carry the Firefly account id across, since this is a
+        // same-device safety net, not a cross-instance sharing format. See FullBackupData's KDoc.
         assertEquals("", imported.rules.first().id)
-        assertNull(imported.rules.first().sourceAccountId)
+        assertEquals("2", imported.rules.first().sourceAccountId)
         assertEquals(original.messages, imported.messages)
         assertEquals(original.createdTransactions, imported.createdTransactions)
     }
@@ -61,6 +63,26 @@ class FullBackupJsonTest {
 
         assertEquals("12345", imported.messages.first { it.text == "You spent 10 EUR" }.fireflyTransactionId)
         assertNull(imported.messages.first { it.text == "You spent 20 EUR" }.fireflyTransactionId)
+    }
+
+    @Test
+    fun `a rule's sourceAccountId and destinationAccountId round-trip - unlike RulesJson's sharing format`() {
+        val rule = ParseRule(
+            id = "r1",
+            label = "Transfer",
+            packageNames = setOf("bank.app"),
+            kind = RuleKind.TRANSFER,
+            sourceAccountName = "Checking",
+            sourceAccountId = "2",
+            destinationAccountName = "Savings",
+            destinationAccountId = "7",
+            homeCurrency = "EUR",
+            pattern = """moved (?<amount>[\d,]+) EUR""",
+        )
+        val imported = fullBackupFromJson(fullBackupToJson(data().copy(rules = listOf(rule))))!!
+
+        assertEquals("2", imported.rules.first().sourceAccountId)
+        assertEquals("7", imported.rules.first().destinationAccountId)
     }
 
     @Test

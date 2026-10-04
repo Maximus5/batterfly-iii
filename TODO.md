@@ -332,7 +332,9 @@ work.
   a real on-disk v6 database with actual saved rules. Also needs
   re-verification now that it's fixed (see ARCHITECTURE.md's Known
   bugs/gotchas): full backup/restore actually preserving a message's
-  linked `#<id>` and the dedup log across a real export-then-restore,
+  linked `#<id>`, a rule's `sourceAccountId`/`destinationAccountId`
+  (confirm a restored rule posts without needing the asset account
+  re-picked), and the dedup log across a real export-then-restore,
   including the "restore onto a fresh install" case (dedup must still
   catch a duplicate whose original transaction predates the restore).
 - No cap on `MessageStore`'s in-memory list size, or on

@@ -500,23 +500,40 @@ Single `:app` module, packages under
     `fullBackupFromJson`, `FullBackupJsonTest`) + `BackupManager`
     (Android-dependent orchestration, not unit tested, same reason
     `RulesDb` isn't) - the new "Backup & restore" Settings row
-    (`BackupFragment`), covering monitored apps, currencies, rules
-    (reusing `RulesJson`'s per-rule shape), message history, *and*
-    the `CreatedTransactionsDb` dedup log in one file.
-    `messages`' `fireflyTransactionId` **is** included, unlike
-    `RulesJson`'s deliberate exclusion of `ParseRule.sourceAccountId`/
-    `destinationAccountId` - an earlier version of this file wrongly
-    treated them the same way ("Firefly-instance-specific derived id,
-    excluded even here") and shipped `FullBackupJson` hand-picking
-    message fields without `fireflyTransactionId`, a real bug: a
-    restored message silently lost its "#1234" link even though the
-    transaction still existed in Firefly, reported directly by the
-    user testing a just-made backup. The two aren't the same kind of
-    id - a rule's account id is a live-picker reference that
-    legitimately needs re-picking after import (a different Firefly
-    instance, or even the same one with the account renamed), while a
-    created transaction's id is historical record-keeping about *this
-    message*, nothing to re-pick. `createdTransactions`
+    (`BackupFragment`), covering monitored apps, currencies, rules,
+    message history, *and* the `CreatedTransactionsDb` dedup log in one
+    file. Has its own per-rule shape (`toBackupJson`/
+    `toBackupRuleOrNull`) now, *not* a reuse of `RulesJson`'s - the two
+    formats are for genuinely different jobs and shouldn't share one
+    shape just because a rule is a rule. `RulesJson` is a *sharing*
+    format (export to send to someone else, or to your own other
+    device *for the asset-account picker to run again on*) -
+    deliberately excludes `id` (this device's row identity, meaningless
+    elsewhere) and `sourceAccountId`/`destinationAccountId` (a Firefly
+    account id, meaningless on a different instance). A full backup is
+    a same-device safety net instead - it doesn't even touch the
+    Firefly connection's base URL, so restoring onto a materially
+    different instance was never really its job - and `RulesDb.add`
+    always assigns a fresh row id on restore regardless of what's in
+    the file, so `id` still has nothing to round-trip for; but there
+    was never an independent argument for *also* dropping the account
+    ids here, and carrying over `RulesJson`'s exclusion by analogy
+    instead of re-deriving it for this different use case cost real,
+    reported data twice over: an earlier version of this file dropped
+    `messages`' `fireflyTransactionId` the same way ("Firefly-instance-
+    specific derived id, excluded even here"), and a restored message
+    silently lost its "#1234" link even though the transaction still
+    existed in Firefly - caught directly by the user testing a
+    just-made backup. Both are fixed now: `fullBackupToJson`/
+    `fullBackupFromJson` carry `fireflyTransactionId` and
+    `sourceAccountId`/`destinationAccountId` straight through.
+    (`RuleEngine.buildDraft` already sends an account id to Firefly
+    with no freshness check against the current connection regardless
+    of backup/restore - a rule nobody's touched since it was created
+    carries the exact same staleness risk the moment the user points
+    Settings at a different instance, so keeping the id through a
+    restore isn't a new category of risk, just not an unforced loss of
+    working data.) `createdTransactions`
     (`rules.CreatedTransactionRecord`, `CreatedTransactionsDb.loadAll`/
     `clearAll`) exists for the same underlying reason: without backing
     it up too, the dedup log would come back empty after a restore onto
@@ -1042,24 +1059,31 @@ connection exists (see TODO.md).
   relying on what's stored, and that transition has no clear signal -
   bumping a `DB_VERSION` deserves friction (confirm with the user, or
   just write the migration) from here on, not habit.
-- **Real incident, data lost**: `FullBackupJson`'s first version
-  hand-picked `CapturedMessage` fields for export and left out
-  `fireflyTransactionId`, by analogy with `RulesJson`'s *deliberate*
-  exclusion of `ParseRule.sourceAccountId`/`destinationAccountId` - a
-  wrong analogy. A rule's account id is a live-picker reference that
-  genuinely needs re-picking after import; a created transaction's id
-  is just historical record-keeping about that one message, nothing to
-  re-pick. The user caught it directly: restored a backup made minutes
-  earlier and every message that had shown "#1234" came back with no
-  link, even though the transaction still existed in Firefly.
-  `CreatedTransactionsDb` (the dedup log) had the same gap from a
+- **Real incident, data lost, twice, same root cause**: `FullBackupJson`
+  originally reused `RulesJson`'s rule shape wholesale and hand-picked
+  `CapturedMessage` fields for messages - both choices copied
+  `RulesJson`'s *deliberate* exclusion of `ParseRule.sourceAccountId`/
+  `destinationAccountId` (correct there - it's a sharing format, a
+  device-specific Firefly account id is meaningless once it travels
+  elsewhere) onto a full backup, which is a same-device safety net,
+  not a sharing format, with no independent argument for dropping
+  either id. The user caught the message-side half directly: restored
+  a backup made minutes earlier and every message that had shown
+  "#1234" came back with no link, even though the transaction still
+  existed in Firefly - then asked for the actual argument behind the
+  account-id exclusion too, which didn't hold up on inspection either.
+  `CreatedTransactionsDb` (the dedup log) had a related gap from a
   different angle - `BackupManager` never touched it at all, so a
   restore onto a fresh install would've silently come back with an
-  empty dedup log. Both are fixed now (`FullBackupData.
-  createdTransactions`, see the `backup` package section above) -
-  lesson: when copying a design decision from one place to another
-  ("exclude this kind of id"), check *why* the original exclusion was
-  correct there, not just that it looks like the same shape of field.
+  empty dedup log. All three fixed now: `fullBackupToJson`/
+  `fullBackupFromJson` carry `fireflyTransactionId` and both account
+  ids through, and `FullBackupData.createdTransactions` backs up the
+  dedup log too (see the `backup` package section above for the full
+  reasoning on each). Lesson: when copying a design decision from one
+  place to another ("exclude this kind of id"), check *why* the
+  original exclusion was correct *there*, not just that it looks like
+  the same shape of field - the same mistake was made twice, in two
+  different fields, from the same unexamined copy.
 - Android 15+ (targetSdk 35+, which this app uses) forces the window
   to draw edge-to-edge with no permanent opt-out -
   `android:windowOptOutEdgeToEdgeEnforcement` looked like one but is
