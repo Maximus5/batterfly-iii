@@ -79,18 +79,20 @@ fun dedupSearchDateRange(centerDate: Instant, windowMinutes: Int): Pair<String, 
  * should agree on. The user's own direct call after a real false negative on a foreign-currency
  * notification.
  *
- * **Known fragility, not yet resolved** - `OperatorQuerySearch::searchAccount` (backing
- * `source_account_is`/`destination_account_is`) first resolves the given value against a *real*
- * Firefly account by that exact name, and if it finds none, calls the collector's `findNothing()`
- * - which forces the *entire* query to return zero results, not just "this term matched nothing".
- * Since [sourceName]/[destinationName] are often free-typed text (never validated against
- * Firefly's own account list), a wording mismatch here can silently zero out an otherwise-correct
- * search. Caught directly by the user testing against a real rule; a fix was proposed (drop the
- * account terms, rely on `rules.remoteCandidateMatches`'s already-correct client-side account
- * check instead) and rejected ("это полная пурга" - loses precision, too broad a server-side
- * selection) along with a second proposal (resolve the name to a real id via
- * `FireflyApiClient.listAssetAccounts` first, then query by id) rejected too ("усложнение логики и
- * никакого контроля что прошло не так"). Still open - see TODO.md.
+ * **Accepted trade-off, a deliberate design decision, not an open bug** - `OperatorQuerySearch::
+ * searchAccount` (backing `source_account_is`/`destination_account_is`) first resolves the given
+ * value against a *real* Firefly account by that exact name, and if it finds none, calls the
+ * collector's `findNothing()` - which forces the *entire* query to return zero results, not just
+ * "this term matched nothing". Since [sourceName]/[destinationName] are often free-typed text
+ * (never validated against Firefly's own account list), a wording mismatch here can zero out an
+ * otherwise-correct search. Two code-level fixes were considered and rejected early on (dropping
+ * the account terms entirely, or resolving to a real account id first); the user's own final call
+ * once this was revisited: name, never a Firefly-internal account id, is the only thing worth
+ * searching/matching by here on purpose - an id is this device's/this Firefly instance's own
+ * identifier, the user never sees or types it, and it doesn't survive a restore onto a different
+ * Firefly instance (see `rules.ParseRule`'s own KDoc for the related, already-fixed cross-rule
+ * dedup bug id-based *hashing* caused) - so accepting this risk here is consistent with staying
+ * name-only everywhere else in this app, not an isolated compromise. See TODO.md's dedup history.
  */
 fun dedupSearchQuery(
     amount: BigDecimal?,

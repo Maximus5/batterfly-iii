@@ -282,42 +282,39 @@ work.
       connection) falls through to posting normally rather than
       blocking - it's an extra safety net on top of the local log, not
       the primary mechanism.
-      **Known fragility, still open** - `OperatorQuerySearch::
+      **Design decision, not a bug - closed**: `OperatorQuerySearch::
       searchAccount` (backing `source_account_is`/`destination_account_is`)
       first resolves the given value against a *real* Firefly account by
       that exact name, and if it finds none, calls the collector's
       `findNothing()` - forcing the *entire* query to return zero
-      results, not just "this term matched nothing". Since
-      `sourceName`/`destinationName` are often free-typed text (never
-      validated against Firefly's own account list), a wording mismatch
-      can silently zero out an otherwise-correct search - caught
-      directly by the user testing against a real rule and message.
-      Two fixes were proposed and both rejected: (1) drop the account
-      terms from the server query entirely, rely on
-      `rules.remoteCandidateMatches`'s already-correct client-side
-      account check instead - rejected as "полная пурга", loses
-      precision (too broad a server-side selection, could return many
-      unrelated transactions before client-side filtering narrows it
-      back down); (2) resolve the name to a real account id via
-      `FireflyApiClient.listAssetAccounts` first, then query by id (the
-      account-id-scoped endpoint this search used before) - rejected as
-      unnecessary complexity with "никакого контроля что прошло не так"
-      (no visibility into what specifically went wrong if it still
-      doesn't match). No approved fix yet - `dedupSearchQuery` still
-      searches by name as-is, carrying this risk. Partial visibility
-      landed anyway as a side effect of the "Check if created"
-      `SearchFailed`/`rawCandidates` fix below - a real API failure and
-      a real zero/partial match are at least distinguishable now, even
-      though the underlying `findNothing()` fragility itself is still
-      unfixed. Prompted by a real on-device case: a "Not found" result
+      results, not just "this term matched nothing" - so a wording
+      mismatch against free-typed `sourceName`/`destinationName` can
+      zero out an otherwise-correct search. Two code-level fixes were
+      proposed and both rejected early on (drop the account terms
+      server-side, or resolve to a real account id first) - the user's
+      own final call once this was revisited: searching (and matching)
+      by *name*, never by Firefly's internal account id, is the correct
+      design on purpose, not a gap to patch around. An id is this
+      device's/this Firefly instance's own internal identifier - the
+      user never sees or types it, and it doesn't survive a restore onto
+      a different Firefly instance (see `ParseRule`'s own KDoc for the
+      related, already-fixed cross-rule dedup bug id-based *hashing*
+      caused) - name is the one thing that's actually portable and
+      meaningful on the user's side, so staying name-only here, with its
+      `findNothing()` risk accepted, is consistent with that choice
+      everywhere else in this app, not an isolated compromise. Partial
+      visibility landed anyway as a side effect of the "Check if
+      created" `SearchFailed`/`rawCandidates` fix below - a real API
+      failure and a real zero/partial match are at least distinguishable
+      now. Prompted by a real on-device case: a "Not found" result
       for a transaction that the exact same search query *did* find
       when pasted into Firefly's own web search box. Follow-up test
       ruled out `SearchFailed` - the search actually succeeded and
       returned exactly one raw candidate, which `remoteCandidateMatches`
-      then rejected. **Root cause found and fixed, separately from this
-      `findNothing()` item** (that one is still open): the per-candidate
-      field dump the "Check if created" fix below added showed the
-      candidate's real `destination_name` was a Firefly-side placeholder
+      then rejected. **Root cause found and fixed - a genuine bug, this
+      time**: the per-candidate field dump the "Check if created" fix
+      below added showed the candidate's real `destination_name` was a
+      Firefly-side placeholder
       ("(no name)") while the draft's own `destinationName` was null (a
       `WITHDRAWAL` rule only ever requires a *source* name -
       `RuleValidation.validateRule` - so destination here was never
