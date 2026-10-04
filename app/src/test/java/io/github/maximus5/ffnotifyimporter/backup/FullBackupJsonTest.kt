@@ -23,7 +23,6 @@ class FullBackupJsonTest {
                 packageNames = setOf("bank.app"),
                 kind = RuleKind.WITHDRAWAL,
                 sourceAccountName = "Bank Account A",
-                sourceAccountId = "2",
                 homeCurrency = "EUR",
                 pattern = """spent (?<amount>[\d,]+) EUR""",
             ),
@@ -52,12 +51,9 @@ class FullBackupJsonTest {
         assertEquals(original.currencies, imported.currencies)
         assertEquals(1, imported.rules.size)
         assertEquals("Test rule", imported.rules.first().label)
-        // Unlike RulesJsonTest's sharing format: a backup restore still re-adds rules as fresh
-        // rows (there's nothing meaningful to carry the old row id for), but - deliberately
-        // *unlike* RulesJson - it DOES carry the Firefly account id across, since this is a
-        // same-device safety net, not a cross-instance sharing format. See FullBackupData's KDoc.
+        // Same as RulesJsonTest's sharing format now: a backup restore still re-adds rules as
+        // fresh rows - there's nothing meaningful to carry the old row id for either way.
         assertEquals("", imported.rules.first().id)
-        assertEquals("2", imported.rules.first().sourceAccountId)
         assertEquals(original.messages, imported.messages)
         assertEquals(original.createdTransactions, imported.createdTransactions)
     }
@@ -71,23 +67,20 @@ class FullBackupJsonTest {
     }
 
     @Test
-    fun `a rule's sourceAccountId and destinationAccountId round-trip - unlike RulesJson's sharing format`() {
-        val rule = ParseRule(
-            id = "r1",
-            label = "Transfer",
-            packageNames = setOf("bank.app"),
-            kind = RuleKind.TRANSFER,
-            sourceAccountName = "Checking",
-            sourceAccountId = "2",
-            destinationAccountName = "Savings",
-            destinationAccountId = "7",
-            homeCurrency = "EUR",
-            pattern = """moved (?<amount>[\d,]+) EUR""",
-        )
-        val imported = fullBackupFromJson(fullBackupToJson(data().copy(rules = listOf(rule))))!!
+    fun `an old backup file's now-unrecognized sourceAccountId-destinationAccountId keys are harmlessly ignored`() {
+        val json = """
+            {"monitoredPackages": [], "rules": [
+                {"label": "Transfer", "kind": "TRANSFER", "sourceAccountName": "Checking",
+                 "sourceAccountId": "2", "destinationAccountName": "Savings",
+                 "destinationAccountId": "7", "homeCurrency": "EUR",
+                 "pattern": "moved (?<amount>[\\d,]+) EUR"}
+            ]}
+        """.trimIndent()
 
-        assertEquals("2", imported.rules.first().sourceAccountId)
-        assertEquals("7", imported.rules.first().destinationAccountId)
+        val imported = fullBackupFromJson(json)
+
+        assertEquals(1, imported?.rules?.size)
+        assertEquals("Checking", imported?.rules?.first()?.sourceAccountName)
     }
 
     @Test

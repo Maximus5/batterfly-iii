@@ -61,14 +61,6 @@ class RuleEditFragment : Fragment() {
      * network every time. */
     private var assetAccounts: List<FireflyAccount>? = null
 
-    /** An asset account as picked from [showAccountPicker] - [name] is what's captured alongside
-     * [id] so [buildDraft] can tell whether the field's current text still matches what was
-     * picked (if the user edits it away afterward, the stale id must not be sent to Firefly with
-     * a different name attached). */
-    private data class PickedAccount(val id: String, val name: String)
-    private var sourceAccountPick: PickedAccount? = null
-    private var destinationAccountPick: PickedAccount? = null
-
     private val kindOrder = listOf(RuleKind.WITHDRAWAL, RuleKind.DEPOSIT, RuleKind.TRANSFER)
 
     override fun onCreateView(
@@ -180,25 +172,16 @@ class RuleEditFragment : Fragment() {
             RuleKind.DEPOSIT -> false to true
             RuleKind.TRANSFER -> true to true
         }
-        setAccountFieldMode(binding.sourceAccountLayout, binding.sourceAccountInput, sourceIsAsset) {
-            sourceAccountPick = it
-        }
-        setAccountFieldMode(binding.destinationAccountLayout, binding.destinationAccountInput, destinationIsAsset) {
-            destinationAccountPick = it
-        }
+        setAccountFieldMode(binding.sourceAccountLayout, binding.sourceAccountInput, sourceIsAsset)
+        setAccountFieldMode(binding.destinationAccountLayout, binding.destinationAccountInput, destinationIsAsset)
     }
 
-    private fun setAccountFieldMode(
-        layout: TextInputLayout,
-        input: EditText,
-        isAsset: Boolean,
-        onPicked: (PickedAccount) -> Unit,
-    ) {
+    private fun setAccountFieldMode(layout: TextInputLayout, input: EditText, isAsset: Boolean) {
         val context = requireContext()
         if (isAsset) {
             layout.endIconDrawable = ContextCompat.getDrawable(context, R.drawable.ic_dropdown)
             layout.endIconContentDescription = getString(R.string.rule_pick_account)
-            layout.setEndIconOnClickListener { showAccountPicker(input, onPicked) }
+            layout.setEndIconOnClickListener { showAccountPicker(input) }
         } else {
             layout.endIconDrawable = ContextCompat.getDrawable(context, R.drawable.ic_insert_macro)
             layout.endIconContentDescription = getString(R.string.rule_insert_macro)
@@ -210,9 +193,11 @@ class RuleEditFragment : Fragment() {
      * free-typing a name that has to match one exactly - Firefly only auto-creates the
      * *counterparty* side of a transaction by name, this side must already exist (see
      * [updateAccountFieldModes]). Falls back to a Toast, not a blocked field, when Firefly isn't
-     * configured yet - the rule can still be drafted and fixed up once it is. [onPicked] is how
-     * the picked account's ID reaches [buildDraft] - see [PickedAccount]/[sourceAccountPick]. */
-    private fun showAccountPicker(target: EditText, onPicked: (PickedAccount) -> Unit) {
+     * configured yet - the rule can still be drafted and fixed up once it is. Only ever fills in
+     * the account's *name* ([ParseRule] doesn't carry a Firefly account id at all, see its own
+     * KDoc for the real cross-rule dedup bug caching one caused) - this is purely about avoiding a
+     * typo against the real account list, not about posting precision. */
+    private fun showAccountPicker(target: EditText) {
         val context = requireContext()
         val prefs = FireflyPrefs(context)
         if (!prefs.isConfigured()) {
@@ -222,14 +207,14 @@ class RuleEditFragment : Fragment() {
 
         val cached = assetAccounts
         if (cached != null) {
-            showAccountPickerDialog(target, cached, onPicked)
+            showAccountPickerDialog(target, cached)
             return
         }
         viewLifecycleOwner.lifecycleScope.launch {
             when (val result = FireflyApiClient(prefs.getBaseUrl(), prefs.getToken()).listAssetAccounts()) {
                 is FireflyApiClient.Result.Success -> {
                     assetAccounts = result.value
-                    showAccountPickerDialog(target, result.value, onPicked)
+                    showAccountPickerDialog(target, result.value)
                 }
                 is FireflyApiClient.Result.Failure ->
                     Toast.makeText(
@@ -241,7 +226,7 @@ class RuleEditFragment : Fragment() {
         }
     }
 
-    private fun showAccountPickerDialog(target: EditText, accounts: List<FireflyAccount>, onPicked: (PickedAccount) -> Unit) {
+    private fun showAccountPickerDialog(target: EditText, accounts: List<FireflyAccount>) {
         if (accounts.isEmpty()) {
             Toast.makeText(requireContext(), R.string.rule_firefly_no_accounts, Toast.LENGTH_LONG).show()
             return
@@ -255,9 +240,7 @@ class RuleEditFragment : Fragment() {
         AlertDialog.Builder(requireContext())
             .setTitle(R.string.rule_pick_account)
             .setSingleChoiceItems(accounts.map { it.name }.toTypedArray(), selectedIndex) { dialog, which ->
-                val account = accounts[which]
-                target.setText(account.name)
-                onPicked(PickedAccount(account.id, account.name))
+                target.setText(accounts[which].name)
                 dialog.dismiss()
             }
             .show()
@@ -340,8 +323,6 @@ class RuleEditFragment : Fragment() {
 
         binding.sourceAccountInput.setText(rule?.sourceAccountName.orEmpty())
         binding.destinationAccountInput.setText(rule?.destinationAccountName.orEmpty())
-        sourceAccountPick = rule?.sourceAccountId?.let { PickedAccount(it, rule.sourceAccountName) }
-        destinationAccountPick = rule?.destinationAccountId?.let { PickedAccount(it, rule.destinationAccountName) }
         binding.homeCurrencyInput.setText(rule?.homeCurrency.orEmpty())
         binding.dateFormatInput.setText(rule?.dateFormat.orEmpty())
         binding.patternInput.setText(rule?.pattern.orEmpty())
@@ -504,11 +485,6 @@ class RuleEditFragment : Fragment() {
             kind = selectedKind,
             sourceAccountName = sourceAccountName,
             destinationAccountName = destinationAccountName,
-            // Only kept if the field's text still matches what was picked - if the user edited
-            // it afterward, the id would point at a different account than the name now shown,
-            // so it's dropped rather than silently posting under the wrong name/id pairing.
-            sourceAccountId = sourceAccountPick?.takeIf { it.name == sourceAccountName }?.id,
-            destinationAccountId = destinationAccountPick?.takeIf { it.name == destinationAccountName }?.id,
             homeCurrency = binding.homeCurrencyInput.text?.toString().orEmpty().trim(),
             // Not .trim()'d: the Android keyboard's autocorrect routinely leaves a trailing
             // space behind, and leading/trailing whitespace in a *regex* is syntax, not

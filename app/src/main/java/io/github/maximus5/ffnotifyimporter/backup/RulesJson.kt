@@ -11,11 +11,11 @@ import org.json.JSONObject
  * between devices/people, not a full app backup (see `FullBackupJson` for that - which reuses
  * these two functions for its own `rules` section).
  *
- * Deliberately excludes `id` and `sourceAccountId`/`destinationAccountId`: a row id is this
- * device's `RulesDb` internal identity, meaningless elsewhere, and a Firefly account ID is
- * meaningless on a *different* Firefly instance - import always appends as new rows
- * (`RulesDb.add` assigns a fresh id), and the asset-side account needs to be re-picked after
- * import regardless (the name alone travels fine, same as it always has).
+ * Deliberately excludes `id`: a row id is this device's `RulesDb` internal identity, meaningless
+ * elsewhere - import always appends as new rows (`RulesDb.add` assigns a fresh id). `ParseRule`
+ * itself no longer carries a Firefly account id at all (see its own KDoc) - the asset-side account
+ * travels as plain text, same as it always has, no separate exclusion needed here for that
+ * anymore.
  */
 
 fun rulesToJson(rules: List<ParseRule>): String {

@@ -175,8 +175,6 @@ class RulesDb(context: Context) : SQLiteOpenHelper(context, DB_NAME, null, DB_VE
         put(COL_KIND, kind.name)
         put(COL_SOURCE_ACCOUNT_NAME, sourceAccountName)
         put(COL_DESTINATION_ACCOUNT_NAME, destinationAccountName)
-        put(COL_SOURCE_ACCOUNT_ID, sourceAccountId)
-        put(COL_DESTINATION_ACCOUNT_ID, destinationAccountId)
         put(COL_HOME_CURRENCY, homeCurrency)
         put(COL_PATTERN, pattern)
         put(COL_DESCRIPTION_TEMPLATE, descriptionTemplate)
@@ -190,10 +188,6 @@ class RulesDb(context: Context) : SQLiteOpenHelper(context, DB_NAME, null, DB_VE
 
     private fun Cursor.toRule(): ParseRule {
         fun str(col: String) = getString(getColumnIndexOrThrow(col))
-        fun strOrNull(col: String): String? {
-            val index = getColumnIndexOrThrow(col)
-            return if (isNull(index)) null else getString(index)
-        }
         return ParseRule(
             id = str(COL_ID),
             label = str(COL_LABEL),
@@ -201,8 +195,6 @@ class RulesDb(context: Context) : SQLiteOpenHelper(context, DB_NAME, null, DB_VE
             kind = RuleKind.valueOf(str(COL_KIND)),
             sourceAccountName = str(COL_SOURCE_ACCOUNT_NAME),
             destinationAccountName = str(COL_DESTINATION_ACCOUNT_NAME),
-            sourceAccountId = strOrNull(COL_SOURCE_ACCOUNT_ID),
-            destinationAccountId = strOrNull(COL_DESTINATION_ACCOUNT_ID),
             homeCurrency = str(COL_HOME_CURRENCY),
             pattern = str(COL_PATTERN),
             descriptionTemplate = str(COL_DESCRIPTION_TEMPLATE),
@@ -219,7 +211,10 @@ class RulesDb(context: Context) : SQLiteOpenHelper(context, DB_NAME, null, DB_VE
         // v5: source/destination_account_name are macro templates now (NOT NULL)
         // v6: added nullable source/destination_account_id (Firefly account ID, set only when
         // the corresponding name was picked from FireflyApiClient.listAssetAccounts() - see
-        // ParseRule's KDoc)
+        // ParseRule's KDoc). Inert as of the removal documented there: COL_SOURCE_ACCOUNT_ID/
+        // COL_DESTINATION_ACCOUNT_ID stay in the schema (additive-only, never drop a column - see
+        // this class's own KDoc) but toContentValues/toRule no longer read or write them; an
+        // existing row's stored value, if any, just sits there unused.
         // v7: added date_format (NOT NULL, default '' = use the notification's own arrival time,
         // same as every rule saved before this existed) - see ParseRule.dateFormat's KDoc
         private const val DB_VERSION = 7

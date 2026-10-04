@@ -169,10 +169,39 @@ work.
       and - the one this was specifically built for - two notifications
       posted back-to-back in a way that previously could have raced,
       confirming they're still handled strictly one at a time.
+      **Fixed a real cross-app auto-create dedup miss, caught directly
+      on-device**: two different rules (a bank app's own rule and a
+      wallet app's rule) for the exact same real payment - same
+      amount, same description, same source account by name, dedup
+      enabled, well within the window - each still auto-created its
+      own transaction instead of the second being caught as a
+      duplicate of the first. Root cause, traced with the user:
+      `transactionDedupHash` used to hash `accountId ?: accountName`,
+      preferring a Firefly account ID cached on `ParseRule` when one
+      was present. Two *different* rules for the same real account
+      don't necessarily agree on whether an ID got cached for it - one
+      picked via `RuleEditFragment`'s account picker (had one), the
+      other free-typed or saved before the picker existed (didn't) -
+      so the two rules' drafts hashed to two genuinely *different*
+      values for the identical real account. The user's own call once
+      this was diagnosed, more radical than just fixing the hash: drop
+      `sourceAccountId`/`destinationAccountId` from `ParseRule`
+      entirely (see its own KDoc) rather than try to keep every rule's
+      cached ID consistently in sync going forward - a rule always
+      posts and hashes by name now. `transactionDedupHash` itself also
+      changed to compare by name only, ignoring any account ID
+      regardless of source, so the same class of mismatch can't
+      resurface via `ui.CreateTransactionFragment`'s own one-shot
+      account picker (which still can set one, for posting precision
+      on that single transaction - just never fed into the hash).
+      **Needs real-device re-verification**: the exact two-rules/
+      same-real-payment scenario that exposed this, confirming it's
+      now caught as a duplicate.
     - Transaction-level dedup (**done**, manual-creation path only -
       see above): `rules.transactionDedupHash` (pure, unit tested -
-      `TransactionDedupTest`) hashes source/destination
-      (account id when present, else the rendered name)
+      `TransactionDedupTest`) hashes source/destination (by name only -
+      **no longer** account id when present, see the real cross-app
+      auto-create dedup miss documented further down this history)
       + amount (canonical 2-decimal string, so `12.5`/`12.50` hash the
       same) + currency + description (only when
       `FireflyPrefs.isDedupIncludeDescription()`), and
@@ -543,9 +572,11 @@ work.
   a real on-disk v6 database with actual saved rules. Also needs
   re-verification now that it's fixed (see ARCHITECTURE.md's Known
   bugs/gotchas): full backup/restore actually preserving a message's
-  linked `#<id>`, a rule's `sourceAccountId`/`destinationAccountId`
-  (confirm a restored rule posts without needing the asset account
-  re-picked), and the dedup log across a real export-then-restore,
+  linked `#<id>` (moot now for a rule's account id specifically -
+  `ParseRule` doesn't carry one at all anymore, see its own KDoc, so
+  every restored rule needs the asset account re-picked regardless -
+  that's by design now, not something to verify as "preserved"), and
+  the dedup log across a real export-then-restore,
   including the "restore onto a fresh install" case (dedup must still
   catch a duplicate whose original transaction predates the restore).
 - **Decided** (explicit user instruction, not a "revisit if it matters"

@@ -25,9 +25,15 @@ data class TransactionDraft(
     val foreignAmount: BigDecimal?,
     val foreignCurrencyCode: String?,
     val sourceName: String?,
-    val sourceAccountId: String?, // from ParseRule.sourceAccountId - preferred over sourceName when posting
+    // Always null from RuleEngine.buildDraft - ParseRule no longer caches a Firefly account id at
+    // all (see its own KDoc for the real cross-rule dedup bug that caused). Only ever set by
+    // ui.CreateTransactionFragment's own one-shot account picker, for posting precision on that
+    // one transaction being created right now - preferred over sourceName when posting
+    // (FireflyJson.buildTransactionRequestBody), but never fed into transactionDedupHash, which
+    // compares by name only regardless of whether either side happens to carry one.
+    val sourceAccountId: String?,
     val destinationName: String?,
-    val destinationAccountId: String?, // from ParseRule.destinationAccountId
+    val destinationAccountId: String?, // same as sourceAccountId above, mirrored for the other side
     val description: String,
     val notes: String,
     val category: String?,

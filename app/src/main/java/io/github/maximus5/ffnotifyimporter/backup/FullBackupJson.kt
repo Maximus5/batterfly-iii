@@ -18,23 +18,15 @@ import org.json.JSONObject
  * gets shared - not somewhere a bearer token belongs, encrypted or not. The user re-enters it
  * after a restore.
  *
- * [messages]' `fireflyTransactionId` *is* included, and so are [rules]'
- * `sourceAccountId`/`destinationAccountId` - unlike `RulesJson`'s deliberate exclusion of the
- * latter two. That exclusion is correct for `RulesJson` (a *sharing* format - a device-specific
- * Firefly account id is meaningless once it travels to a different person/instance), but this
- * file isn't that: a full backup is a same-device safety net (it doesn't even touch the Firefly
- * connection's base URL - restoring onto a materially different instance was never really this
- * feature's job) and `RulesDb.add` always assigns a fresh row id on restore regardless, so there
- * was never a good independent argument for *also* dropping the account ids here - carrying over
- * `RulesJson`'s exclusion by analogy, instead of re-deriving it for this different use case, was
- * the same mistake that dropped `fireflyTransactionId` in an earlier version of this file: a
- * restored message silently lost its "#1234" link even though the transaction genuinely still
- * existed in Firefly, and a restored rule silently lost a still-valid account id, forcing a
- * needless re-pick. (`RuleEngine.buildDraft` already sends `sourceAccountId`/`destinationAccountId`
- * to Firefly with no freshness check against the current connection either way - a rule that's
- * simply never been touched carries exactly the same staleness risk if the user points Settings
- * at a different Firefly instance, so this file isn't introducing a new category of risk by
- * keeping the ids, only removing an unforced loss of working data.) [createdTransactions] mirrors
+ * [messages]' `fireflyTransactionId` *is* included - an earlier version of this file dropped it,
+ * which silently lost a restored message's "#1234" link even though the transaction genuinely
+ * still existed in Firefly, a real bug fixed directly (same file, see git history). [rules] used
+ * to also carry `sourceAccountId`/`destinationAccountId` here (deliberately, unlike `RulesJson`'s
+ * own exclusion of them, reasoning this was a same-device safety net where the ids stayed valid) -
+ * moot now, `ParseRule` doesn't have those fields at all anymore (see its own KDoc for the
+ * cross-rule dedup bug that caused). An old backup file's `sourceAccountId`/`destinationAccountId`
+ * keys, if present, are simply never read back - harmless, same as any other key this format
+ * doesn't recognize. [createdTransactions] mirrors
  * `CreatedTransactionsDb` for the same reason - without it, the dedup log would come back empty
  * after a restore onto a fresh install, silently disabling duplicate detection for everything
  * created before the backup.
@@ -58,10 +50,11 @@ fun fullBackupToJson(data: FullBackupData): String {
             data.currencies.forEach { put(JSONObject().put("code", it.code).put("symbol", it.symbol)) }
         },
     )
-    // Not rulesToJson - that format deliberately drops sourceAccountId/destinationAccountId for
-    // its own (correct, for a *sharing* format) reasons; this is a same-device safety net, so
-    // those ids ride along here instead. Only `id` itself is excluded - RulesDb.add always
-    // assigns a fresh one on restore regardless, so there'd be nothing to round-trip it for.
+    // Not rulesToJson directly, even though the two formats are identical now (ParseRule has
+    // nothing left that RulesJson would need to exclude) - toBackupJson stays its own function
+    // in case a future field needs the same per-format split RulesJson/FullBackupJson used to
+    // need for sourceAccountId/destinationAccountId. Only `id` itself is excluded - RulesDb.add
+    // always assigns a fresh one on restore regardless, so there'd be nothing to round-trip it for.
     root.put("rules", JSONArray().apply { data.rules.forEach { put(it.toBackupJson()) } })
     root.put(
         "messages",
@@ -167,18 +160,16 @@ fun fullBackupFromJson(json: String): FullBackupData? {
     )
 }
 
-/** A full backup's own rule shape - everything [RulesJson.kt]'s sharing format has, *plus*
- * `sourceAccountId`/`destinationAccountId` (see [FullBackupData]'s KDoc for why the two formats
- * disagree on that). Still excludes `id` - never round-tripped either way, `RulesDb.add` assigns
- * a fresh one on restore regardless. */
+/** A full backup's own rule shape - same fields as [RulesJson.kt]'s sharing format now
+ * (`ParseRule` has nothing left for the two to disagree on, see [FullBackupData]'s KDoc). Still
+ * excludes `id` - never round-tripped either way, `RulesDb.add` assigns a fresh one on restore
+ * regardless. */
 private fun ParseRule.toBackupJson(): JSONObject = JSONObject().apply {
     put("label", label)
     put("packageNames", JSONArray(packageNames.toList()))
     put("kind", kind.name)
     put("sourceAccountName", sourceAccountName)
     put("destinationAccountName", destinationAccountName)
-    put("sourceAccountId", sourceAccountId)
-    put("destinationAccountId", destinationAccountId)
     put("homeCurrency", homeCurrency)
     put("pattern", pattern)
     put("descriptionTemplate", descriptionTemplate)
@@ -208,8 +199,6 @@ private fun JSONObject.toBackupRuleOrNull(): ParseRule? {
         kind = kind,
         sourceAccountName = optString("sourceAccountName", ""),
         destinationAccountName = optString("destinationAccountName", ""),
-        sourceAccountId = optString("sourceAccountId").takeIf { it.isNotBlank() },
-        destinationAccountId = optString("destinationAccountId").takeIf { it.isNotBlank() },
         homeCurrency = homeCurrency,
         pattern = pattern,
         descriptionTemplate = optString("descriptionTemplate", ""),

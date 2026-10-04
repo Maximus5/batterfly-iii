@@ -258,11 +258,13 @@ Single `:app` module, packages under
     via a plain mapping onto `network.FireflyTransactionRequest`, not a
     `rules` -> `network` dependency (the mapping lives in the UI layer
     that already depends on both). `sourceAccountId`/
-    `destinationAccountId` (from the same-named `ParseRule` fields,
-    populated in `RuleEngine.buildDraft`) ride along specifically so
-    posting - and `transactionDedupHash` below - can prefer the Firefly
-    account id over its name, same as `FireflyJson.
-    buildTransactionRequestBody` already did for `ParseRule` itself.
+    `destinationAccountId` still exist on this class, but `RuleEngine.
+    buildDraft` always leaves them null now - `ParseRule` no longer
+    caches a Firefly account id at all (see its own KDoc for the real
+    cross-rule dedup bug that caused). Only `ui.CreateTransactionFragment`'s
+    own one-shot account picker ever sets one, for posting precision on
+    that single transaction; `transactionDedupHash` deliberately ignores
+    both fields regardless (name only, see its own KDoc).
   - `applyApproxConversion` (`ApproxConversionTest`) - pure
     `amount = foreignAmount * rate` (`HALF_UP`, 2 decimals) plus
     appending the approx-conversion tag, given a rate the caller
@@ -275,9 +277,10 @@ Single `:app` module, packages under
     history for why both exist). The hash is pure - canonical-scale
     amount, currency, description only when `includeDescription` is
     true, and only the account side(s) `RuleValidation.validateRule`
-    actually requires a name for *this draft's kind* (id-or-name):
-    source only for `WITHDRAWAL`, destination only for `DEPOSIT`, both
-    for `TRANSFER`. **Fixed a second real bug, found right after the
+    actually requires a name for *this draft's kind* (by name only, not
+    id-or-name - see the third fix below for why): source only for
+    `WITHDRAWAL`, destination only for `DEPOSIT`, both for `TRANSFER`.
+    **Fixed a second real bug, found right after the
     first one below**: it used to always hash both sides regardless of
     kind - harmless comparing two local hashes against each other
     (the kind-irrelevant side is always equally blank for the same
@@ -298,6 +301,26 @@ Single `:app` module, packages under
     lookup computed under this one - no migration for this, same as
     the two-hash fix below couldn't recover data the old single-hash
     schema never kept either.
+    **Fixed a third real bug, caught directly on-device from two
+    different rules auto-creating separate transactions for the exact
+    same real payment**: account side(s) used to hash `accountId ?:
+    accountName` (preferring a cached Firefly account id, when
+    `ParseRule` had one, over the plain name) - the actual root cause
+    once diagnosed: two *different* rules for the same real account
+    (a bank app's own rule and a wallet app's rule, say) don't
+    necessarily agree on whether an id got cached for it - one picked
+    via `RuleEditFragment`'s account picker (had one), the other
+    free-typed or saved before the picker existed (didn't) - so the two
+    rules' drafts hashed to two *different* values for the identical
+    real account, and genuine cross-app duplicates went uncaught
+    despite everything else (amount, currency, description, window)
+    matching exactly. The user's own call once this was traced: stop
+    hashing by id at all, and go further - `ParseRule` doesn't cache a
+    Firefly account id anywhere anymore (see its own KDoc), so there's
+    no stale/inconsistent cache left to reintroduce this. **Breaking
+    change, accepted deliberately, same as the other two above**: a row
+    written while id-preference was still in effect, for a draft that
+    happened to have an id, hashes differently now than it did then.
     `CreatedTransactionsDb` is the usual
     plain-SQLite log (one row per successful `createTransaction()`
     call), queried by
@@ -698,12 +721,11 @@ Single `:app` module, packages under
     between devices/people. Import always appends as new rows
     (`RulesDb.add` assigns a fresh id) - never a replace - so sharing a
     rule can't accidentally wipe rules someone already built
-    themselves. Deliberately excludes `id` and
-    `sourceAccountId`/`destinationAccountId`: a row id is this
-    device's internal identity, and a Firefly account ID is meaningless
-    on a *different* Firefly instance (the asset-side account needs
-    re-picking after import regardless - the name alone travels fine,
-    same as it always has).
+    themselves. Deliberately excludes `id`: a row id is this device's
+    internal identity, meaningless elsewhere. (Used to also exclude
+    `sourceAccountId`/`destinationAccountId` - moot now, `ParseRule`
+    doesn't carry a Firefly account id at all anymore, see its own
+    KDoc.)
   - `FullBackupJson.kt` (`FullBackupData`, `fullBackupToJson`/
     `fullBackupFromJson`, `FullBackupJsonTest`) + `BackupManager`
     (Android-dependent orchestration, not unit tested, same reason
@@ -713,35 +735,22 @@ Single `:app` module, packages under
     file. Has its own per-rule shape (`toBackupJson`/
     `toBackupRuleOrNull`) now, *not* a reuse of `RulesJson`'s - the two
     formats are for genuinely different jobs and shouldn't share one
-    shape just because a rule is a rule. `RulesJson` is a *sharing*
-    format (export to send to someone else, or to your own other
-    device *for the asset-account picker to run again on*) -
-    deliberately excludes `id` (this device's row identity, meaningless
-    elsewhere) and `sourceAccountId`/`destinationAccountId` (a Firefly
-    account id, meaningless on a different instance). A full backup is
-    a same-device safety net instead - it doesn't even touch the
-    Firefly connection's base URL, so restoring onto a materially
+    shape just because a rule is a rule (and, as of the account-id
+    removal above, happen to be textually identical now - kept separate
+    anyway in case a future field needs the per-format split again). A
+    full backup is a same-device safety net, unlike `RulesJson`'s
+    cross-device/cross-person sharing format - it doesn't even touch
+    the Firefly connection's base URL, so restoring onto a materially
     different instance was never really its job - and `RulesDb.add`
     always assigns a fresh row id on restore regardless of what's in
-    the file, so `id` still has nothing to round-trip for; but there
-    was never an independent argument for *also* dropping the account
-    ids here, and carrying over `RulesJson`'s exclusion by analogy
-    instead of re-deriving it for this different use case cost real,
-    reported data twice over: an earlier version of this file dropped
-    `messages`' `fireflyTransactionId` the same way ("Firefly-instance-
-    specific derived id, excluded even here"), and a restored message
+    the file, so `id` still has nothing to round-trip for either way.
+    **Fixed a real data-loss bug, caught directly by the user testing a
+    just-made backup**: an earlier version of this file dropped
+    `messages`' `fireflyTransactionId` on the "Firefly-instance-specific
+    derived id, excluded even here" theory, and a restored message
     silently lost its "#1234" link even though the transaction still
-    existed in Firefly - caught directly by the user testing a
-    just-made backup. Both are fixed now: `fullBackupToJson`/
-    `fullBackupFromJson` carry `fireflyTransactionId` and
-    `sourceAccountId`/`destinationAccountId` straight through.
-    (`RuleEngine.buildDraft` already sends an account id to Firefly
-    with no freshness check against the current connection regardless
-    of backup/restore - a rule nobody's touched since it was created
-    carries the exact same staleness risk the moment the user points
-    Settings at a different instance, so keeping the id through a
-    restore isn't a new category of risk, just not an unforced loss of
-    working data.) `createdTransactions`
+    existed in Firefly. `fullBackupToJson`/`fullBackupFromJson` carry
+    `fireflyTransactionId` straight through now. `createdTransactions`
     (`rules.CreatedTransactionRecord`, `CreatedTransactionsDb.loadAll`/
     `clearAll`) exists for the same underlying reason: without backing
     it up too, the dedup log would come back empty after a restore onto
@@ -1646,21 +1655,29 @@ Single `:app` module, packages under
       reopening it shows what's already there at a glance instead of an
       unmarked list every time; still applies and dismisses on one tap,
       same as before, no separate confirm step.
-      Picking an account also captures its Firefly ID
-      (`RuleEditFragment.PickedAccount`, held in
-      `sourceAccountPick`/`destinationAccountPick`) alongside the name -
-      an ID survives a Firefly-side account rename, a name alone
-      doesn't. `buildDraft` only carries the ID into `ParseRule.
-      sourceAccountId`/`destinationAccountId` if the field's *current*
-      text still equals the name that was picked - if the user edits it
-      away afterward, the ID would point at a different account than
-      the name now shown, so it's dropped rather than silently sending
-      a mismatched ID/name pair. A rule saved before this existed (or
-      whose account field has never been through the picker) simply has
-      a null ID and keeps resolving by name at post time - see
-      `FireflyJson.buildTransactionRequestBody`, which sends `source_id`/
-      `destination_id` instead of the `_name` variant whenever an ID is
-      present (Firefly's own docs: submit one or the other, not both).
+      **Used to also capture the picked account's Firefly ID
+      alongside the name** (`RuleEditFragment.PickedAccount`, held in
+      `sourceAccountPick`/`destinationAccountPick`, carried into
+      `ParseRule.sourceAccountId`/`destinationAccountId` at save time) -
+      removed entirely, a deliberate, breaking fix for a real cross-app
+      dedup bug the user caught directly on-device: two different rules
+      for the same real Firefly account don't necessarily agree on
+      whether an ID got cached for it (one rule's account field picked
+      via this picker, another free-typed or saved before the picker
+      existed), so `rules.transactionDedupHash` hashing `id ?: name`
+      made the two rules' drafts hash *differently* for the identical
+      real account, and a genuine duplicate between them went uncaught.
+      `ParseRule` doesn't carry a Firefly account ID at all anymore (see
+      its own KDoc) - this picker now only ever fills in the account's
+      *name* (`target.setText(account.name)`, no `PickedAccount`/id
+      tracking left to do), purely to avoid a typo against the real
+      account list, not for posting precision. `ui.
+      CreateTransactionFragment`'s own, separate one-shot account picker
+      (see its own entry below) is the one remaining place an ID can
+      still reach `FireflyJson.buildTransactionRequestBody`'s
+      `source_id`/`destination_id` preference, for that single
+      transaction being created right then - not something a *rule*
+      carries forward across multiple future notifications.
       Every macro-template field (the counterparty account side plus
       description/notes/category/tags - *not* `homeCurrency`, which
       `renderTemplate` never touches: `RuleEngine` compares the captured

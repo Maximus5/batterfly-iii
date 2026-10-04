@@ -31,6 +31,21 @@ import java.time.Instant
  * instead - same "don't guess, ask/do the obvious thing" instinct as elsewhere in this app, just
  * applied to *not* over-engineering around a real fix this time.
  *
+ * **Second breaking change, same reasoning**: account side(s) hash by [TransactionDraft.sourceName]/
+ * [TransactionDraft.destinationName] only now, never [TransactionDraft.sourceAccountId]/
+ * [TransactionDraft.destinationAccountId] even when one is set. A real cross-app dedup miss the
+ * user caught: two different rules for the same real Firefly account (a bank's own app's rule and
+ * a wallet app's rule, say) don't necessarily agree on whether a Firefly account ID got cached for
+ * it - one picked via `RuleEditFragment`'s account picker (had one), the other free-typed or saved
+ * before the picker existed (didn't) - so hashing `id ?: name` produced two *different* values for
+ * the *same* real account, and a genuine duplicate went uncaught. `ParseRule` no longer caches an
+ * account ID at all as of this same fix (see its own KDoc) - `RuleEngine.buildDraft` always leaves
+ * [TransactionDraft.sourceAccountId]/[TransactionDraft.destinationAccountId] null now, but this
+ * function ignores them outright rather than relying on that alone, since `ui.
+ * CreateTransactionFragment`'s own one-shot account picker can still set one (for posting
+ * precision on that single transaction) - a hash that looked at it there would reintroduce the
+ * exact same inconsistency against a rule-produced draft for the same account.
+ *
  * [includeDescription] - on by default (`FireflyPrefs.isDedupIncludeDescription`) - trades a
  * slightly higher false-negative rate (an occasional real duplicate charge from the same merchant
  * within the window goes uncaught) for zero risk of a false positive silently dropping a
@@ -42,12 +57,9 @@ import java.time.Instant
 fun transactionDedupHash(draft: TransactionDraft, includeDescription: Boolean): String {
     val amount = requireNotNull(draft.amount) { "transactionDedupHash needs a resolved amount" }
     val accountParts = when (draft.kind) {
-        RuleKind.WITHDRAWAL -> listOf(draft.sourceAccountId ?: draft.sourceName.orEmpty())
-        RuleKind.DEPOSIT -> listOf(draft.destinationAccountId ?: draft.destinationName.orEmpty())
-        RuleKind.TRANSFER -> listOf(
-            draft.sourceAccountId ?: draft.sourceName.orEmpty(),
-            draft.destinationAccountId ?: draft.destinationName.orEmpty(),
-        )
+        RuleKind.WITHDRAWAL -> listOf(draft.sourceName.orEmpty())
+        RuleKind.DEPOSIT -> listOf(draft.destinationName.orEmpty())
+        RuleKind.TRANSFER -> listOf(draft.sourceName.orEmpty(), draft.destinationName.orEmpty())
     }
     val parts = accountParts + listOf(
         amount.setScale(2, RoundingMode.HALF_UP).toPlainString(),
@@ -91,13 +103,10 @@ data class RemoteTransactionCandidate(
  * caught, with nothing extra needed here: whichever side doesn't matter for this kind never
  * enters the comparison, however it's filled in on either side.
  *
- * One wrinkle [candidate] has that a locally-recorded row never does: Firefly assigns a real
- * account id to *every* account, including a counterparty this app only ever captured by name
- * (the expense/revenue side of a withdrawal/deposit - this app's own rule editor only picks
- * *asset*-account ids, see `network.FireflyAccount`'s KDoc). Comparing [candidate]'s id against
- * [draft]'s lack of one for that side would never match even for the exact same counterparty, so
- * the throwaway draft only keeps [candidate]'s id for a side where [draft] *also* has one -
- * otherwise it's compared by name instead, same as [draft] itself is.
+ * No id-vs-name wrinkle to handle here (there used to be one) - [transactionDedupHash] compares
+ * account sides by name only now, so [candidate]'s own `sourceId`/`destinationId` never enter the
+ * comparison at all; see that function's own KDoc for the real cross-rule dedup bug id-aware
+ * hashing caused.
  *
  * A second wrinkle - a real false negative the user caught on a foreign-currency notification:
  * when [draft] has [TransactionDraft.foreignAmount]/[TransactionDraft.foreignCurrencyCode] set,
@@ -128,9 +137,7 @@ fun remoteCandidateMatches(draft: TransactionDraft, candidate: RemoteTransaction
     val candidateAsDraft = draft.copy(
         amount = amount,
         currencyCode = draft.currencyCode,
-        sourceAccountId = if (draft.sourceAccountId != null) candidate.sourceId else null,
         sourceName = candidate.sourceName,
-        destinationAccountId = if (draft.destinationAccountId != null) candidate.destinationId else null,
         destinationName = candidate.destinationName,
         description = candidate.description,
     )

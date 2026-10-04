@@ -61,11 +61,20 @@ class TransactionDedupTest {
     }
 
     @Test
-    fun `account id is preferred over account name when both differ`() {
-        val byName = draft(sourceAccountId = null, sourceName = "Bank Account A")
-        val byId = draft(sourceAccountId = "42", sourceName = "Bank Account A (renamed)")
+    fun `account id is ignored by the hash - only name matters, even when an id is set`() {
+        // The real cross-rule dedup bug this fixed: two different rules for the same real
+        // account don't necessarily agree on whether a Firefly account id got cached for it
+        // (one picked via the account picker, another free-typed) - hashing by id-or-name used
+        // to make those two hash differently for the identical real account. Same name, different
+        // (or absent) id must hash the same; different name must still hash differently.
+        val noId = draft(sourceAccountId = null, sourceName = "Bank Account A")
+        val withId = draft(sourceAccountId = "42", sourceName = "Bank Account A")
+        val differentIdSameName = draft(sourceAccountId = "99", sourceName = "Bank Account A")
+        val differentName = draft(sourceAccountId = "42", sourceName = "Bank Account A (renamed)")
 
-        assertNotEquals(transactionDedupHash(byName, true), transactionDedupHash(byId, true))
+        assertEquals(transactionDedupHash(noId, true), transactionDedupHash(withId, true))
+        assertEquals(transactionDedupHash(withId, true), transactionDedupHash(differentIdSameName, true))
+        assertNotEquals(transactionDedupHash(noId, true), transactionDedupHash(differentName, true))
     }
 
     @Test
@@ -192,11 +201,11 @@ class TransactionDedupTest {
     }
 
     @Test
-    fun `remoteCandidateMatches WITHDRAWAL prefers the source id over name when the draft has one`() {
-        val sameAccountById = candidate(sourceId = "2", sourceName = "Bank Account A (renamed since)")
+    fun `remoteCandidateMatches WITHDRAWAL ignores a matching id when the name differs - name only, no id fallback`() {
+        val sameIdDifferentName = candidate(sourceId = "2", sourceName = "Bank Account A (renamed since)")
         val d = draft(kind = RuleKind.WITHDRAWAL, sourceAccountId = "2", sourceName = "Bank Account A")
 
-        assertTrue(remoteCandidateMatches(d, sameAccountById, true, 5))
+        assertFalse(remoteCandidateMatches(d, sameIdDifferentName, true, 5))
     }
 
     @Test
@@ -229,11 +238,11 @@ class TransactionDedupTest {
     }
 
     @Test
-    fun `remoteCandidateMatches DEPOSIT prefers the destination id over name when the draft has one`() {
-        val sameAccountById = candidate(destinationId = "2", destinationName = "Checking (renamed since)")
+    fun `remoteCandidateMatches DEPOSIT ignores a matching id when the name differs - name only, no id fallback`() {
+        val sameIdDifferentName = candidate(destinationId = "2", destinationName = "Checking (renamed since)")
         val d = draft(kind = RuleKind.DEPOSIT, sourceName = null, destinationAccountId = "2", destinationName = "Checking")
 
-        assertTrue(remoteCandidateMatches(d, sameAccountById, true, 5))
+        assertFalse(remoteCandidateMatches(d, sameIdDifferentName, true, 5))
     }
 
     @Test

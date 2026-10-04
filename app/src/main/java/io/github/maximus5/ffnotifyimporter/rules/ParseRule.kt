@@ -22,13 +22,20 @@ package io.github.maximus5.ffnotifyimporter.rules
  * Exactly one of [sourceAccountName]/[destinationAccountName] is expected to render to something
  * for WITHDRAWAL/DEPOSIT; TRANSFER needs both - validated by [validateRule].
  *
- * [sourceAccountId]/[destinationAccountId] are optional - set only when the corresponding name
- * was picked from `FireflyApiClient.listAssetAccounts()` (the rule editor's asset-account
- * picker, see ARCHITECTURE.md), null for a rule whose account fields are still free-typed/macro
- * text (the counterparty side always, or any rule saved before this existed). A Firefly account
- * ID survives a rename in Firefly; the name alone doesn't - posting should prefer the ID when
- * it's present and still matches the displayed name, and fall back to posting by name otherwise,
- * exactly the same `source_name`/`destination_name` behavior this app already had.
+ * **No `sourceAccountId`/`destinationAccountId` here, deliberately removed** - a rule used to be
+ * able to cache the Firefly account ID picked via `FireflyApiClient.listAssetAccounts()`
+ * alongside the name, posting (and `rules.transactionDedupHash`) preferring the ID when present so
+ * a later Firefly-side rename wouldn't silently break the match. Real bug this caused, caught
+ * directly by the user: two *different* rules for the same real account (e.g. a bank's own app
+ * and Google/Apple Wallet, each with its own rule) don't necessarily agree on whether an ID got
+ * cached - one rule's account field picked via the picker (has an ID), another typed free-text or
+ * saved before the picker existed (doesn't) - so `transactionDedupHash`'s `id ?: name` hashed two
+ * *different* values for the *same* real account, and cross-app dedup silently missed a real
+ * duplicate. The user's own call once this was diagnosed: drop ID-based posting/hashing from
+ * rules entirely rather than try to keep every rule's cached ID consistently in sync - a rule
+ * always posts (and hashes) by name now, same as the counterparty side already did; a Firefly-side
+ * rename just needs the rule's text updated by hand afterward, a visible failure mode instead of
+ * this silent one.
  *
  * [dateFormat] is blank by default, meaning "use the notification's own arrival time as the
  * transaction date" (the original, still-default behavior). Non-blank - a `java.time.format.
@@ -46,8 +53,6 @@ data class ParseRule(
     val kind: RuleKind,
     val sourceAccountName: String = "",
     val destinationAccountName: String = "",
-    val sourceAccountId: String? = null,
-    val destinationAccountId: String? = null,
     val homeCurrency: String,
     val pattern: String, // regex over title + "\n" + text, see Groups for the group conventions
     val descriptionTemplate: String = "",

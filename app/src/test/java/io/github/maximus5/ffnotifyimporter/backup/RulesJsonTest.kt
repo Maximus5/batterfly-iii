@@ -16,7 +16,6 @@ class RulesJsonTest {
         kind: RuleKind = RuleKind.WITHDRAWAL,
         sourceAccountName: String = "Bank Account A",
         destinationAccountName: String = "",
-        sourceAccountId: String? = "2",
         dateFormat: String = "dd.MM.yy",
     ) = ParseRule(
         id = id,
@@ -25,7 +24,6 @@ class RulesJsonTest {
         kind = kind,
         sourceAccountName = sourceAccountName,
         destinationAccountName = destinationAccountName,
-        sourceAccountId = sourceAccountId,
         homeCurrency = "EUR",
         pattern = """spent (?<amount>[\d,]+) EUR at (?<counterparty>.+)""",
         descriptionTemplate = "{counterparty}",
@@ -59,11 +57,10 @@ class RulesJsonTest {
     }
 
     @Test
-    fun `import never carries over the id or the Firefly account id - both are instance-specific`() {
-        val imported = rulesFromJson(rulesToJson(listOf(rule(id = "r1", sourceAccountId = "2"))))
+    fun `import never carries over the id - this device's RulesDb internal identity`() {
+        val imported = rulesFromJson(rulesToJson(listOf(rule(id = "r1"))))
 
         assertEquals("", imported?.first()?.id)
-        assertNull(imported?.first()?.sourceAccountId)
     }
 
     @Test
