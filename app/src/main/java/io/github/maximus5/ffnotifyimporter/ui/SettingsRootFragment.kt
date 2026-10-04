@@ -64,6 +64,12 @@ class SettingsRootFragment : Fragment() {
                 R.string.settings_add_test_message_title,
             )
         }
+        binding.rowBackup.setOnClickListener {
+            (activity as? SettingsActivity)?.openScreen(
+                BackupFragment(),
+                R.string.settings_backup_title,
+            )
+        }
     }
 
     override fun onResume() {

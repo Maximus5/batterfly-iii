@@ -47,6 +47,13 @@
     <string name="settings_rules_subtitle">Match notifications to Firefly III transactions</string>
     <string name="rules_empty">No rules yet. Tap + to add one.</string>
     <string name="rules_add">Add rule</string>
+    <string name="rules_export">Export…</string>
+    <string name="rules_import">Import…</string>
+    <string name="rules_export_success">Exported %1$d rule(s).</string>
+    <string name="rules_export_failed">Export failed: %1$s</string>
+    <string name="rules_import_success">Imported %1$d rule(s).</string>
+    <string name="rules_import_failed">Import failed: %1$s</string>
+    <string name="rules_import_invalid_file">This doesn\'t look like a rules export file.</string>
     <string name="rule_move_up">Move up</string>
     <string name="rule_move_down">Move down</string>
     <string name="rule_duplicate">Duplicate</string>
@@ -136,4 +143,18 @@
     <string name="firefly_token_required">Personal access token can\'t be empty.</string>
     <string name="firefly_dedup_window_invalid">Dedup window must be a positive number of minutes.</string>
     <string name="firefly_settings_saved">Saved</string>
+
+    <string name="settings_backup_title">Backup &amp; restore</string>
+    <string name="settings_backup_subtitle">Save or restore everything except the Firefly connection</string>
+    <string name="backup_explanation">Includes monitored apps, currencies, rules, and message history. Does not include the Firefly III connection (base URL/token) - re-enter that after a restore.</string>
+    <string name="backup_export_button">Export backup…</string>
+    <string name="backup_restore_button">Restore backup…</string>
+    <string name="backup_export_success">Backup saved.</string>
+    <string name="backup_export_failed">Backup failed: %1$s</string>
+    <string name="backup_restore_confirm_title">Restore this backup?</string>
+    <string name="backup_restore_confirm_message">This replaces everything currently saved on this device - monitored apps, currencies, rules, and message history. The Firefly connection isn\'t included and won\'t change. This can\'t be undone.</string>
+    <string name="backup_restore_confirm_button">Restore</string>
+    <string name="backup_restore_success">Restored.</string>
+    <string name="backup_restore_failed">Restore failed: %1$s</string>
+    <string name="backup_invalid_file">This doesn\'t look like a backup file.</string>
 </resources>

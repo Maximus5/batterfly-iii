@@ -1,22 +1,39 @@
 package io.github.maximus5.ffnotifyimporter.ui
 
+import android.net.Uri
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.PopupMenu
+import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import io.github.maximus5.ffnotifyimporter.R
+import io.github.maximus5.ffnotifyimporter.backup.rulesFromJson
+import io.github.maximus5.ffnotifyimporter.backup.rulesToJson
 import io.github.maximus5.ffnotifyimporter.databinding.FragmentRulesListBinding
 import io.github.maximus5.ffnotifyimporter.rules.ParseRule
 import io.github.maximus5.ffnotifyimporter.rules.RulesDb
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class RulesListFragment : Fragment() {
 
     private var binding: FragmentRulesListBinding? = null
     private lateinit var adapter: RulesAdapter
     private lateinit var rulesDb: RulesDb
+
+    // Registered in onCreate (before onCreateView), the way these contracts require - a Fragment
+    // can't register one after its view has been created.
+    private val exportLauncher = registerForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+        if (uri != null) exportTo(uri)
+    }
+    private val importLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) importFrom(uri)
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -37,6 +54,12 @@ class RulesListFragment : Fragment() {
         binding.rulesRecyclerView.adapter = adapter
 
         binding.addRuleButton.setOnClickListener { openEditor(null) }
+        binding.exportRulesButton.setOnClickListener {
+            exportLauncher.launch(defaultExportFileName())
+        }
+        binding.importRulesButton.setOnClickListener {
+            importLauncher.launch(arrayOf("application/json"))
+        }
     }
 
     override fun onResume() {
@@ -49,6 +72,45 @@ class RulesListFragment : Fragment() {
         val rules = rulesDb.loadAllOrdered()
         adapter.submitList(rules)
         binding.rulesEmptyText.visibility = if (rules.isEmpty()) View.VISIBLE else View.GONE
+    }
+
+    private fun defaultExportFileName(): String {
+        val date = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+        return "ffnotifyimporter-rules-$date.json"
+    }
+
+    /** Sharing format, not a full backup (see `BackupFragment` for that) - every distinct rule
+     * currently saved, newest-first-by-sort-order like the list itself shows them. */
+    private fun exportTo(uri: Uri) {
+        val context = requireContext()
+        val rules = rulesDb.loadAllOrdered()
+        try {
+            context.contentResolver.openOutputStream(uri)?.use { it.write(rulesToJson(rules).toByteArray(Charsets.UTF_8)) }
+            Toast.makeText(context, getString(R.string.rules_export_success, rules.size), Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            Toast.makeText(context, getString(R.string.rules_export_failed, e.message), Toast.LENGTH_LONG).show()
+        }
+    }
+
+    /** Always appends as new rows (fresh ids via `RulesDb.add`) - importing is "add these rules
+     * too", never "replace what I have", so sharing a rule with someone (or across your own
+     * devices) can't accidentally wipe rules they already built themselves. */
+    private fun importFrom(uri: Uri) {
+        val context = requireContext()
+        try {
+            val json = context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+                ?: return
+            val rules = rulesFromJson(json)
+            if (rules == null) {
+                Toast.makeText(context, R.string.rules_import_invalid_file, Toast.LENGTH_LONG).show()
+                return
+            }
+            rules.forEach { rulesDb.add(it) }
+            reload()
+            Toast.makeText(context, getString(R.string.rules_import_success, rules.size), Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            Toast.makeText(context, getString(R.string.rules_import_failed, e.message), Toast.LENGTH_LONG).show()
+        }
     }
 
     private fun openEditor(rule: ParseRule?) {

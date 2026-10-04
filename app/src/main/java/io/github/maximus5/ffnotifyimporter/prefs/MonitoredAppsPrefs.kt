@@ -21,6 +21,12 @@ class MonitoredAppsPrefs(context: Context) {
         prefs.edit().putStringSet(KEY_MONITORED_PACKAGES, updated).apply()
     }
 
+    /** Replaces the whole set in one go - for restoring a full backup, not the per-app toggle
+     * flow ([setMonitored]) the Apps screen uses. */
+    fun setMonitoredPackages(packages: Set<String>) {
+        prefs.edit().putStringSet(KEY_MONITORED_PACKAGES, packages).apply()
+    }
+
     companion object {
         private const val PREFS_NAME = "monitored_apps"
         private const val KEY_MONITORED_PACKAGES = "monitored_packages"

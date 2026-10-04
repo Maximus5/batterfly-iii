@@ -67,6 +67,19 @@ class MessageStore(
         listeners.forEach { it(snapshot) }
     }
 
+    /** Drops everything currently held - for restoring a full backup (replace, not merge), not
+     * used by the normal one-at-a-time multi-select delete flow ([remove]). Does not touch
+     * [onMessageRemoved] - the caller is expected to clear on-disk storage itself if needed,
+     * same "restore doesn't trigger the normal capture-time hooks" reasoning as [restore]. */
+    fun clear() {
+        val snapshot: List<CapturedMessage>
+        synchronized(lock) {
+            messages.clear()
+            snapshot = messages.toList()
+        }
+        listeners.forEach { it(snapshot) }
+    }
+
     /** Removes [message] (matched by value equality) from history. Returns true if it was there. */
     fun remove(message: CapturedMessage): Boolean {
         val snapshot: List<CapturedMessage>

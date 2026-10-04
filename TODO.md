@@ -133,21 +133,30 @@ work.
   - A way to reorder rules other than one-step-at-a-time up/down
     buttons (fine for a handful of rules; revisit - e.g. drag handles
     - if the list grows long enough to make that tedious).
-  - Export/import buttons on the Rules screen (backup, move rules to
-    another device, share a rule). Format: JSON is the pick - `org.json`
-    is already in the Android framework (no new dependency, matches
-    the project's house style of avoiding them), diffs/version-controls
-    fine, and is a natural fit for Android's share sheet/Storage Access
-    Framework for save-to-file and open-from-file. YAML would read
-    nicer for hand-editing (comments, less punctuation) but Android has
-    no built-in parser - would mean pulling in snakeyaml or similar
-    just for this. XML has a built-in parser too but is more verbose,
-    and the regex patterns (full of special characters) are uglier to
-    escape as XML attribute/text content than as JSON strings. A binary
-    format is a clear no - the whole point of export/import is
-    backup/portability/occasionally-eyeballing-it, which an opaque
-    binary blob works against, and it's needlessly fragile across
-    schema changes to boot.
+  - **Done**: Export/import buttons on the Rules screen (`backup.
+    RulesJson`/`RulesListFragment`) - JSON, as planned here (`org.json`,
+    no new dependency, natural fit for Storage Access Framework
+    save-to/open-from). Import always *appends* as new rows
+    (`RulesDb.add`, fresh ids) - sharing a rule (with yourself across
+    devices, or with someone else) is "add these too", never "replace
+    what I have". Deliberately excludes `id`/`sourceAccountId`/
+    `destinationAccountId` - both are this device's/this Firefly
+    instance's internal identity, meaningless elsewhere; the asset-side
+    account needs re-picking after import regardless.
+    **Also done, prompted by the `RulesDb` data-loss incident** (see
+    ARCHITECTURE.md's Known bugs) - a *full* device backup/restore, a
+    different thing from rules-sharing: a new Settings row
+    (`BackupFragment`/`backup.BackupManager`/`FullBackupJson`) covering
+    monitored apps, currencies, rules, and message history in one JSON
+    file. Deliberately excludes the Firefly connection (base URL/
+    token) - the one real secret in this app, `KeystoreCipher`-encrypted
+    against a key that wouldn't even decrypt on a different device, and
+    a backup file is exactly the kind of thing that ends up in a cloud
+    folder - re-entered after a restore instead. Restore *replaces*
+    (clears each store first, per `BackupManager.restore`'s KDoc), with
+    an explicit confirm dialog first - this is a backup/restore tool
+    built directly in response to a destructive action taking real data
+    with no warning, so it does not repeat that pattern.
 - A pattern can't use the same named group twice (Java regex
   limitation, not something we can configure around) - e.g. a
   currency symbol that appears sometimes before the amount, sometimes

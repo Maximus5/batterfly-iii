@@ -352,6 +352,50 @@ Single `:app` module, packages under
     in the UI when it's `http://`; the manifest's
     `android:networkSecurityConfig` is what actually lets that
     connection succeed instead of failing silently.
+- `backup` - export/import and full backup/restore, added directly in
+  response to a real data-loss incident (see "Known bugs / gotchas"
+  below) - the user asked for both in the same breath once it happened:
+  a way to share rules, *and* a way to not lose everything again. Two
+  genuinely different tools, not one feature with two buttons - kept
+  as separate pure-JSON files/UI entry points because their semantics
+  differ (append vs. replace) and conflating them would make it easy
+  to pick the wrong one by accident:
+  - `RulesJson.kt` (`rulesToJson`/`rulesFromJson`, `RulesJsonTest`) -
+    the Rules screen's own Export/Import buttons
+    (`RulesListFragment`), a *sharing* format for one or more rules
+    between devices/people. Import always appends as new rows
+    (`RulesDb.add` assigns a fresh id) - never a replace - so sharing a
+    rule can't accidentally wipe rules someone already built
+    themselves. Deliberately excludes `id` and
+    `sourceAccountId`/`destinationAccountId`: a row id is this
+    device's internal identity, and a Firefly account ID is meaningless
+    on a *different* Firefly instance (the asset-side account needs
+    re-picking after import regardless - the name alone travels fine,
+    same as it always has).
+  - `FullBackupJson.kt` (`FullBackupData`, `fullBackupToJson`/
+    `fullBackupFromJson`, `FullBackupJsonTest`) + `BackupManager`
+    (Android-dependent orchestration, not unit tested, same reason
+    `RulesDb` isn't) - the new "Backup & restore" Settings row
+    (`BackupFragment`), covering monitored apps, currencies, rules
+    (reusing `RulesJson`'s per-rule shape), and message history in one
+    file. Deliberately excludes the Firefly connection (base URL/
+    token): the one real secret in this app, `KeystoreCipher`-encrypted
+    against an Android Keystore key that wouldn't even decrypt on a
+    different device or after a reinstall, and a backup file is exactly
+    the kind of thing that ends up in a cloud folder or gets shared -
+    not somewhere a bearer token belongs. `BackupManager.restore`
+    *replaces* every store it touches (clears first, then re-adds) -
+    restoring puts the device back exactly how the backup found it,
+    not merged on top of whatever's currently there. `BackupFragment`
+    confirms with the user before calling it (`AlertDialog`,
+    "This can't be undone") - the "ask before a destructive/hard-to-
+    reverse action" step that was missing from the old `RulesDb`
+    `onUpgrade` pattern that prompted this whole feature.
+  - Both read/write via Storage Access Framework
+    (`ActivityResultContracts.CreateDocument`/`OpenDocument`,
+    `application/json`) - no storage permission needed, no app-private
+    file path to explain to the user, the system file picker is the
+    whole UI for "where does this go"/"where do I get this from".
 - `notifications` - `BankNotificationListenerService`
   (`NotificationListenerService` subclass): for every posted
   notification, checks `MonitoredAppsPrefs`, pulls `EXTRA_TITLE`/
@@ -406,11 +450,14 @@ Single `:app` module, packages under
     Navigation Component - the flow is small and linear enough not to
     need it). `SettingsRootFragment` is the menu (Firefly III
     connection, monitored apps, currencies, rules, message history, add
-    test message, and later appearance, added one row at a time as each
-    is built - Firefly connection sits first since it's the gateway to
-    actually doing anything with a rule match now that posting is
-    underway; currencies sits above rules since rules depend on it,
-    same reasoning as monitored apps coming first), linking to:
+    test message, backup & restore, and later appearance, added one row
+    at a time as each is built - Firefly connection sits first since
+    it's the gateway to actually doing anything with a rule match now
+    that posting is underway; currencies sits above rules since rules
+    depend on it, same reasoning as monitored apps coming first; backup
+    & restore sits last, a maintenance tool rather than something
+    touched day to day, same spot "add test message" already had),
+    linking to:
     - `FireflySettingsFragment` (see the `prefs`/`network` package
       notes above for `FireflyPrefs`/`FireflyApiClient`) - one form,
       one explicit Save button, not autosave-per-field like

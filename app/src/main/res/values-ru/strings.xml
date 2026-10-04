@@ -47,6 +47,13 @@
     <string name="settings_rules_subtitle">Сопоставление уведомлений с транзакциями Firefly III</string>
     <string name="rules_empty">Правил пока нет. Нажмите +, чтобы добавить.</string>
     <string name="rules_add">Добавить правило</string>
+    <string name="rules_export">Экспорт…</string>
+    <string name="rules_import">Импорт…</string>
+    <string name="rules_export_success">Экспортировано правил: %1$d.</string>
+    <string name="rules_export_failed">Ошибка экспорта: %1$s</string>
+    <string name="rules_import_success">Импортировано правил: %1$d.</string>
+    <string name="rules_import_failed">Ошибка импорта: %1$s</string>
+    <string name="rules_import_invalid_file">Это не похоже на файл экспорта правил.</string>
     <string name="rule_move_up">Переместить выше</string>
     <string name="rule_move_down">Переместить ниже</string>
     <string name="rule_duplicate">Дублировать</string>
@@ -136,4 +143,18 @@
     <string name="firefly_token_required">Personal access token не может быть пустым.</string>
     <string name="firefly_dedup_window_invalid">Окно дедупликации должно быть положительным числом минут.</string>
     <string name="firefly_settings_saved">Сохранено</string>
+
+    <string name="settings_backup_title">Бэкап и восстановление</string>
+    <string name="settings_backup_subtitle">Сохранить или восстановить всё, кроме подключения к Firefly</string>
+    <string name="backup_explanation">Включает мониторимые приложения, валюты, правила и историю сообщений. Не включает подключение к Firefly III (URL/токен) — введите их заново после восстановления.</string>
+    <string name="backup_export_button">Экспорт бэкапа…</string>
+    <string name="backup_restore_button">Восстановить из бэкапа…</string>
+    <string name="backup_export_success">Бэкап сохранён.</string>
+    <string name="backup_export_failed">Ошибка экспорта: %1$s</string>
+    <string name="backup_restore_confirm_title">Восстановить из этого бэкапа?</string>
+    <string name="backup_restore_confirm_message">Это заменит всё, что сейчас сохранено на устройстве — мониторимые приложения, валюты, правила и историю сообщений. Подключение к Firefly не затрагивается. Это нельзя отменить.</string>
+    <string name="backup_restore_confirm_button">Восстановить</string>
+    <string name="backup_restore_success">Восстановлено.</string>
+    <string name="backup_restore_failed">Ошибка восстановления: %1$s</string>
+    <string name="backup_invalid_file">Это не похоже на файл бэкапа.</string>
 </resources>
