@@ -50,8 +50,10 @@
     <string name="rules_export">Экспорт правил</string>
     <string name="rules_import">Импорт правил</string>
     <string name="rules_export_success">Экспортировано правил: %1$d.</string>
+    <string name="rules_export_success_named">Экспортировано правил: %1$d, в файл %2$s.</string>
     <string name="rules_export_failed">Ошибка экспорта: %1$s</string>
     <string name="rules_import_success">Импортировано правил: %1$d.</string>
+    <string name="rules_import_success_named">Импортировано правил: %1$d, из файла %2$s.</string>
     <string name="rules_import_failed">Ошибка импорта: %1$s</string>
     <string name="rules_import_invalid_file">Это не похоже на файл экспорта правил.</string>
     <string name="rule_move_up">Переместить выше</string>
@@ -174,11 +176,13 @@
     <string name="backup_export_rules_button">Экспорт правил…</string>
     <string name="backup_import_rules_button">Импорт правил…</string>
     <string name="backup_export_success">Бэкап сохранён.</string>
+    <string name="backup_export_success_named">Бэкап сохранён в файл %1$s.</string>
     <string name="backup_export_failed">Ошибка экспорта: %1$s</string>
     <string name="backup_restore_confirm_title">Восстановить из этого бэкапа?</string>
     <string name="backup_restore_confirm_message">Это заменит всё, что сейчас сохранено на устройстве — мониторимые приложения, валюты, правила и историю сообщений. Подключение к Firefly не затрагивается. Это нельзя отменить.</string>
     <string name="backup_restore_confirm_button">Восстановить</string>
     <string name="backup_restore_success">Восстановлено.</string>
+    <string name="backup_restore_success_named">Восстановлено из файла %1$s.</string>
     <string name="backup_restore_failed">Ошибка восстановления: %1$s</string>
     <string name="backup_invalid_file">Это не похоже на файл бэкапа.</string>
 

@@ -50,8 +50,10 @@
     <string name="rules_export">Export rules</string>
     <string name="rules_import">Import rules</string>
     <string name="rules_export_success">Exported %1$d rule(s).</string>
+    <string name="rules_export_success_named">Exported %1$d rule(s) to %2$s.</string>
     <string name="rules_export_failed">Export failed: %1$s</string>
     <string name="rules_import_success">Imported %1$d rule(s).</string>
+    <string name="rules_import_success_named">Imported %1$d rule(s) from %2$s.</string>
     <string name="rules_import_failed">Import failed: %1$s</string>
     <string name="rules_import_invalid_file">This doesn\'t look like a rules export file.</string>
     <string name="rule_move_up">Move up</string>
@@ -174,11 +176,13 @@
     <string name="backup_export_rules_button">Export rules…</string>
     <string name="backup_import_rules_button">Import rules…</string>
     <string name="backup_export_success">Backup saved.</string>
+    <string name="backup_export_success_named">Backup saved to %1$s.</string>
     <string name="backup_export_failed">Backup failed: %1$s</string>
     <string name="backup_restore_confirm_title">Restore this backup?</string>
     <string name="backup_restore_confirm_message">This replaces everything currently saved on this device - monitored apps, currencies, rules, and message history. The Firefly connection isn\'t included and won\'t change. This can\'t be undone.</string>
     <string name="backup_restore_confirm_button">Restore</string>
     <string name="backup_restore_success">Restored.</string>
+    <string name="backup_restore_success_named">Restored from %1$s.</string>
     <string name="backup_restore_failed">Restore failed: %1$s</string>
     <string name="backup_invalid_file">This doesn\'t look like a backup file.</string>
 

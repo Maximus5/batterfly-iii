@@ -593,7 +593,17 @@ Single `:app` module, packages under
     (`ActivityResultContracts.CreateDocument`/`OpenDocument`,
     `application/json`) - no storage permission needed, no app-private
     file path to explain to the user, the system file picker is the
-    whole UI for "where does this go"/"where do I get this from".
+    whole UI for "where does this go"/"where do I get this from". Every
+    completion toast (backup export/restore, rules export/import, both
+    screens) includes the file name when it's known
+    (`ui.displayNameOf(context, uri)`, `OpenableColumns.DISPLAY_NAME`
+    via `ContentResolver.query`) - SAF deliberately doesn't expose a
+    real filesystem *path* for a `content://` Uri, only a display name,
+    and even that isn't guaranteed (a `DocumentsProvider` can simply not
+    report one); each toast string has a `_named` variant
+    (`backup_export_success_named`, etc.) used only when a name actually
+    came back, falling back to the plain no-name message otherwise -
+    "if we know it", not a guess.
 - `notifications` - `BankNotificationListenerService`
   (`NotificationListenerService` subclass): for every posted
   notification, checks `MonitoredAppsPrefs`, pulls `EXTRA_TITLE`/

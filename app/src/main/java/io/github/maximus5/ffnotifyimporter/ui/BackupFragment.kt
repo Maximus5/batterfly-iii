@@ -80,7 +80,13 @@ class BackupFragment : Fragment() {
         val rules = RulesDb.getInstance(context).loadAllOrdered()
         try {
             context.contentResolver.openOutputStream(uri)?.use { it.write(rulesToJson(rules).toByteArray(Charsets.UTF_8)) }
-            Toast.makeText(context, getString(R.string.rules_export_success, rules.size), Toast.LENGTH_SHORT).show()
+            val name = displayNameOf(context, uri)
+            val message = if (name != null) {
+                getString(R.string.rules_export_success_named, rules.size, name)
+            } else {
+                getString(R.string.rules_export_success, rules.size)
+            }
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
         } catch (e: Exception) {
             Toast.makeText(context, getString(R.string.rules_export_failed, e.message), Toast.LENGTH_LONG).show()
         }
@@ -99,7 +105,13 @@ class BackupFragment : Fragment() {
             }
             val rulesDb = RulesDb.getInstance(context)
             rules.forEach { rulesDb.add(it) }
-            Toast.makeText(context, getString(R.string.rules_import_success, rules.size), Toast.LENGTH_SHORT).show()
+            val name = displayNameOf(context, uri)
+            val message = if (name != null) {
+                getString(R.string.rules_import_success_named, rules.size, name)
+            } else {
+                getString(R.string.rules_import_success, rules.size)
+            }
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
         } catch (e: Exception) {
             Toast.makeText(context, getString(R.string.rules_import_failed, e.message), Toast.LENGTH_LONG).show()
         }
@@ -110,7 +122,9 @@ class BackupFragment : Fragment() {
         try {
             val json = fullBackupToJson(BackupManager.collect(context))
             context.contentResolver.openOutputStream(uri)?.use { it.write(json.toByteArray(Charsets.UTF_8)) }
-            Toast.makeText(context, R.string.backup_export_success, Toast.LENGTH_SHORT).show()
+            val name = displayNameOf(context, uri)
+            val message = if (name != null) getString(R.string.backup_export_success_named, name) else getString(R.string.backup_export_success)
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
         } catch (e: Exception) {
             Toast.makeText(context, getString(R.string.backup_export_failed, e.message), Toast.LENGTH_LONG).show()
         }
@@ -139,7 +153,9 @@ class BackupFragment : Fragment() {
                 return
             }
             BackupManager.restore(context, data)
-            Toast.makeText(context, R.string.backup_restore_success, Toast.LENGTH_SHORT).show()
+            val name = displayNameOf(context, uri)
+            val message = if (name != null) getString(R.string.backup_restore_success_named, name) else getString(R.string.backup_restore_success)
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
         } catch (e: Exception) {
             Toast.makeText(context, getString(R.string.backup_restore_failed, e.message), Toast.LENGTH_LONG).show()
         }
