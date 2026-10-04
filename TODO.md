@@ -337,10 +337,34 @@ work.
   re-picked), and the dedup log across a real export-then-restore,
   including the "restore onto a fresh install" case (dedup must still
   catch a duplicate whose original transaction predates the restore).
-- No cap on `MessageStore`'s in-memory list size, or on
-  `MessageHistoryDb` beyond the retention-window purge - for personal,
-  low-volume bank notifications this is unlikely to matter. Revisit if
-  it turns out to matter in practice.
+- **Decided** (explicit user instruction, not a "revisit if it matters"
+  judgment call this time): no table or in-memory store in this app
+  should grow unbounded - this is a notification handler, not an
+  archive. Retention window capped at one month, user-configurable,
+  same idea as `MessageHistoryDb`'s existing `RetentionPrefs` (off/1/3/
+  5/7/30 days) - never "forever" by default anywhere.
+  - `CreatedTransactionsDb` (the dedup log) is the real gap right now:
+    `recordCreated` never purges anything, and `findWithinWindow`'s own
+    date-range scoping only affects what a lookup *finds* (the dedup
+    window, minutes), not what's *kept* - every successfully created
+    transaction's row stays forever. Needs its own retention setting
+    and a `deleteOlderThan`-equivalent, called the same places
+    `MessageHistoryDb.deleteOlderThan` already is (right after
+    `recordCreated`, and when the setting changes) - capped at 30 days
+    max per the decision above. Open question: share one retention
+    setting with message history, or give it its own - not decided.
+  - `MessageHistoryDb` already satisfies this (max 30 days via
+    `RetentionPrefs`) - no change needed there.
+  - `MessageStore`'s in-memory list still has no cap - lower priority
+    than the two on-disk logs (it's already lost on process death by
+    design, see its own KDoc), but a long-running session with high
+    notification volume could still grow it unboundedly within one
+    process lifetime; worth capping too, not just the disk-backed
+    stores.
+  - `RulesDb`/`CurrenciesDb` are user-authored config (rules, the
+    currency table), not append-only logs - bounded by how many the
+    user deliberately creates, a different class of problem, no
+    retention needed there.
 - No foreground service - chosen deliberately (no persistent
   notification icon) at the cost of the captured-messages list being
   more likely to be lost if Android kills the backgrounded app under
