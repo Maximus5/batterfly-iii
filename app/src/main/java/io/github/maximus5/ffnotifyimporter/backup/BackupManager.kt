@@ -61,6 +61,8 @@ object BackupManager {
 
         val createdTransactionsDb = CreatedTransactionsDb.getInstance(context)
         createdTransactionsDb.clearAll()
-        data.createdTransactions.forEach { createdTransactionsDb.recordCreated(it.hash, it.dateMillis, it.fireflyTransactionId) }
+        data.createdTransactions.forEach {
+            createdTransactionsDb.recordCreated(it.hashWithDescription, it.hashWithoutDescription, it.dateMillis, it.fireflyTransactionId)
+        }
     }
 }

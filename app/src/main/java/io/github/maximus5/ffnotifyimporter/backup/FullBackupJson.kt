@@ -85,7 +85,8 @@ fun fullBackupToJson(data: FullBackupData): String {
             data.createdTransactions.forEach { record ->
                 put(
                     JSONObject()
-                        .put("hash", record.hash)
+                        .put("hashWithDescription", record.hashWithDescription)
+                        .put("hashWithoutDescription", record.hashWithoutDescription)
                         .put("dateMillis", record.dateMillis)
                         .put("fireflyTransactionId", record.fireflyTransactionId),
                 )
@@ -143,11 +144,16 @@ fun fullBackupFromJson(json: String): FullBackupData? {
     val createdTransactions = root.optJSONArray("createdTransactions")?.let { arr ->
         (0 until arr.length()).mapNotNull { i ->
             val entry = arr.optJSONObject(i) ?: return@mapNotNull null
-            val hash = entry.optString("hash").takeIf { it.isNotBlank() } ?: return@mapNotNull null
+            // Falls back to the old "hash" key for a backup file written before the two-hash
+            // change - that file only ever had the with-description variant (the default setting).
+            val hashWithDescription = entry.optString("hashWithDescription").takeIf { it.isNotBlank() }
+                ?: entry.optString("hash").takeIf { it.isNotBlank() }
+                ?: return@mapNotNull null
+            val hashWithoutDescription = entry.optString("hashWithoutDescription").takeIf { it.isNotBlank() }
             val fireflyTransactionId = entry.optString("fireflyTransactionId").takeIf { it.isNotBlank() } ?: return@mapNotNull null
             val dateMillis = entry.optLong("dateMillis", -1L)
             if (dateMillis < 0) return@mapNotNull null
-            CreatedTransactionRecord(hash, dateMillis, fireflyTransactionId)
+            CreatedTransactionRecord(hashWithDescription, hashWithoutDescription, dateMillis, fireflyTransactionId)
         }
     }.orEmpty()
 

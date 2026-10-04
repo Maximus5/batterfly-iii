@@ -33,7 +33,12 @@ class FullBackupJsonTest {
             CapturedMessage("bank.app", "Bank App", "Payment", "You spent 20 EUR", 2_000L),
         ),
         createdTransactions = listOf(
-            CreatedTransactionRecord(hash = "abc123", dateMillis = 1_000L, fireflyTransactionId = "12345"),
+            CreatedTransactionRecord(
+                hashWithDescription = "abc123",
+                hashWithoutDescription = "def456",
+                dateMillis = 1_000L,
+                fireflyTransactionId = "12345",
+            ),
         ),
     )
 
@@ -83,6 +88,21 @@ class FullBackupJsonTest {
 
         assertEquals("2", imported.rules.first().sourceAccountId)
         assertEquals("7", imported.rules.first().destinationAccountId)
+    }
+
+    @Test
+    fun `a createdTransactions entry from before the two-hash change falls back to the old hash key`() {
+        val json = """
+            {"monitoredPackages": [], "createdTransactions": [
+                {"hash": "legacy123", "dateMillis": 1000, "fireflyTransactionId": "999"}
+            ]}
+        """.trimIndent()
+
+        val imported = fullBackupFromJson(json)
+
+        val record = imported?.createdTransactions?.single()
+        assertEquals("legacy123", record?.hashWithDescription)
+        assertNull(record?.hashWithoutDescription)
     }
 
     @Test

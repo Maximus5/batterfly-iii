@@ -246,23 +246,50 @@ Single `:app` module, packages under
     already fetched (`network.ExchangeRateClient`, see the `network`
     section above) - `rules` still has no dependency on `network`.
   - `transactionDedupHash`/`CreatedTransactionsDb`
-    (`TransactionDedupTest`) - the transaction-level dedup check, a
-    different problem from `MessageStore`'s notification-level dedup
-    (see TODO.md's dedup history for why both exist). The hash is pure
-    (source/destination id-or-name, canonical-scale amount, currency,
-    description only when `FireflyPrefs.isDedupIncludeDescription()`);
-    `CreatedTransactionsDb` is the usual plain-SQLite log (one row per
-    successful `createTransaction()` call - hash, the transaction's own
-    date, the returned Firefly id), queried by
-    `findWithinWindow(hash, date, windowMinutes): String?` centered on
-    the new transaction's own date, not "now", so two apps notifying
-    about the same payment seconds apart land in the same window
-    regardless of which one gets processed first - returns the matched
-    row's Firefly id (most recent match if more than one,
+    (`TransactionDedupTest`, `FullBackupJsonTest`) - the
+    transaction-level dedup check, a different problem from
+    `MessageStore`'s notification-level dedup (see TODO.md's dedup
+    history for why both exist). The hash is pure (source/destination
+    id-or-name, canonical-scale amount, currency, description only when
+    `includeDescription` is true); `CreatedTransactionsDb` is the usual
+    plain-SQLite log (one row per successful `createTransaction()`
+    call), queried by
+    `findWithinWindow(hash, includeDescription, date, windowMinutes): String?`
+    centered on the new transaction's own date, not "now", so two apps
+    notifying about the same payment seconds apart land in the same
+    window regardless of which one gets processed first - returns the
+    matched row's Firefly id (most recent match if more than one,
     `ORDER BY date_millis DESC`), not just whether one exists, so the
     caller can offer "this is already created, link it" as a real
     answer (see `MessagesFragment` below) instead of only "create
     anyway"/"don't".
+    **Fixed a real bug, caught by the user asking directly "what
+    happens if I untoggle 'Also compare description'?"**: with a single
+    hash column, the answer was "every row already written instantly
+    stops matching anything" - a SHA-256 digest has no partial/fuzzy
+    comparison, so changing *any* input (here, whether description was
+    folded in) changes the whole digest, for every row, immediately,
+    regardless of whether that row's own description actually differs
+    from anything. Fix (the user's own call, not a hedge): the table now
+    always stores *both* hash variants
+    (`hash_with_description`/`hash_without_description`) on every write,
+    computed unconditionally via two `transactionDedupHash` calls
+    (`true`/`false`) regardless of the current setting - `recordCreated`
+    takes both, `findWithinWindow` picks which column to compare against
+    based on the *lookup's* `includeDescription` flag. A lookup under
+    either setting can now match a row written under the other. Rows
+    written before this fix only have one variant (migrated in place to
+    `hash_with_description`, the longstanding default setting - see
+    `CreatedTransactionsDb.onUpgrade`'s KDoc) - `hash_without_description`
+    stays `NULL` for those, an honest "unknown" rather than a
+    recomputed-from-nothing guess (there's no way to get the original
+    description text back out of a one-way hash). `DB_VERSION` 1->2,
+    additive `ALTER TABLE ... ADD COLUMN` - deliberately *not*
+    `RENAME COLUMN` for the pre-existing `hash` column even though it's
+    now semantically "with description", since SQLite only gained
+    `RENAME COLUMN` in 3.25, newer than what ships on this app's minSdk
+    26 devices; `COL_HASH_WITH_DESCRIPTION`'s Kotlin name maps to the
+    old physical `hash` column instead.
   - `RuleEngine.match(message)` (`RuleEngineTest`) - the
     first-rule-in-order-that-matches algorithm described above. Takes
     an optional `currencySymbols: Map<String,String>` (symbol -> code,
@@ -665,7 +692,11 @@ Single `:app` module, packages under
     when `FireflyPrefs.isDedupEnabled()` is off) using
     `rules.transactionDedupHash` (source/destination id-or-name +
     canonical-scale amount + currency + description-if-the-toggle-says-so,
-    see its own KDoc and TODO.md's dedup history). A likely duplicate
+    see its own KDoc and TODO.md's dedup history) and the current
+    `isDedupIncludeDescription()` flag, so the lookup compares against
+    whichever of the two stored hash columns matches the setting right
+    now (see `CreatedTransactionsDb`'s own KDoc for why both are always
+    written). A likely duplicate
     shows the found transaction's id in the message itself
     (`create_duplicate_confirm_message`, `#%1$s`) and offers *four*
     actions, not the two an "are you sure?" confirm would have - a
@@ -693,8 +724,11 @@ Single `:app` module, packages under
     `FireflyJson.buildTransactionRequestBody`, nothing new needed here)
     and calls `FireflyApiClient.createTransaction` on
     `viewLifecycleOwner.lifecycleScope`; a success records a row in
-    `CreatedTransactionsDb` (hash + the transaction's own date + the
-    returned Firefly id), links that id to the message
+    `CreatedTransactionsDb` (both hash variants, computed fresh from the
+    draft at record time rather than threaded through from `startCreate`
+    - the dialog's "create anyway" no longer needs to carry a `hash`
+    parameter around at all + the transaction's own date + the returned
+    Firefly id), links that id to the message
     (`MessageStore.setTransactionId` - re-creating from a message that
     already had one just overwrites it, "latest wins", same reasoning
     as `findWithinWindow`'s own most-recent-match ordering), and shows

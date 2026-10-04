@@ -175,18 +175,19 @@ class MessagesFragment : Fragment() {
             return
         }
         val prefs = FireflyPrefs(context)
-        val hash = transactionDedupHash(draft, prefs.isDedupIncludeDescription())
+        val includeDescription = prefs.isDedupIncludeDescription()
+        val hash = transactionDedupHash(draft, includeDescription)
         val foundId = if (prefs.isDedupEnabled()) {
             CreatedTransactionsDb.getInstance(context)
-                .findWithinWindow(hash, draft.date.toEpochMilli(), prefs.getDedupWindowMinutes())
+                .findWithinWindow(hash, includeDescription, draft.date.toEpochMilli(), prefs.getDedupWindowMinutes())
         } else {
             null
         }
 
         if (foundId != null) {
-            showDuplicateConfirmDialog(context, foundId, draft, hash, message)
+            showDuplicateConfirmDialog(context, foundId, draft, message)
         } else {
-            postTransaction(draft, hash, message)
+            postTransaction(draft, message)
         }
     }
 
@@ -202,7 +203,6 @@ class MessagesFragment : Fragment() {
         context: Context,
         foundId: String,
         draft: TransactionDraft,
-        hash: String,
         message: CapturedMessage,
     ) {
         val view = LayoutInflater.from(context).inflate(R.layout.dialog_duplicate_confirm, null, false)
@@ -219,7 +219,7 @@ class MessagesFragment : Fragment() {
         }
         view.findViewById<View>(R.id.openDuplicateButton).setOnClickListener { openTransaction(context, foundId) }
         view.findViewById<View>(R.id.createAnywayButton).setOnClickListener {
-            postTransaction(draft, hash, message)
+            postTransaction(draft, message)
             dialog.dismiss()
         }
         view.findViewById<View>(R.id.cancelDuplicateButton).setOnClickListener { dialog.dismiss() }
@@ -227,7 +227,10 @@ class MessagesFragment : Fragment() {
         dialog.show()
     }
 
-    private fun postTransaction(draft: TransactionDraft, hash: String, message: CapturedMessage) {
+    /** Records both dedup hash variants on success - see `CreatedTransactionsDb`'s KDoc for why
+     * (always both, not just whichever `FireflyPrefs.isDedupIncludeDescription()` says right now,
+     * so toggling that setting later never breaks matching against this row). */
+    private fun postTransaction(draft: TransactionDraft, message: CapturedMessage) {
         val amount = draft.amount ?: return
         val context = requireContext()
         val prefs = FireflyPrefs(context)
@@ -251,7 +254,12 @@ class MessagesFragment : Fragment() {
             val client = FireflyApiClient(prefs.getBaseUrl(), prefs.getToken())
             when (val result = client.createTransaction(request)) {
                 is FireflyApiClient.Result.Success -> {
-                    CreatedTransactionsDb.getInstance(context).recordCreated(hash, draft.date.toEpochMilli(), result.value)
+                    CreatedTransactionsDb.getInstance(context).recordCreated(
+                        hashWithDescription = transactionDedupHash(draft, true),
+                        hashWithoutDescription = transactionDedupHash(draft, false),
+                        transactionDateMillis = draft.date.toEpochMilli(),
+                        fireflyTransactionId = result.value,
+                    )
                     // Re-created from a message that already had an id (via "Create Again") just
                     // overwrites it with the new one - this message's transaction is whatever was
                     // created most recently, same "latest wins" reasoning as the dedup lookup
