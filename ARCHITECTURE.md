@@ -733,17 +733,30 @@ Single `:app` module, packages under
       from a real miss. Caught directly by the user: pasting the exact
       query this app had just searched with into Firefly's own web
       search box found the transaction immediately, proving the search
-      itself wasn't the problem. `DuplicateCheckResult.None` now carries
-      `rawCandidateCount` (how many results Firefly's search actually
-      returned before `remoteCandidateMatches` filtered them - shown as
-      an extra line in the not-found dialog when nonzero, since "found
-      some, none matched exactly" is a different, more useful signal
-      than a genuinely empty result), and a new `SearchFailed(message)`
-      case carries the real HTTP failure reason - `checkIfCreated` shows
-      that verbatim (`check_search_failed_title`) instead of presenting
-      it as a non-match; the two create-flow callers still treat
-      `SearchFailed` exactly like `None` (same best-effort fallback as
-      before).
+      itself wasn't the problem. A new `SearchFailed(message)` case
+      carries the real HTTP failure reason - `checkIfCreated` shows that
+      verbatim (`check_search_failed_title`) instead of presenting it as
+      a non-match; the two create-flow callers still treat `SearchFailed`
+      exactly like `None` (same best-effort fallback as before).
+      Follow-up test showed it wasn't actually `SearchFailed` though -
+      the search succeeded and returned exactly one raw candidate, which
+      `remoteCandidateMatches` then rejected. So `DuplicateCheckResult.
+      None` carries the actual `rawCandidates`
+      (`List<RemoteTransactionCandidate>`, not just a count) returned
+      before filtering, and the not-found dialog lists each one's real
+      field values (date, amount, currency, description, source/
+      destination id-or-name) right next to the query that was searched
+      with - seeing the two side by side is what actually shows *why* a
+      match failed (case, whitespace, a stale date, ...) instead of
+      needing another debug round-trip. Root cause not yet found as of
+      this writing - still open, see TODO.md.
+      Also simplified around the same time, per the user's own
+      observation: `dedupSearchQuery` used to always emit both
+      `date_after`/`date_before`, even when they were the identical
+      date (the common case, default 5-minute window never crosses
+      midnight) - now emits a single `date_on` instead in that case,
+      falling back to the `date_after`/`date_before` pair only when the
+      window actually spans two different days.
       Long-press starts
     multi-select (tap toggles more items in or out); its delete action
     calls `MessageStore.shared.remove` for each selected message after

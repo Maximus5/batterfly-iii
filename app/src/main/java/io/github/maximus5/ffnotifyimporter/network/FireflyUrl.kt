@@ -58,7 +58,9 @@ fun dedupSearchDateRange(centerDate: Instant, windowMinutes: Int): Pair<String, 
  * The query string for `FireflyApiClient.searchTransactionsByQuery` - Firefly's own
  * operator-trigger search syntax (`field:value`/`field:"quoted value"`, built on the
  * `gdbots/query-parser` library; operator names confirmed against `OperatorQuerySearch`'s current
- * source, not guessed): exact [amount] + [currencyCode] + a [dedupSearchDateRange] window, AND'd
+ * source, not guessed): exact [amount] + [currencyCode] + a [dedupSearchDateRange] window -
+ * `date_on` instead of `date_after`+`date_before` when the window stays within one calendar day
+ * (the common case, default 5 minutes), rather than two identical-looking date terms - AND'd
  * with whichever of [sourceName]/[destinationName] is non-null (an account *name*, never an id -
  * deliberately not scoped to a Firefly account id the way an earlier version of this search was,
  * since this app frequently only has a name for an account that was typed rather than picked from
@@ -98,9 +100,15 @@ fun dedupSearchQuery(
     val terms = mutableListOf(
         "amount_is:${quoteSearchValue(amount.setScale(2, RoundingMode.HALF_UP).toPlainString())}",
         "currency_is:${quoteSearchValue(currencyCode)}",
-        "date_after:$start",
-        "date_before:$end",
     )
+    // The common case (window stays within one calendar day) - one date_on instead of two
+    // identical date_after/date_before terms for the same day.
+    if (start == end) {
+        terms += "date_on:$start"
+    } else {
+        terms += "date_after:$start"
+        terms += "date_before:$end"
+    }
     sourceName?.let { terms += "source_account_is:${quoteSearchValue(it)}" }
     destinationName?.let { terms += "destination_account_is:${quoteSearchValue(it)}" }
     if (includeDescription) terms += "description_is:${quoteSearchValue(description)}"

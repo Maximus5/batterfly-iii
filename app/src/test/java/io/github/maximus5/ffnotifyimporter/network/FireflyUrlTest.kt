@@ -109,10 +109,40 @@ class FireflyUrlTest {
         )
 
         assertEquals(
-            "amount_is:12.50 currency_is:EUR date_after:2026-03-01 date_before:2026-03-01 " +
+            "amount_is:12.50 currency_is:EUR date_on:2026-03-01 " +
                 "source_account_is:\"Bank Account A\" destination_account_is:Shop1234 description_is:\"Shop1234 City\"",
             query,
         )
+    }
+
+    @Test
+    fun `dedupSearchQuery uses date_on, not two identical date_after-date_before terms, when the window stays within one day`() {
+        val query = dedupSearchQuery(
+            amount = BigDecimal("12.50"), currencyCode = "EUR", centerDate = searchDate, windowMinutes = 5,
+            sourceName = "Bank Account A", destinationName = null, description = "x", includeDescription = false,
+        )
+
+        assertTrue(query!!.contains("date_on:2026-03-01"))
+        assertFalse(query.contains("date_after"))
+        assertFalse(query.contains("date_before"))
+    }
+
+    @Test
+    fun `dedupSearchQuery falls back to date_after-date_before when the window crosses midnight`() {
+        val query = dedupSearchQuery(
+            amount = BigDecimal("12.50"),
+            currencyCode = "EUR",
+            centerDate = Instant.parse("2026-03-01T00:02:00Z"),
+            windowMinutes = 5,
+            sourceName = "Bank Account A",
+            destinationName = null,
+            description = "x",
+            includeDescription = false,
+        )
+
+        assertTrue(query!!.contains("date_after:2026-02-28"))
+        assertTrue(query.contains("date_before:2026-03-01"))
+        assertFalse(query.contains("date_on"))
     }
 
     @Test

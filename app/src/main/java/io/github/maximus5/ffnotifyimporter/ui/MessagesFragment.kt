@@ -217,13 +217,15 @@ class MessagesFragment : Fragment() {
     }
 
     private sealed interface DuplicateCheckResult {
-        /** [rawCandidateCount] is how many candidates Firefly's search actually returned before
-         * client-side filtering (`remoteCandidateMatches`) - 0 for a local-only miss (dedup
-         * disabled, no query possible, or the local log already found nothing and the remote
-         * search genuinely returned nothing either). A non-zero count alongside `None` means
-         * Firefly found *something* for the query but nothing passed the exact-match check -
-         * useful for telling that apart from a genuinely empty search, see [checkIfCreated]. */
-        data class None(val rawCandidateCount: Int = 0) : DuplicateCheckResult
+        /** [rawCandidates] is whatever Firefly's search actually returned before client-side
+         * filtering (`remoteCandidateMatches`) rejected every one of them - empty for a
+         * local-only miss (dedup disabled, no query possible, or the local log already found
+         * nothing and the remote search genuinely returned nothing either). A non-empty list
+         * alongside `None` means Firefly found *something* for the query but nothing passed the
+         * exact-match check - [checkIfCreated] shows each candidate's actual field values next to
+         * the query, so a mismatch (case, whitespace, a stale date, ...) is visible on sight
+         * instead of needing another debug round-trip to find. */
+        data class None(val rawCandidates: List<RemoteTransactionCandidate> = emptyList()) : DuplicateCheckResult
         data class Found(val id: String) : DuplicateCheckResult
         data class FoundMultiple(val mostRecentId: String, val count: Int) : DuplicateCheckResult
 
@@ -276,23 +278,22 @@ class MessagesFragment : Fragment() {
         val client = FireflyApiClient(prefs.getBaseUrl(), prefs.getToken())
         return when (val result = client.searchTransactionsByQuery(query)) {
             is FireflyApiClient.Result.Success -> {
-                val matches = result.value
-                    .map {
-                        RemoteTransactionCandidate(
-                            groupId = it.groupId,
-                            date = it.date,
-                            amount = it.amount,
-                            currencyCode = it.currencyCode,
-                            description = it.description,
-                            sourceId = it.sourceId,
-                            sourceName = it.sourceName,
-                            destinationId = it.destinationId,
-                            destinationName = it.destinationName,
-                        )
-                    }
-                    .filter { remoteCandidateMatches(draft, it, includeDescription, windowMinutes) }
+                val candidates = result.value.map {
+                    RemoteTransactionCandidate(
+                        groupId = it.groupId,
+                        date = it.date,
+                        amount = it.amount,
+                        currencyCode = it.currencyCode,
+                        description = it.description,
+                        sourceId = it.sourceId,
+                        sourceName = it.sourceName,
+                        destinationId = it.destinationId,
+                        destinationName = it.destinationName,
+                    )
+                }
+                val matches = candidates.filter { remoteCandidateMatches(draft, it, includeDescription, windowMinutes) }
                 when {
-                    matches.isEmpty() -> DuplicateCheckResult.None(rawCandidateCount = result.value.size)
+                    matches.isEmpty() -> DuplicateCheckResult.None(rawCandidates = candidates)
                     matches.size == 1 -> DuplicateCheckResult.Found(matches.first().groupId)
                     // The dialog only has room for one "found" id - the most recent match, same
                     // tie-break `CreatedTransactionsDb.findWithinWindow` already uses.
@@ -610,7 +611,7 @@ class MessagesFragment : Fragment() {
                         description = resolved.description,
                         includeDescription = prefs.isDedupIncludeDescription(),
                     ).orEmpty()
-                    showSearchNotFoundDialog(context, query, result.rawCandidateCount)
+                    showSearchNotFoundDialog(context, query, result.rawCandidates)
                 }
                 is DuplicateCheckResult.Found ->
                     showDuplicateConfirmDialog(context, result.id, resolved, message, showCreateAnyway = false)
@@ -653,13 +654,20 @@ class MessagesFragment : Fragment() {
     /** No match in Firefly - shows the exact query string `checkIfCreated` searched with (so the
      * user can see/debug what was actually looked for) and offers to open the same search,
      * pre-filled, in Firefly's own web UI (`network.searchUrl`) rather than leaving them to
-     * retype it by hand. [rawCandidateCount] (Firefly's own raw result count, before this app's
-     * client-side `remoteCandidateMatches` filtering) shows up as an extra line when it's nonzero
-     * - "found N but none matched exactly" is a different, more useful signal than "found
-     * literally nothing", and worth telling apart on sight rather than only via the raw query. */
-    private fun showSearchNotFoundDialog(context: Context, query: String, rawCandidateCount: Int) {
-        val message = if (rawCandidateCount > 0) {
-            getString(R.string.check_not_found_message_with_candidates, query, rawCandidateCount)
+     * retype it by hand. [rawCandidates] (Firefly's own raw results, before this app's
+     * client-side `remoteCandidateMatches` filtering rejected every one of them) are listed with
+     * their actual field values when non-empty - "found N but none matched exactly" is a
+     * different, more useful signal than "found literally nothing", and seeing the candidate's
+     * real date/amount/account/description next to what was searched for is what actually shows
+     * *why* the match failed (case, whitespace, a stale date, ...) instead of needing another
+     * debug round-trip to find out. */
+    private fun showSearchNotFoundDialog(context: Context, query: String, rawCandidates: List<RemoteTransactionCandidate>) {
+        val message = if (rawCandidates.isNotEmpty()) {
+            val candidateLines = rawCandidates.joinToString("\n") {
+                "#${it.groupId} ${it.date} ${it.amount} ${it.currencyCode} \"${it.description}\" " +
+                    "src=${it.sourceId}/${it.sourceName} dst=${it.destinationId}/${it.destinationName}"
+            }
+            getString(R.string.check_not_found_message_with_candidates, query, rawCandidates.size, candidateLines)
         } else {
             getString(R.string.check_not_found_message, query)
         }
