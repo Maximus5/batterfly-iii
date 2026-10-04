@@ -109,14 +109,19 @@ class TransactionDedupTest {
         assertNotEquals(transactionDedupHash(base, true), transactionDedupHash(differentDestination, true))
     }
 
+    // Defaults deliberately mirror real Firefly API shape, not this app's own - Firefly assigns
+    // every account a real id and a real (never null) name, including an unspecified counterparty
+    // ("(no name)", confirmed on a real device) - unlike a TransactionDraft, which can genuinely
+    // have nulls for a side its own rule never tracks. A test that doesn't override these should
+    // still look like a real response, not an unrealistic shape that happens to pass by accident.
     private fun candidate(
         amount: BigDecimal = BigDecimal("12.50"),
         currencyCode: String = "EUR",
         description: String = "Shop1234",
-        sourceId: String? = null,
+        sourceId: String? = "1",
         sourceName: String? = "Bank Account A",
-        destinationId: String? = null,
-        destinationName: String? = null,
+        destinationId: String? = "2",
+        destinationName: String? = "(no name)",
         date: Instant = Instant.ofEpochMilli(1000),
     ) = RemoteTransactionCandidate(
         groupId = "99",
