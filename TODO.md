@@ -208,7 +208,18 @@ work.
       unnecessary complexity with "никакого контроля что прошло не так"
       (no visibility into what specifically went wrong if it still
       doesn't match). No approved fix yet - `dedupSearchQuery` still
-      searches by name as-is, carrying this risk.
+      searches by name as-is, carrying this risk. Partial visibility
+      landed anyway as a side effect of the "Check if created"
+      `SearchFailed`/`rawCandidateCount` fix below - a real API failure
+      and a real zero/partial match are at least distinguishable now,
+      even though the underlying `findNothing()` fragility itself is
+      still unfixed. Prompted by a real on-device case: a "Not found"
+      result for a transaction that the exact same search query *did*
+      find when pasted into Firefly's own web search box - meaning the
+      remote HTTP call itself likely failed rather than `findNothing()`
+      firing, but this wasn't distinguishable in the UI before the fix
+      below; not yet confirmed which it actually was, pending the next
+      on-device test (see the "Check if created" entry below).
       **Done, prompted directly by the user after hitting a real
       unwanted duplicate**: the fresh-create "Создать" button used to
       run the whole check above only *after* being tapped, so the same

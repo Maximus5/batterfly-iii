@@ -722,7 +722,29 @@ Single `:app` module, packages under
       entirely (`dialog_duplicate_confirm.xml`'s button just
       `View.GONE`) and swaps in check-specific title/message strings,
       since "post one anyway" isn't a meaningful option for a pure
-      lookup. Long-press starts
+      lookup.
+      **Fixed a real "the app is lying to me" bug**: `DuplicateCheckResult`
+      used to collapse "genuinely zero matches" and "the remote search's
+      HTTP call itself failed" into the same `None` case (deliberate for
+      the create-flow callers, where a failed best-effort check should
+      just fall through to posting normally either way) - but
+      `checkIfCreated` reused that same collapsed result, so an API
+      failure silently showed "Not found in Firefly" too, indistinguishable
+      from a real miss. Caught directly by the user: pasting the exact
+      query this app had just searched with into Firefly's own web
+      search box found the transaction immediately, proving the search
+      itself wasn't the problem. `DuplicateCheckResult.None` now carries
+      `rawCandidateCount` (how many results Firefly's search actually
+      returned before `remoteCandidateMatches` filtered them - shown as
+      an extra line in the not-found dialog when nonzero, since "found
+      some, none matched exactly" is a different, more useful signal
+      than a genuinely empty result), and a new `SearchFailed(message)`
+      case carries the real HTTP failure reason - `checkIfCreated` shows
+      that verbatim (`check_search_failed_title`) instead of presenting
+      it as a non-match; the two create-flow callers still treat
+      `SearchFailed` exactly like `None` (same best-effort fallback as
+      before).
+      Long-press starts
     multi-select (tap toggles more items in or out); its delete action
     calls `MessageStore.shared.remove` for each selected message after
     a confirmation dialog. Multi-select is a hand-rolled toggle of

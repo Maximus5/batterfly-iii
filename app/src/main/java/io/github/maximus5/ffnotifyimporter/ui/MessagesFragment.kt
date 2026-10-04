@@ -166,7 +166,7 @@ class MessagesFragment : Fragment() {
             }
 
             when (val result = checkForDuplicate(context, resolved)) {
-                DuplicateCheckResult.None -> {
+                is DuplicateCheckResult.None, is DuplicateCheckResult.SearchFailed -> {
                     button.text = getString(R.string.test_match_create)
                     button.isEnabled = true
                     button.setOnClickListener {
@@ -217,9 +217,22 @@ class MessagesFragment : Fragment() {
     }
 
     private sealed interface DuplicateCheckResult {
-        data object None : DuplicateCheckResult
+        /** [rawCandidateCount] is how many candidates Firefly's search actually returned before
+         * client-side filtering (`remoteCandidateMatches`) - 0 for a local-only miss (dedup
+         * disabled, no query possible, or the local log already found nothing and the remote
+         * search genuinely returned nothing either). A non-zero count alongside `None` means
+         * Firefly found *something* for the query but nothing passed the exact-match check -
+         * useful for telling that apart from a genuinely empty search, see [checkIfCreated]. */
+        data class None(val rawCandidateCount: Int = 0) : DuplicateCheckResult
         data class Found(val id: String) : DuplicateCheckResult
         data class FoundMultiple(val mostRecentId: String, val count: Int) : DuplicateCheckResult
+
+        /** The remote search's HTTP call itself failed (network error, non-2xx response) - kept
+         * distinct from [None] so [checkIfCreated] can show the *real* reason instead of silently
+         * reporting "not found" for what was actually an error. The create-flow callers
+         * ([showTestMatch]'s preemptive check, [startCreate]) still treat this the same as [None]
+         * (best-effort - fall through to posting normally rather than blocking on it). */
+        data class SearchFailed(val message: String) : DuplicateCheckResult
     }
 
     /** Gated by `FireflyPrefs.isDedupEnabled()` - the setting is about whether *creating* a
@@ -229,7 +242,7 @@ class MessagesFragment : Fragment() {
      * toggle entirely - it's a separate question from whether creation should pause on one. */
     private suspend fun checkForDuplicate(context: Context, draft: TransactionDraft): DuplicateCheckResult {
         val prefs = FireflyPrefs(context)
-        if (!prefs.isDedupEnabled()) return DuplicateCheckResult.None
+        if (!prefs.isDedupEnabled()) return DuplicateCheckResult.None()
         return findDuplicate(context, draft, prefs)
     }
 
@@ -258,7 +271,7 @@ class MessagesFragment : Fragment() {
             destinationName = draft.destinationName,
             description = draft.description,
             includeDescription = includeDescription,
-        ) ?: return DuplicateCheckResult.None
+        ) ?: return DuplicateCheckResult.None()
 
         val client = FireflyApiClient(prefs.getBaseUrl(), prefs.getToken())
         return when (val result = client.searchTransactionsByQuery(query)) {
@@ -279,17 +292,14 @@ class MessagesFragment : Fragment() {
                     }
                     .filter { remoteCandidateMatches(draft, it, includeDescription, windowMinutes) }
                 when {
-                    matches.isEmpty() -> DuplicateCheckResult.None
+                    matches.isEmpty() -> DuplicateCheckResult.None(rawCandidateCount = result.value.size)
                     matches.size == 1 -> DuplicateCheckResult.Found(matches.first().groupId)
                     // The dialog only has room for one "found" id - the most recent match, same
                     // tie-break `CreatedTransactionsDb.findWithinWindow` already uses.
                     else -> DuplicateCheckResult.FoundMultiple(matches.maxBy { it.date }.groupId, matches.size)
                 }
             }
-            // A failed remote check shouldn't block creation - it's an extra safety net on top of
-            // the local dedup log above, not the primary mechanism; that one already ran and found
-            // nothing.
-            is FireflyApiClient.Result.Failure -> DuplicateCheckResult.None
+            is FireflyApiClient.Result.Failure -> DuplicateCheckResult.SearchFailed(result.message)
         }
     }
 
@@ -304,8 +314,12 @@ class MessagesFragment : Fragment() {
             return
         }
         viewLifecycleOwner.lifecycleScope.launch {
+            // A failed remote check (SearchFailed) is treated the same as a clean miss (None)
+            // here - it's an extra safety net on top of the local dedup log, not the primary
+            // mechanism, so it shouldn't block creation. See checkIfCreated for where that
+            // distinction actually matters.
             when (val result = checkForDuplicate(context, draft)) {
-                DuplicateCheckResult.None -> postTransaction(draft, message)
+                is DuplicateCheckResult.None, is DuplicateCheckResult.SearchFailed -> postTransaction(draft, message)
                 is DuplicateCheckResult.Found -> showDuplicateConfirmDialog(context, result.id, draft, message)
                 is DuplicateCheckResult.FoundMultiple -> {
                     Toast.makeText(
@@ -585,7 +599,7 @@ class MessagesFragment : Fragment() {
             }
             val prefs = FireflyPrefs(context)
             when (val result = findDuplicate(context, resolved, prefs)) {
-                DuplicateCheckResult.None -> {
+                is DuplicateCheckResult.None -> {
                     val query = dedupSearchQuery(
                         amount = resolved.amount,
                         currencyCode = resolved.currencyCode,
@@ -596,7 +610,7 @@ class MessagesFragment : Fragment() {
                         description = resolved.description,
                         includeDescription = prefs.isDedupIncludeDescription(),
                     ).orEmpty()
-                    showSearchNotFoundDialog(context, query)
+                    showSearchNotFoundDialog(context, query, result.rawCandidateCount)
                 }
                 is DuplicateCheckResult.Found ->
                     showDuplicateConfirmDialog(context, result.id, resolved, message, showCreateAnyway = false)
@@ -608,6 +622,13 @@ class MessagesFragment : Fragment() {
                     ).show()
                     showDuplicateConfirmDialog(context, result.mostRecentId, resolved, message, showCreateAnyway = false)
                 }
+                // Unlike the create-flow callers, this is an explicit "just tell me" lookup - a
+                // failed search gets shown for what it actually was, not quietly presented as
+                // "not found" (which is exactly what the user caught: the same query string found
+                // the transaction fine when pasted into Firefly's own web search, so an API-side
+                // failure being swallowed as "not found" would be actively misleading here).
+                is DuplicateCheckResult.SearchFailed ->
+                    showResultDialog(context, R.string.check_search_failed_title, result.message)
             }
         }
     }
@@ -632,11 +653,19 @@ class MessagesFragment : Fragment() {
     /** No match in Firefly - shows the exact query string `checkIfCreated` searched with (so the
      * user can see/debug what was actually looked for) and offers to open the same search,
      * pre-filled, in Firefly's own web UI (`network.searchUrl`) rather than leaving them to
-     * retype it by hand. */
-    private fun showSearchNotFoundDialog(context: Context, query: String) {
+     * retype it by hand. [rawCandidateCount] (Firefly's own raw result count, before this app's
+     * client-side `remoteCandidateMatches` filtering) shows up as an extra line when it's nonzero
+     * - "found N but none matched exactly" is a different, more useful signal than "found
+     * literally nothing", and worth telling apart on sight rather than only via the raw query. */
+    private fun showSearchNotFoundDialog(context: Context, query: String, rawCandidateCount: Int) {
+        val message = if (rawCandidateCount > 0) {
+            getString(R.string.check_not_found_message_with_candidates, query, rawCandidateCount)
+        } else {
+            getString(R.string.check_not_found_message, query)
+        }
         AlertDialog.Builder(context)
             .setTitle(R.string.check_not_found_title)
-            .setMessage(getString(R.string.check_not_found_message, query))
+            .setMessage(message)
             .setPositiveButton(R.string.check_open_search_in_firefly) { _, _ ->
                 val baseUrl = FireflyPrefs(context).getBaseUrl()
                 startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(searchUrl(baseUrl, query))))

@@ -48,7 +48,9 @@
     <string name="check_found_message">Совпадает транзакция #%1$s.</string>
     <string name="check_not_found_title">Не найдено в Firefly</string>
     <string name="check_not_found_message">Подходящая транзакция не найдена для:\n\n%1$s</string>
+    <string name="check_not_found_message_with_candidates">Firefly вернул результатов: %2$d, но ни один не совпал точно:\n\n%1$s</string>
     <string name="check_open_search_in_firefly">Открыть поиск в Firefly</string>
+    <string name="check_search_failed_title">Ошибка поиска</string>
 
     <string name="settings_rules_title">Правила</string>
     <string name="settings_rules_subtitle">Сопоставление уведомлений с транзакциями Firefly III</string>
