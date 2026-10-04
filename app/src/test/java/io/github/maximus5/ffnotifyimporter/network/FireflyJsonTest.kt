@@ -44,6 +44,39 @@ class FireflyJsonTest {
     }
 
     @Test
+    fun `parseCategoryList extracts id and name from a real-shaped response`() {
+        val body = """
+            {"data": [
+                {"id": "3", "attributes": {"name": "Groceries", "notes": null}},
+                {"id": "5", "attributes": {"name": "Transport", "notes": null}}
+            ], "meta": {"pagination": {"total_pages": 1}}}
+        """.trimIndent()
+
+        val categories = parseCategoryList(body)
+
+        assertEquals(listOf(FireflyCategory("3", "Groceries"), FireflyCategory("5", "Transport")), categories)
+    }
+
+    @Test
+    fun `parseCategoryList skips an entry missing id or name rather than failing the whole list`() {
+        val body = """
+            {"data": [
+                {"id": "3", "attributes": {"name": "Groceries"}},
+                {"id": "", "attributes": {"name": "No id"}},
+                {"id": "9", "attributes": {}}
+            ]}
+        """.trimIndent()
+
+        assertEquals(listOf(FireflyCategory("3", "Groceries")), parseCategoryList(body))
+    }
+
+    @Test
+    fun `parseCategoryList returns empty for malformed input instead of throwing`() {
+        assertTrue(parseCategoryList("not json").isEmpty())
+        assertTrue(parseCategoryList("""{"nope": true}""").isEmpty())
+    }
+
+    @Test
     fun `totalPages reads meta pagination total_pages`() {
         val body = """{"data": [], "meta": {"pagination": {"total_pages": 3}}}"""
         assertEquals(3, totalPages(body))

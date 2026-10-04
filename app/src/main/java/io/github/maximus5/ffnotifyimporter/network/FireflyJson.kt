@@ -32,6 +32,27 @@ fun parseAccountList(body: String): List<FireflyAccount> = try {
     emptyList()
 }
 
+/** `GET /v1/categories`'s body is the same shape as [parseAccountList]'s (`{"id": "...",
+ * "attributes": {"name": "...", ...}}` entries - confirmed against `CategoryTransformer`'s current
+ * source, not assumed) - pulls out just id+name the same way, for `ui.CreateTransactionFragment`'s
+ * category picker (see TODO.md). */
+fun parseCategoryList(body: String): List<FireflyCategory> = try {
+    val data = JSONObject(body).optJSONArray("data")
+    if (data == null) {
+        emptyList()
+    } else {
+        (0 until data.length()).mapNotNull { i ->
+            val entry = data.optJSONObject(i) ?: return@mapNotNull null
+            val id = entry.optString("id").takeIf { it.isNotBlank() } ?: return@mapNotNull null
+            val name = entry.optJSONObject("attributes")?.optString("name")?.takeIf { it.isNotBlank() }
+                ?: return@mapNotNull null
+            FireflyCategory(id, name)
+        }
+    }
+} catch (e: JSONException) {
+    emptyList()
+}
+
 /** `meta.pagination.total_pages` - defaults to 1 (i.e. "no more pages") for anything that isn't
  * shaped the way a real paginated response is, so a malformed response doesn't spin forever. */
 fun totalPages(body: String): Int = try {

@@ -154,6 +154,26 @@
     <string name="create_again_confirm_message">Это сообщение уже связано с транзакцией #%1$s. Создание ещё одной добавит вторую транзакцию в Firefly.</string>
     <string name="create_failed_title">Не удалось создать</string>
 
+    <string name="create_tx_title">Создание транзакции</string>
+    <string name="create_tx_field_amount">Сумма</string>
+    <string name="create_tx_field_currency">Валюта</string>
+    <string name="create_tx_field_foreign_amount">Сумма в валюте платежа (опционально)</string>
+    <string name="create_tx_field_datetime">Дата и время</string>
+    <string name="create_tx_field_source_account">Счёт-источник</string>
+    <string name="create_tx_field_destination_account">Счёт назначения</string>
+    <string name="create_tx_field_description">Описание</string>
+    <string name="create_tx_field_notes">Заметки</string>
+    <string name="create_tx_field_category">Категория</string>
+    <string name="create_tx_field_tags">Теги (через запятую)</string>
+    <string name="create_tx_pick_category">Выбрать категорию</string>
+    <string name="create_tx_categories_failed">Не удалось загрузить категории: %1$s</string>
+    <string name="create_tx_no_categories">В Firefly не найдено категорий.</string>
+    <string name="create_tx_amount_invalid">Введите корректную сумму.</string>
+    <string name="create_tx_description_required">Описание не может быть пустым.</string>
+    <string name="create_tx_source_required">Счёт-источник не может быть пустым.</string>
+    <string name="create_tx_destination_required">Счёт назначения не может быть пустым.</string>
+    <string name="create_tx_no_rule_matched">Ни одно правило не подошло к этому сообщению.</string>
+
     <string name="settings_currencies_title">Валюты</string>
     <string name="settings_currencies_subtitle">Таблица код↔символ, напр. EUR↔€ — для чтения банковских уведомлений</string>
     <string name="currency_add">Добавить валюту</string>

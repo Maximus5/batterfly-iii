@@ -642,29 +642,34 @@ work.
   (`values/strings.xml` and `values-ru/strings.xml`). Default/base is
   English; add more `values-<lang>/strings.xml` as needed, keep
   `strings.xml` in sync across locales when adding new strings.
-- Manual transaction creation (`MessagesFragment`'s "Создать" button)
-  has no review/edit step - the test-match dialog shows the rule's
-  output read-only and posts exactly that, with no way to override a
-  field by hand before it goes to Firefly. Raised by the user: a
-  dedicated pre-create screen, opened from that same dialog, where the
-  draft's fields can be verified/edited before posting - category in
-  particular, picked from Firefly's own real category list (`GET
-  /v1/categories`, not yet wired anywhere in this app - category is
-  currently only ever free-text via `ParseRule`'s template, same
-  "counterparty auto-creates by name" reasoning tags/description
-  already rely on, but unlike the asset-account side a category can't
-  be posted by picking a wrong/misspelled one without the user
-  noticing). The user's own suggestion for visual style: start from the
-  rule editor's existing account-picker UI
-  (`RuleEditFragment.showAccountPicker`, `FireflyApiClient.
-  listAssetAccounts`) as the template - same picker shape, a new
-  `FireflyApiClient.listCategories()` endpoint call feeding it instead.
-  Not yet scoped beyond that: which other fields this screen should
-  cover besides category (amount/date/description/accounts, already
-  shown read-only in the current dialog - open whether they become
-  editable here too, or category stays the one addition), and whether
-  it replaces the existing test-match dialog outright or is a second
-  step opened from it.
+- **Done**: manual transaction creation (`MessagesFragment`'s tap
+  handler) used to have no review/edit step - the test-match dialog
+  showed the rule's output read-only and posted exactly that, with no
+  way to override a field by hand before it went to Firefly.
+  `ui.CreateTransactionActivity`/`CreateTransactionFragment` is a new,
+  dedicated pre-create screen (visual style started from the rule
+  editor's existing account-picker UI, the user's own suggested
+  template) where *every* field is editable before posting - the
+  user's own call on scope, not just category: amount, currency,
+  foreign amount/currency, date/time, source/destination account,
+  description, notes, category, tags. Category is picked from
+  Firefly's own real category list (`FireflyApiClient.listCategories`,
+  `GET /v1/categories`, confirmed against `CategoryTransformer`'s
+  current source and `routes/api.php`, not guessed) - previously only
+  ever free-text via `ParseRule.categoryTemplate`, and unlike the
+  asset-account side (already picker-backed) a typo'd/misspelled
+  category went unnoticed since Firefly happily creates one by any
+  name. The asset side of source/destination still gets the same
+  account picker the rule editor has (`listAssetAccounts`); the
+  counterparty side stays free text (Firefly auto-creates it by name,
+  same as everywhere else in this app).
+  The user's own decision on scope: this screen *replaces* the old
+  test-match dialog outright for a fresh match (nothing linked yet,
+  Firefly configured) - `MessagesFragment.showTestMatch` now launches
+  it directly instead of showing a dialog at all in that case. The
+  already-linked case (Open/Create Again) and the no-match/not-
+  configured cases are unchanged, still the original dialog - there's
+  nothing to review/edit in either of those.
 - When `FireflyPrefs.isAutoCreateEnabled()` is *off*, a rule match
   currently surfaces nowhere outside the app itself - the user has to
   open Messages and tap in to notice/act on it. Raised by the user: a
@@ -672,18 +677,24 @@ work.
   (app/amount/account/description summary, same spirit as `posting.
   AutoCreateNotifications`' own outcome notifications but for "here's
   something to review," not "here's what happened"), with a "Create
-  transaction" action button that opens the app straight into the
-  pre-create review/edit screen above (not this one's deep-link target
-  until that screen exists) - picking a category right from the
-  notification's own flow is the explicit point, not just a bare
-  "open the app and find it yourself" prompt.
-  Not yet scoped: whether this runs the same rule-match pipeline
+  transaction" action button that deep-links straight into
+  `ui.CreateTransactionActivity` (now built, see above) - picking a
+  category right from the notification's own flow is the explicit
+  point, not just a bare "open the app and find it yourself" prompt.
+  Now that the target screen exists, `CreateTransactionActivity.
+  intent(context, message)` already carries a plain `CapturedMessage`
+  across an Activity boundary (packageName/appLabel/title/text/
+  timestampMillis as Intent extras, re-parsed via `RuleEngine.match`
+  inside the fragment) - the exact same shape a notification's
+  `PendingIntent` extras would need, so that part of the "not yet
+  scoped" list below is effectively resolved.
+  Still not yet scoped: whether this runs the same rule-match pipeline
   `posting.AutoCreateWorker` already has (parse + resolve amount) but
-  skips the actual post, or needs its own smaller worker; whether it
-  should also run the duplicate check first and suppress the
+  skips the actual post, or needs its own smaller worker; and whether
+  it should also run the duplicate check first and suppress the
   notification entirely for a likely duplicate (suggesting "create" for
   something that would just get flagged as a duplicate seems worse than
   not suggesting it at all) or leave that judgment to the user once
-  they open the review screen; and how the deep link actually carries
-  the matched draft across process boundaries (the review screen
-  doesn't exist yet to decide this against).
+  they open the review screen (which already runs its own duplicate
+  check on tapping "Create transaction" there, so the worst case is
+  just one extra tap before finding out, not a silent wrong post).

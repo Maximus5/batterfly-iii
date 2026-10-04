@@ -69,6 +69,34 @@ class FireflyApiClient(baseUrl: String, private val token: String) {
         }
     }
 
+    /**
+     * Every category (`GET /v1/categories`) the user has in Firefly -
+     * `ui.CreateTransactionFragment`'s category picker source (see TODO.md): a category picked
+     * from this list can't be posted as a typo'd/misspelled new one the way the free-text
+     * `ParseRule.categoryTemplate` path already risks. Same pagination/response shape as
+     * [listAssetAccounts] (`ShowController@index`, confirmed against Firefly's current
+     * `routes/api.php`, not assumed).
+     */
+    suspend fun listCategories(): Result<List<FireflyCategory>> = withContext(Dispatchers.IO) {
+        try {
+            val categories = mutableListOf<FireflyCategory>()
+            var page = 1
+            var totalPagesSeen: Int
+            do {
+                val connection = openConnection("/api/v1/categories?page=$page", "GET")
+                val code = connection.responseCode
+                if (code !in 200..299) return@withContext Result.Failure(errorMessage(connection, code))
+                val body = connection.inputStream.bufferedReader().use { it.readText() }
+                categories += parseCategoryList(body)
+                totalPagesSeen = totalPages(body)
+                page++
+            } while (page <= totalPagesSeen)
+            Result.Success(categories)
+        } catch (e: IOException) {
+            Result.Failure(e.message ?: e.javaClass.simpleName)
+        }
+    }
+
     /** `POST /v1/transactions` - returns the created transaction's ID on success, for this app's
      * own "created transactions" log (dedup + "already created" state, see TODO.md). */
     suspend fun createTransaction(request: FireflyTransactionRequest): Result<String> = withContext(Dispatchers.IO) {

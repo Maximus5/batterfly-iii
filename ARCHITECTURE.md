@@ -644,6 +644,15 @@ Single `:app` module, packages under
     (malformed/empty response), same "missing data isn't a failed call"
     distinction `searchTransactionsByQuery` already draws via
     `DuplicateCheckResult`.
+    `listCategories()` - `GET /v1/categories` (`ShowController@index`,
+    confirmed against Firefly's current `routes/api.php`, not assumed),
+    same paginated shape and `FireflyJson.parseCategoryList` parsing as
+    `listAssetAccounts`/`parseAccountList` (`CategoryTransformer`'s
+    current source confirms the `attributes.name` field, not guessed).
+    `ui.CreateTransactionFragment`'s category picker source - see the
+    `ui` section below for why this exists (a free-typed category can
+    be posted misspelled with nothing flagging it, unlike the
+    asset-account side which already had a picker).
   - Cleartext (`http://`) support: Android blocks it by default at
     API 28+. `res/xml/network_security_config.xml` allows it globally
     (`<base-config cleartextTrafficPermitted="true" />`) rather than
@@ -1101,7 +1110,10 @@ Single `:app` module, packages under
     row. Reusing the one real `Toolbar` for both states has no such
     ambiguity - it's the same view in the same layout slot throughout,
     just different content. A plain tap *outside* of that selection mode
-    runs `RuleEngine.match` against the tapped message and shows the
+    runs `RuleEngine.match` against the tapped message - a *fresh* match
+    (nothing linked yet, Firefly configured) opens `CreateTransactionActivity`
+    directly (see its own entry below); everything else (no match, an
+    already-linked message, or Firefly not configured) still shows the
     result (source/destination account, amounts/currencies, rendered
     description/notes, issues) in a dialog - "test match". The dialog's
     *title* is the outcome itself: the matched rule's own label, or
@@ -1153,28 +1165,25 @@ Single `:app` module, packages under
       settings - `startCreate` only runs after that's accepted, keeping
       its own `checkForDuplicate` call as an additional (not a
       replacement) safety net.
-    - Nothing linked yet: neutral = "Создать" (`test_match_create`),
-      but **not tappable yet** - it's added disabled, showing
-      "Checking…" (`create_checking`), until the dedup check below
-      resolves. **Fixed a real user complaint**: the original design
-      only ran the dedup check *after* the tap, so the exact same
-      button could silently post straight through, silently reuse an
-      existing transaction (local or remote match), or pop up a second
-      "possible duplicate" dialog - no way to tell which in advance, a
-      "blind click" by the user's own description, demonstrated with a
-      real duplicate it created by mistake. Now `showTestMatch` itself
-      runs `resolveApproxConversion` (if needed) then `checkForDuplicate`
-      (shared with `startCreate`, see below) on
-      `viewLifecycleOwner.lifecycleScope` right after showing the
-      dialog, then sets the neutral button's final text/enabled
-      state/click handler based on the outcome - the button is only
-      ever interactive once its own tap's result is already decided, no
-      second dialog popping up afterward as a surprise. (If the
-      exchange-rate fetch resolves to a still-null amount, the button is
-      enabled anyway with the normal label - tapping it just hits
-      `startCreate`'s existing "amount not ready" toast, same fallback
-      as before this change, rather than leaving the button stuck
-      disabled with no way forward.)
+    - Nothing linked yet (and Firefly configured): this dialog doesn't
+      show at all anymore - `showTestMatch` redirects to
+      `CreateTransactionActivity` instead (see above, and that class's
+      own entry below). **History, superseded but kept for context**:
+      this dialog used to offer a neutral "Создать" button here,
+      starting disabled ("Checking…") until a preemptive dedup check
+      resolved. **Fixed a real user complaint at the time**: the
+      original design only ran the dedup check *after* the tap, so the
+      exact same button could silently post straight through, silently
+      reuse an existing transaction, or pop up a second "possible
+      duplicate" dialog - no way to tell which in advance, a "blind
+      click" by the user's own description, demonstrated with a real
+      duplicate it created by mistake. That whole concern is moot now:
+      the new screen is itself the "don't act blind" step - the user
+      reviews/edits every field before ever tapping its own always-
+      enabled "Create transaction" button, which then runs the same
+      `checkForDuplicate` check synchronously on that tap (see
+      `CreateTransactionFragment`'s own entry), not preemptively on
+      open.
 
     `checkForDuplicate(context, draft)` (shared by both paths above, and
     by `posting.AutoCreateWorker` - see the `posting` package section
@@ -1261,6 +1270,77 @@ Single `:app` module, packages under
     `FireflyJson.parseCreatedTransactionId`). A failure shows the real
     failure reason, same pattern every other Firefly-call failure in
     this app already uses.
+  - `CreateTransactionActivity`/`CreateTransactionFragment` - the
+    pre-create review/edit screen (TODO.md's dedup history), opened by
+    `MessagesFragment.showTestMatch` instead of the old test-match
+    dialog for a fresh match (nothing linked yet, Firefly configured).
+    A single-fragment-host `Activity` (its own class, not reusing
+    `SettingsActivity` despite the identical shape - that class is
+    named/documented as the settings area specifically, and this screen
+    has no multi-level back-stack navigation to need `openScreen` for,
+    just one screen). `CreateTransactionActivity.intent(context,
+    message)`/`.messageFrom(intent)` carry the message across the
+    Activity boundary as its own plain fields (packageName/appLabel/
+    title/text/timestampMillis), not a serialized `TransactionDraft` -
+    `CreateTransactionFragment` re-parses it fresh via `RuleEngine.match`
+    once it's running, the same "reconstruct from primitives, don't try
+    to serialize a `BigDecimal`/`Instant`-carrying data class across a
+    process/Activity boundary" approach `posting.AutoCreateWorker`
+    already uses for the identical reason.
+    Every `TransactionDraft` field is editable - the user's own explicit
+    scope call, not just category: amount, currency, foreign amount/
+    currency, date/time (chained `DatePickerDialog`+`TimePickerDialog`,
+    same pattern `AddTestMessageFragment` already has), source/
+    destination account, description, notes, category, tags. `kind`
+    itself stays fixed/read-only (shown as plain text, not a field) -
+    it's a property of which rule matched, not something this screen
+    lets you reassign. Visual style and the asset-account picker itself
+    are deliberately copied from `RuleEditFragment` (the user's own
+    suggested starting point): an end-icon `TextInputLayout` opening an
+    `AlertDialog.setSingleChoiceItems` picker, `FireflyApiClient.
+    listAssetAccounts()` cached once per screen session - only the
+    asset side of source/destination gets it (`updateAccountFieldModes`,
+    same per-kind which-side-is-asset mapping `RuleEditFragment` has),
+    the counterparty side stays plain free text since Firefly
+    auto-creates it by name regardless. The category field gets the
+    same picker shape fed by the new `FireflyApiClient.listCategories()`
+    instead (see the `network` section above) - unlike the account
+    picker, no id-staleness tracking needed on pick, since Firefly's
+    create-transaction endpoint only ever takes a category *name*, no
+    id (confirmed via `FireflyJson.buildTransactionRequestBody`).
+    `PickedAccount(id, name)` + `pick?.takeIf { it.name == currentText }
+    ?.id` at build time (not a live `TextWatcher`) is the exact same
+    stale-id-after-manual-edit handling `RuleEditFragment.buildDraft`
+    already uses.
+    If the draft has `DraftIssue.LOCAL_AMOUNT_MISSING`, the same
+    exchange-rate fetch `MessagesFragment.resolveApproxConversion` used
+    to run kicks off on open and fills the amount field once it
+    resolves - but only if that field is still blank at that point, not
+    unconditionally, since the user may have already typed an amount by
+    hand while the async fetch was in flight and that shouldn't get
+    silently overwritten.
+    "Create transaction" is always enabled (no preemptive "Checking…"
+    dance the way the old dialog's neutral button had - see
+    `MainActivity`'s own entry above for why that's no longer needed):
+    tapping it validates the form (amount parses, description non-blank,
+    source/destination present where the kind requires them - same
+    per-kind requirement `rules.RuleValidation.validateRule` already
+    encodes, just against a built `TransactionDraft` instead of a
+    `ParseRule`) then runs the same `posting.checkForDuplicate` every
+    other create path shares. A clean/best-effort-failed check posts
+    directly; a likely duplicate shows a plain two-button confirm
+    dialog (`create_duplicate_confirm_title`/`_message`, reusing the
+    existing strings - Cancel rightmost/last per the house convention,
+    since this genuinely is a dialog, unlike the rest of this screen) -
+    deliberately simpler than `MessagesFragment.showDuplicateConfirmDialog`'s
+    four-action grid (no "Use Created"/"Open" here - the whole point of
+    this screen already *is* "look before you post", so "create
+    anyway or don't" is the only decision left to make). A successful
+    post records both `CreatedTransactionsDb` hash variants, links the
+    id to the message (`MessageStore.setTransactionId`, same "latest
+    wins" reasoning as everywhere else that call happens), and finishes
+    the activity; a failure re-enables the button and shows the real
+    failure reason in a plain dialog.
   - `SettingsActivity` - everything else, as a stack of fragments
     pushed via plain `FragmentManager` back-stack transactions (no
     Navigation Component - the flow is small and linear enough not to

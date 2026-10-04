@@ -154,6 +154,26 @@
     <string name="create_again_confirm_message">This message is already linked to transaction #%1$s. Creating another one will post a second transaction in Firefly.</string>
     <string name="create_failed_title">Create failed</string>
 
+    <string name="create_tx_title">Create transaction</string>
+    <string name="create_tx_field_amount">Amount</string>
+    <string name="create_tx_field_currency">Currency</string>
+    <string name="create_tx_field_foreign_amount">Foreign amount (optional)</string>
+    <string name="create_tx_field_datetime">Date &amp; time</string>
+    <string name="create_tx_field_source_account">Source account</string>
+    <string name="create_tx_field_destination_account">Destination account</string>
+    <string name="create_tx_field_description">Description</string>
+    <string name="create_tx_field_notes">Notes</string>
+    <string name="create_tx_field_category">Category</string>
+    <string name="create_tx_field_tags">Tags (comma-separated)</string>
+    <string name="create_tx_pick_category">Pick category</string>
+    <string name="create_tx_categories_failed">Couldn\'t load categories: %1$s</string>
+    <string name="create_tx_no_categories">No categories found in Firefly.</string>
+    <string name="create_tx_amount_invalid">Enter a valid amount.</string>
+    <string name="create_tx_description_required">Description can\'t be empty.</string>
+    <string name="create_tx_source_required">Source account can\'t be empty.</string>
+    <string name="create_tx_destination_required">Destination account can\'t be empty.</string>
+    <string name="create_tx_no_rule_matched">No rule matched this message.</string>
+
     <string name="settings_currencies_title">Currencies</string>
     <string name="settings_currencies_subtitle">Code↔symbol table, e.g. EUR↔€ - used to read bank notifications</string>
     <string name="currency_add">Add currency</string>

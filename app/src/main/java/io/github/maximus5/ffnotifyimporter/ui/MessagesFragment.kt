@@ -89,138 +89,56 @@ class MessagesFragment : Fragment() {
         }
     }
 
+    /** The title *is* the outcome - the matched rule's own label, or "No match" - instead of a
+     * generic "Test match" that made every dialog look the same regardless of which rule (if any)
+     * actually fired.
+     *
+     * A fresh match (nothing linked yet, Firefly configured) opens [CreateTransactionActivity]
+     * directly instead of a dialog - the user's own request for a real pre-create review/edit
+     * step (see TODO.md's dedup history), replacing what used to be a read-only body plus a
+     * "Создать" button here. The already-linked case (Open/Create Again) and the no-match/
+     * not-configured cases still show the dialog - there's nothing to review/edit in either. */
     private fun showTestMatch(message: CapturedMessage) {
         val rules = RulesDb.getInstance(requireContext()).loadAllOrdered()
         val currencySymbols = CurrenciesDb.getInstance(requireContext()).symbolToCodeMap()
         val outcome = RuleEngine(rules, currencySymbols).match(message)
+        val context = requireContext()
 
-        // The title *is* the outcome - the matched rule's own label, or "No match" - instead of
-        // a generic "Test match" that made every dialog look the same regardless of which rule
-        // (if any) actually fired.
-        val title: CharSequence
-        val body: CharSequence
-        var draft: TransactionDraft? = null
         when (outcome) {
             is ParseOutcome.NoMatch -> {
-                title = getString(R.string.test_match_no_match_title)
-                body = getString(reasonStringRes(outcome.reason))
+                AlertDialog.Builder(context)
+                    .setTitle(R.string.test_match_no_match_title)
+                    .setMessage(getString(reasonStringRes(outcome.reason)))
+                    .setPositiveButton(android.R.string.ok, null)
+                    .show()
             }
             is ParseOutcome.Matched -> {
-                title = outcome.rule.label
-                body = buildMatchedBody(outcome.draft)
-                draft = outcome.draft
-            }
-        }
-
-        val context = requireContext()
-        val builder = AlertDialog.Builder(context)
-            .setTitle(title)
-            .setMessage(body)
-            .setPositiveButton(android.R.string.ok, null)
-
-        // Offered once there's an actual draft to post and a Firefly connection to post it to. A
-        // message that already has a linked transaction (`message.fireflyTransactionId`) gets
-        // "Open" in the neutral slot instead of "Create Transaction" - "Create Again" moves to
-        // negative rather than displacing it, so the single most relevant secondary action always
-        // has the neutral slot (create when nothing's linked yet, open when something is).
-        //
-        // For a *fresh* create (nothing linked yet), the neutral button starts disabled as
-        // "Checking…" rather than an immediately-tappable "Create transaction" - a real user-
-        // reported problem with tapping it blind: the dedup check (local log, then Firefly's own
-        // search) only ran *after* the tap, so the same button could silently post straight
-        // through, silently reuse an existing transaction, or pop up a second "possible duplicate"
-        // dialog, and there was no way to tell which in advance. Now the check runs first, and the
-        // button only becomes tappable once its own outcome is already decided - see the
-        // `draft?.let` block below. "Create Again" deliberately keeps the old instant behavior
-        // (own user decision, not changed) - it's already an explicit "yes, another one anyway".
-        val existingTransactionId = message.fireflyTransactionId
-        val canCreate = draft != null && FireflyPrefs(context).isConfigured()
-        if (canCreate) {
-            if (existingTransactionId != null) {
-                builder.setNeutralButton(R.string.create_open_transaction) { _, _ ->
-                    openTransaction(context, existingTransactionId)
+                val configured = FireflyPrefs(context).isConfigured()
+                if (message.fireflyTransactionId == null && configured) {
+                    startActivity(CreateTransactionActivity.intent(context, message))
+                    return
                 }
-                builder.setNegativeButton(R.string.create_again) { _, _ ->
-                    draft?.let { confirmCreateAgain(context, it, message, existingTransactionId) }
-                }
-            } else {
-                builder.setNeutralButton(R.string.create_checking, null)
-            }
-        }
-
-        val dialog = builder.show()
-        if (canCreate && existingTransactionId == null) {
-            dialog.getButton(AlertDialog.BUTTON_NEUTRAL).isEnabled = false
-        }
-
-        val initialDraft = draft ?: return
-        viewLifecycleOwner.lifecycleScope.launch {
-            var resolved = initialDraft
-            if (DraftIssue.LOCAL_AMOUNT_MISSING in resolved.issues) {
-                resolved = resolveApproxConversion(resolved, dialog)
-            }
-            if (existingTransactionId != null) return@launch // "Create Again" stays instant.
-
-            val button = dialog.getButton(AlertDialog.BUTTON_NEUTRAL)
-            if (resolved.amount == null) {
-                // Conversion failed/missing - enable normally rather than leaving the button stuck
-                // disabled with no way forward; tapping falls through to startCreate's own
-                // "amount not ready" toast, same as before this change.
-                button.text = getString(R.string.test_match_create)
-                button.isEnabled = true
-                button.setOnClickListener { startCreate(resolved, message) }
-                return@launch
-            }
-
-            when (val result = checkForDuplicate(context, resolved)) {
-                is DuplicateCheckResult.None, is DuplicateCheckResult.SearchFailed -> {
-                    button.text = getString(R.string.test_match_create)
-                    button.isEnabled = true
-                    button.setOnClickListener {
-                        dialog.dismiss()
-                        postTransaction(resolved, message)
-                    }
-                }
-                is DuplicateCheckResult.Found -> {
-                    dialog.dismiss()
-                    showDuplicateConfirmDialog(context, result.id, resolved, message, knownCandidate = result.candidate)
-                }
-                is DuplicateCheckResult.FoundMultiple -> {
-                    Toast.makeText(
-                        context,
-                        getString(R.string.create_remote_duplicates_found, result.count),
-                        Toast.LENGTH_LONG,
-                    ).show()
-                    dialog.dismiss()
-                    showDuplicateConfirmDialog(context, result.mostRecentId, resolved, message, knownCandidate = result.candidate)
-                }
+                showMatchedDialog(context, outcome, message, if (configured) message.fireflyTransactionId else null)
             }
         }
     }
 
-    /** Resolves [draft]'s amount via a live exchange-rate fetch if it's missing
-     * (`DraftIssue.LOCAL_AMOUNT_MISSING`), updating [dialog]'s body to show the resolved amount in
-     * place - returns [draft] unchanged if nothing needed resolving. A failed lookup appends why
-     * to the body rather than blocking or retrying; either way this suspends until done, so the
-     * caller can chain the dedup check after it using the final, resolved amount. */
-    private suspend fun resolveApproxConversion(draft: TransactionDraft, dialog: AlertDialog): TransactionDraft {
-        val foreignCurrency = draft.foreignCurrencyCode ?: return draft
-        val context = requireContext()
-        return when (val result = ExchangeRateClient().fetchRate(foreignCurrency, draft.currencyCode, draft.date)) {
-            is ExchangeRateClient.Result.Success -> {
-                val approxTag = FireflyPrefs(context).getApproxConversionTag()
-                val updated = applyApproxConversion(draft, result.rate, approxTag)
-                dialog.setMessage(buildMatchedBody(updated))
-                updated
-            }
-            is ExchangeRateClient.Result.Failure -> {
-                val updatedBody = SpannableStringBuilder(buildMatchedBody(draft))
-                    .append("\n")
-                    .append(getString(R.string.test_match_rate_lookup_failed, result.message))
-                dialog.setMessage(updatedBody)
-                draft
-            }
+    /** Offered once there's a linked transaction to act on and a Firefly connection to post a
+     * re-create to - "Open" sits in the neutral slot, "Create Again" in negative, same reasoning
+     * as before this screen existed: the single most relevant secondary action gets the neutral
+     * slot. [existingTransactionId] is only ever non-null here (see [showTestMatch]) - a fresh,
+     * not-yet-linked, configured match never reaches this dialog at all anymore. */
+    private fun showMatchedDialog(context: Context, outcome: ParseOutcome.Matched, message: CapturedMessage, existingTransactionId: String?) {
+        val draft = outcome.draft
+        val builder = AlertDialog.Builder(context)
+            .setTitle(outcome.rule.label)
+            .setMessage(buildMatchedBody(draft))
+            .setPositiveButton(android.R.string.ok, null)
+        if (existingTransactionId != null) {
+            builder.setNeutralButton(R.string.create_open_transaction) { _, _ -> openTransaction(context, existingTransactionId) }
+            builder.setNegativeButton(R.string.create_again) { _, _ -> confirmCreateAgain(context, draft, message, existingTransactionId) }
         }
+        builder.show()
     }
 
     /** Confirms before "Create Again" actually runs - the user's own call, after noticing the tap
