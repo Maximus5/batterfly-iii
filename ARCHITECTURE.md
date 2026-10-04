@@ -227,9 +227,11 @@ Single `:app` module, packages under
     rules exist (used to be an empty-state-only fallback; removed once
     any real rule existed, which the user flagged as the example
     disappearing right when they'd want to compare against it).
-    `EXAMPLE_PATTERN`'s `currency` group accepts `[A-Z]{3}` *or*
-    `[€£$]` (banks print symbols far more than ISO codes, same reason
-    `CurrenciesDb`/`normalizeCurrency` exist), and its `counterparty`
+    `EXAMPLE_PATTERN`'s `currency` group accepts a prefixed-dollar form
+    like `US$`/`A$` (`[A-Z]{1,3}\$`), *or* a bare three-letter ISO code
+    (`[A-Z]{3}`), *or* a bare symbol (`[€£$¥]`) - banks print symbols
+    and prefixed-dollar forms far more than plain ISO codes, same
+    reason `CurrenciesDb`/`normalizeCurrency` exist - and its `counterparty`
     group is `(?<counterparty>.+?)\.?$` - lazily matched with an
     optional trailing literal period stripped, not plain `.+`, because
     a notification's sentence-ending "." isn't part of the merchant

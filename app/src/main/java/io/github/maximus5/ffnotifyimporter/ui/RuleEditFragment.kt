@@ -544,7 +544,7 @@ class RuleEditFragment : Fragment() {
         // Always offered in the pattern picker, alongside any saved patterns - just enough to
         // demonstrate the named-group syntax, not meant to match anything real.
         private const val EXAMPLE_PATTERN =
-            """(?<amount>[\d.,]+)\s*(?<currency>[A-Z]{3}|[€£$]).*?(?:at|bei)\s+(?<counterparty>.+?)\.?$"""
+            """(?<amount>[\d.,]+)\s*(?<currency>[A-Z]{1,3}\$|[A-Z]{3}|[€£$¥]).*?(?:at|bei)\s+(?<counterparty>.+?)\.?$"""
 
         // Second example, anchored to a literal title instead of starting at the amount - real
         // case that caught a classic regex pitfall: a *greedy* `.*` before the amount group lets
@@ -554,7 +554,7 @@ class RuleEditFragment : Fragment() {
         // trailing `(?:gezahlt)?` is why counterparty doesn't end up swallowing the sentence's
         // closing verb along with the merchant name.
         private const val EXAMPLE_PATTERN_TITLE_ANCHORED =
-            """Zahlung erfolgreich[^\d]*(?<amount>[\d.,]+)\s*(?<currency>[A-Z]{3}|[€£$]).*?(?:an)\s+(?<counterparty>.+?)\s*(?:gezahlt)?\.?$"""
+            """Zahlung erfolgreich[^\d]*(?<amount>[\d.,]+)\s*(?<currency>[A-Z]{1,3}\$|[A-Z]{3}|[€£$¥]).*?(?:an)\s+(?<counterparty>.+?)\s*(?:gezahlt)?\.?$"""
 
         fun newInstance(ruleId: String?): RuleEditFragment = RuleEditFragment().apply {
             arguments = Bundle().apply { putString(ARG_RULE_ID, ruleId) }

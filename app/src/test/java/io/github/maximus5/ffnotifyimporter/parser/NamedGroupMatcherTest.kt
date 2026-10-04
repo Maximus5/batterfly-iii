@@ -34,7 +34,7 @@ class NamedGroupMatcherTest {
         // Real case that prompted DOT_MATCHES_ALL: "Zahlung" is in the title, the amount is on
         // the body line - without DOTALL, `.*?` can't reach past the title's own line ending.
         val pattern =
-            """Zahlung.*?(?<amount>[\d.,]+)\s*(?<currency>[A-Z]{3}|[€£$]).*?(?:an)\s+(?<counterparty>.+?)\sgezahlt\.?$"""
+            """Zahlung.*?(?<amount>[\d.,]+)\s*(?<currency>[A-Z]{1,3}\$|[A-Z]{3}|[€£$¥]).*?(?:an)\s+(?<counterparty>.+?)\sgezahlt\.?$"""
         val combined = "Zahlung erfolgreich\nSie haben 45,30 € an Shop 5678 GmbH gezahlt."
 
         val groups = extractGroups(pattern, combined)
@@ -51,7 +51,7 @@ class NamedGroupMatcherTest {
         // means it settles for "0" (just the last digit of "45,30"), since everything after it
         // still lets the rest of the pattern succeed. The engine never even tries "45,30".
         val pattern =
-            """Zahlung erfolgreich\s*.*(?<amount>[\d.,]+)\s*(?<currency>[A-Z]{3}|[€£$]).*?(?:an)\s+(?<counterparty>.+?)\.?$"""
+            """Zahlung erfolgreich\s*.*(?<amount>[\d.,]+)\s*(?<currency>[A-Z]{1,3}\$|[A-Z]{3}|[€£$¥]).*?(?:an)\s+(?<counterparty>.+?)\.?$"""
         val combined = "Zahlung erfolgreich\nSie haben 45,30 € an Shop 5678 GmbH gezahlt."
 
         val groups = extractGroups(pattern, combined)
@@ -65,7 +65,7 @@ class NamedGroupMatcherTest {
         // [^\d]* can't overshoot past the number it's skipping to (it stops at the first digit,
         // whichever digit that is), and (?:gezahlt)? before the optional trailing period stops
         // the lazy counterparty group from swallowing the sentence's closing verb.
-        val pattern = """Zahlung erfolgreich[^\d]*(?<amount>[\d.,]+)\s*(?<currency>[A-Z]{3}|[€£$]).*?(?:an)\s+(?<counterparty>.+?)\s*(?:gezahlt)?\.?$"""
+        val pattern = """Zahlung erfolgreich[^\d]*(?<amount>[\d.,]+)\s*(?<currency>[A-Z]{1,3}\$|[A-Z]{3}|[€£$¥]).*?(?:an)\s+(?<counterparty>.+?)\s*(?:gezahlt)?\.?$"""
         val combined = "Zahlung erfolgreich\nSie haben 45,30 € an Shop 5678 GmbH gezahlt."
 
         val groups = extractGroups(pattern, combined)
@@ -73,6 +73,19 @@ class NamedGroupMatcherTest {
         assertEquals("45,30", groups?.get("amount"))
         assertEquals("€", groups?.get("currency"))
         assertEquals("Shop 5678 GmbH", groups?.get("counterparty"))
+    }
+
+    @Test
+    fun `currency group also matches a prefixed-dollar form like US dollar, not just a bare code or symbol`() {
+        // [A-Z]{1,3}\$ (tried before the plain [A-Z]{3} alternative) - currencies like "US$",
+        // "A$", "HK$" prefix the dollar sign with a short country code instead of using a bare
+        // symbol or an ISO code.
+        val pattern = """(?<amount>[\d.,]+)\s*(?<currency>[A-Z]{1,3}\$|[A-Z]{3}|[€£$¥])"""
+
+        assertEquals("US$", extractGroups(pattern, "12.50 US$")?.get("currency"))
+        assertEquals("A$", extractGroups(pattern, "12.50 A$")?.get("currency"))
+        assertEquals("EUR", extractGroups(pattern, "12.50 EUR")?.get("currency"))
+        assertEquals("¥", extractGroups(pattern, "1250 ¥")?.get("currency"))
     }
 
     @Test
