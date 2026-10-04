@@ -1299,16 +1299,26 @@ Single `:app` module, packages under
       screen explaining why. `showTestMatch` now routes the already-
       linked case through `verifyLinkedThenShow` first: a live
       `FireflyApiClient.getTransaction(id)` check: still there -> this
-      dialog, unchanged; confirmed gone (`404`) -> the stale link is
-      cleared (`MessageStore.setTransactionId(message, null)`) and
-      control falls through to `checkThenOpenCreateOrShowFound` (the
-      same fresh-match search-then-show/create flow below), now carrying
-      a `staleLinkedId` parameter so a replacement match (if search
-      finds one) shows `check_linked_transaction_gone_warning` ("⚠
-      Linked transaction #X no longer exists in Firefly") instead of
-      presenting the new match as if nothing had ever been linked;
-      nothing found falls through to `CreateTransactionActivity`, same
-      as any other fresh match. A verification failure (network/server
+      dialog, unchanged; confirmed gone (`404`) -> control falls through
+      to `checkThenOpenCreateOrShowFound` (the same fresh-match
+      search-then-show/create flow below), now carrying a
+      `staleLinkedId` parameter so a replacement match (if search finds
+      one) shows `check_linked_transaction_gone_warning` ("⚠ Linked
+      transaction #X no longer exists in Firefly") instead of presenting
+      the new match as if nothing had ever been linked; nothing found
+      falls through to `CreateTransactionActivity`, same as any other
+      fresh match. **Fixed a real "changes state before the user agreed
+      to anything" bug, the user's own catch, same day**: the stale link
+      used to be cleared (`MessageStore.setTransactionId(message, null)`)
+      the instant the `404` was confirmed, before any dialog even
+      showed - a plain Cancel on whatever came next would've silently
+      unlinked the message with no action behind it. Nothing clears it
+      proactively now; the link only ever changes as a side effect of
+      the user's own choice - "Use Created" overwrites it with the newly
+      found id, a successful create (fresh or "Create anyway") overwrites
+      it with the new transaction's id, and a Cancel leaves the stale id
+      exactly as it was, re-verified the same way next time rather than
+      silently forgotten. A verification failure (network/server
       error, *not* confirmed gone) shows the error and stops - same
       "don't guess" rule every dedup check in this file follows since
       the stale-cache fix below. `MessagesFragment.checkIfCreated` got

@@ -148,7 +148,7 @@
     <string name="create_checking">Checking…</string>
     <string name="create_remote_duplicates_found">Warning: found %1$d matching transactions already in Firefly, not just one.</string>
     <string name="create_duplicate_confirm_title">Possible duplicate</string>
-    <string name="create_duplicate_confirm_message">A transaction (#%1$s) with the same accounts, amount, and currency was already created within the dedup window. Create this one too?</string>
+    <string name="create_duplicate_confirm_message">A transaction (#%1$s) with the same accounts, amount, and currency was already created within the dedup window. Create it anyway?</string>
     <string name="create_duplicate_confirm_button">Create anyway</string>
     <string name="create_duplicate_use_created">Use created</string>
     <string name="create_duplicate_open">Open</string>

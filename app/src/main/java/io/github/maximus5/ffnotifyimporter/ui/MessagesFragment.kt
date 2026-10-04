@@ -132,12 +132,14 @@ class MessagesFragment : Fragment() {
      * message used to go straight to [showMatchedDialog] with zero verification, so a transaction
      * deleted by hand in Firefly left "Open transaction" pointing at a dead link with nothing on
      * screen explaining why. Still there -> [showMatchedDialog] exactly as before. Confirmed gone
-     * (`404`) -> the stale link is cleared (`MessageStore.setTransactionId` to `null`) and this
-     * falls through to the exact same search-then-show/create flow [checkThenOpenCreateOrShowFound]
-     * already runs for a fresh match - a replacement match, if search finds one, is shown with
-     * [showDuplicateConfirmDialog]'s `staleLinkedId` warning rather than presenting it as if
-     * nothing had ever been linked; nothing found falls through to [CreateTransactionActivity]
-     * same as any other fresh match. A verification failure (network/server error, *not* confirmed
+     * (`404`) -> falls through to the exact same search-then-show/create flow
+     * [checkThenOpenCreateOrShowFound] already runs for a fresh match - a replacement match, if
+     * search finds one, is shown with [showDuplicateConfirmDialog]'s `staleLinkedId` warning rather
+     * than presenting it as if nothing had ever been linked; nothing found falls through to
+     * [CreateTransactionActivity] same as any other fresh match. The stale link itself is left
+     * alone here, deliberately - see the inline comment at the call site for why (the user's own
+     * catch: don't change state before the user's actually chosen something). A verification
+     * failure (network/server error, *not* confirmed
      * gone) shows the error and stops - same "don't guess" rule every dedup check in this file now
      * follows (see `DuplicateCheckResult.SearchFailed`'s KDoc). */
     private fun verifyLinkedThenShow(context: Context, outcome: ParseOutcome.Matched, message: CapturedMessage, existingId: String) {
@@ -149,7 +151,15 @@ class MessagesFragment : Fragment() {
                     if (result.value != null) {
                         showMatchedDialog(context, outcome, message, existingId)
                     } else {
-                        MessageStore.shared.setTransactionId(message, null)
+                        // Deliberately not cleared here - the user's own catch: wiping the stale
+                        // link the instant it's confirmed gone, before any dialog is even shown,
+                        // changes state with no user action behind it at all (a plain Cancel on
+                        // whatever shows next would've silently unlinked the message). The link
+                        // only actually changes as a side effect of the user's own choice: "Use
+                        // Created" overwrites it with the newly found id, a successful create
+                        // (fresh or "Create anyway") overwrites it with the new transaction's id.
+                        // A Cancel leaves the stale id exactly as it was - re-verified the same
+                        // way next time, not silently forgotten.
                         checkThenOpenCreateOrShowFound(context, outcome.draft, message, staleLinkedId = existingId)
                     }
                 }

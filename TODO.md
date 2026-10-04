@@ -795,3 +795,20 @@ work.
   already-linked message after deleting that transaction by hand in
   Firefly, both when a replacement match exists (warning + found-dialog
   expected) and when it doesn't (warning-free create screen expected).
+- **Fixed two real bugs on first real-device try, the user's own
+  catch/report (screenshotted)** - confirming the fix above basically
+  works, but caught these on the first live run:
+  - `verifyLinkedThenShow` used to clear the stale link
+    (`MessageStore.setTransactionId(message, null)`) the instant the
+    `404` was confirmed, before any dialog even showed - a plain Cancel
+    on whatever came next silently unlinked the message with no action
+    behind it. Nothing clears it proactively now; the link only changes
+    as a side effect of the user's own choice ("Use Created"/a
+    successful create both already overwrite it on their own) - a
+    Cancel leaves the stale id as-is, re-verified the same way next
+    time.
+  - `create_duplicate_confirm_message` ("...Create this one too?")
+    didn't match any actual button - the real action is labeled
+    "Create anyway". Reworded to "...Create it anyway?" (EN only - the
+    Russian string already said the equivalent, "Всё равно создать
+    эту?").
