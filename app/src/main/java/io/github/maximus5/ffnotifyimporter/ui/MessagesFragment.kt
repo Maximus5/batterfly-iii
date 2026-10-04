@@ -167,11 +167,7 @@ class MessagesFragment : Fragment() {
 
     /** Entry point for "Создать"/"Create Again" - checks the dedup log (if enabled) before
      * actually posting, per the user's own call on this: manual creation asks for confirmation on
-     * a likely duplicate rather than silently blocking or silently allowing it, with a third
-     * option beyond "create anyway"/"cancel" - "Already Created" links the *found* transaction's
-     * id to [message] instead of posting a new one, for exactly the case that prompted this: the
-     * dedup check already did the work of finding it, no reason to make the user go dig it up by
-     * hand in Firefly. */
+     * a likely duplicate rather than silently blocking or silently allowing it. */
     private fun startCreate(draft: TransactionDraft, message: CapturedMessage) {
         val context = requireContext()
         if (draft.amount == null) {
@@ -188,19 +184,47 @@ class MessagesFragment : Fragment() {
         }
 
         if (foundId != null) {
-            AlertDialog.Builder(context)
-                .setTitle(R.string.create_duplicate_confirm_title)
-                .setMessage(R.string.create_duplicate_confirm_message)
-                .setPositiveButton(R.string.create_duplicate_confirm_button) { _, _ -> postTransaction(draft, hash, message) }
-                .setNegativeButton(android.R.string.cancel, null)
-                .setNeutralButton(R.string.create_duplicate_already_created) { _, _ ->
-                    MessageStore.shared.setTransactionId(message, foundId)
-                    Toast.makeText(context, getString(R.string.create_already_created_linked, foundId), Toast.LENGTH_SHORT).show()
-                }
-                .show()
+            showDuplicateConfirmDialog(context, foundId, draft, hash, message)
         } else {
             postTransaction(draft, hash, message)
         }
+    }
+
+    /** Four actions, not three ("Use Created"/"Open"/"Create anyway"/"Cancel", Cancel always
+     * last) - more than `AlertDialog.Builder`'s positive/negative/neutral slots can hold, so this
+     * is a plain custom view (`dialog_duplicate_confirm.xml`, same reasoning as the rule editor's
+     * "Test results" dialog) instead of the native button bar. "Open" deliberately doesn't
+     * dismiss - it's "let me go check first", not a decision, so the dialog is still there to act
+     * on once the user comes back from Firefly. "Use Created" links the *found* transaction's id
+     * to [message] instead of posting a new one - the dedup check already did the work of finding
+     * it, no reason to make the user go dig it up by hand in Firefly. */
+    private fun showDuplicateConfirmDialog(
+        context: Context,
+        foundId: String,
+        draft: TransactionDraft,
+        hash: String,
+        message: CapturedMessage,
+    ) {
+        val view = LayoutInflater.from(context).inflate(R.layout.dialog_duplicate_confirm, null, false)
+        val dialog = AlertDialog.Builder(context)
+            .setTitle(R.string.create_duplicate_confirm_title)
+            .setMessage(getString(R.string.create_duplicate_confirm_message, foundId))
+            .setView(view)
+            .create()
+
+        view.findViewById<View>(R.id.useCreatedButton).setOnClickListener {
+            MessageStore.shared.setTransactionId(message, foundId)
+            Toast.makeText(context, getString(R.string.create_already_created_linked, foundId), Toast.LENGTH_SHORT).show()
+            dialog.dismiss()
+        }
+        view.findViewById<View>(R.id.openDuplicateButton).setOnClickListener { openTransaction(context, foundId) }
+        view.findViewById<View>(R.id.createAnywayButton).setOnClickListener {
+            postTransaction(draft, hash, message)
+            dialog.dismiss()
+        }
+        view.findViewById<View>(R.id.cancelDuplicateButton).setOnClickListener { dialog.dismiss() }
+
+        dialog.show()
     }
 
     private fun postTransaction(draft: TransactionDraft, hash: String, message: CapturedMessage) {

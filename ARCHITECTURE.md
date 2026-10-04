@@ -636,17 +636,29 @@ Single `:app` module, packages under
     `rules.transactionDedupHash` (source/destination id-or-name +
     canonical-scale amount + currency + description-if-the-toggle-says-so,
     see its own KDoc and TODO.md's dedup history). A likely duplicate
-    shows a confirm dialog with *three* options, not two - a deliberate
-    answer the user gave directly when asked, not assumed:
-    "create anyway" (posts a new transaction regardless), "cancel", and
-    "Already Created" (`create_duplicate_already_created`) - the one
-    the user asked for specifically: links the *found* transaction's id
-    (`findWithinWindow`'s return value, not a fresh post) to this
+    shows the found transaction's id in the message itself
+    (`create_duplicate_confirm_message`, `#%1$s`) and offers *four*
+    actions, not the two an "are you sure?" confirm would have - a
+    deliberate answer the user gave directly when asked, not assumed.
+    Four is more than `AlertDialog.Builder`'s positive/negative/neutral
+    slots can hold, so `showDuplicateConfirmDialog` builds it as a
+    plain custom view (`dialog_duplicate_confirm.xml`, one full-width
+    borderless button per row - same "native combo doesn't do what's
+    needed" reasoning as the rule editor's "Test results" dialog)
+    instead of the native button bar: "Use Created" (links the *found*
+    id - `findWithinWindow`'s return value, not a fresh post - to this
     message via `MessageStore.setTransactionId`, since the dedup check
-    already did the work of locating it. (An eventual auto-create path
-    would instead skip-and-notify on a likely duplicate rather than
-    asking anything, see TODO.md - not built yet.) `postTransaction`
-    builds a `FireflyTransactionRequest` straight from the draft
+    already did the work of locating it), "Open" (right after Use
+    Created - `network.transactionUrl` on the found id, same helper the
+    success dialog uses - deliberately does *not* dismiss the dialog,
+    since opening Firefly to go check is "let me verify first", not a
+    decision yet), "Create anyway" (posts a new transaction regardless),
+    and "Cancel" - always last, by explicit request, regardless of
+    which of the other three ends up next to it as this evolves.
+    (An eventual auto-create path would instead skip-and-notify on a
+    likely duplicate rather than asking anything, see TODO.md - not
+    built yet.) `postTransaction` builds a `FireflyTransactionRequest`
+    straight from the draft
     (`sourceAccountId ?: sourceName` preference already lives in
     `FireflyJson.buildTransactionRequestBody`, nothing new needed here)
     and calls `FireflyApiClient.createTransaction` on
