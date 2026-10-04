@@ -110,189 +110,194 @@ class MessagesFragment : Fragment() {
             .setMessage(body)
             .setPositiveButton(android.R.string.ok, null)
 
-        // Offered once there's an actual draft to post and a Firefly connection to post it to -
-        // reads the latest `draft` at click time, not a stale copy, so it still works after
-        // fetchApproxConversionIfNeeded swaps in a resolved amount underneath it. A message that
-        // already has a linked transaction (`message.fireflyTransactionId`) gets "Open" in the
-        // neutral slot instead of "Create Transaction" - "Create Again" moves to negative rather
-        // than displacing it, so the single most relevant secondary action always has the neutral
-        // slot (create when nothing's linked yet, open when something is).
+        // Offered once there's an actual draft to post and a Firefly connection to post it to. A
+        // message that already has a linked transaction (`message.fireflyTransactionId`) gets
+        // "Open" in the neutral slot instead of "Create Transaction" - "Create Again" moves to
+        // negative rather than displacing it, so the single most relevant secondary action always
+        // has the neutral slot (create when nothing's linked yet, open when something is).
+        //
+        // For a *fresh* create (nothing linked yet), the neutral button starts disabled as
+        // "Checking…" rather than an immediately-tappable "Create transaction" - a real user-
+        // reported problem with tapping it blind: the dedup check (local log, then Firefly's own
+        // search) only ran *after* the tap, so the same button could silently post straight
+        // through, silently reuse an existing transaction, or pop up a second "possible duplicate"
+        // dialog, and there was no way to tell which in advance. Now the check runs first, and the
+        // button only becomes tappable once its own outcome is already decided - see the
+        // `draft?.let` block below. "Create Again" deliberately keeps the old instant behavior
+        // (own user decision, not changed) - it's already an explicit "yes, another one anyway".
         val existingTransactionId = message.fireflyTransactionId
-        if (draft != null && FireflyPrefs(context).isConfigured()) {
+        val canCreate = draft != null && FireflyPrefs(context).isConfigured()
+        if (canCreate) {
             if (existingTransactionId != null) {
                 builder.setNeutralButton(R.string.create_open_transaction) { _, _ ->
                     openTransaction(context, existingTransactionId)
                 }
                 builder.setNegativeButton(R.string.create_again) { _, _ -> draft?.let { startCreate(it, message) } }
             } else {
-                builder.setNeutralButton(R.string.test_match_create) { _, _ -> draft?.let { startCreate(it, message) } }
+                builder.setNeutralButton(R.string.create_checking, null)
             }
         }
 
         val dialog = builder.show()
-
-        draft?.let {
-            fetchApproxConversionIfNeeded(it, dialog) { updated -> draft = updated }
+        if (canCreate && existingTransactionId == null) {
+            dialog.getButton(AlertDialog.BUTTON_NEUTRAL).isEnabled = false
         }
-    }
 
-    /** When a draft is missing its home-currency amount (foreign currency only), fetches a real
-     * exchange rate for the message's own date and swaps the already-shown dialog's body in place
-     * once it resolves, reporting the resolved draft back via [onUpdated] so "Создать" posts the
-     * right amount. Preview-only beyond that - a failed lookup just appends why, it doesn't block
-     * or retry anything. */
-    private fun fetchApproxConversionIfNeeded(
-        draft: TransactionDraft,
-        dialog: AlertDialog,
-        onUpdated: (TransactionDraft) -> Unit,
-    ) {
-        if (DraftIssue.LOCAL_AMOUNT_MISSING !in draft.issues) return
-        val foreignCurrency = draft.foreignCurrencyCode ?: return
-        val context = requireContext()
+        val initialDraft = draft ?: return
         viewLifecycleOwner.lifecycleScope.launch {
-            when (val result = ExchangeRateClient().fetchRate(foreignCurrency, draft.currencyCode, draft.date)) {
-                is ExchangeRateClient.Result.Success -> {
-                    val approxTag = FireflyPrefs(context).getApproxConversionTag()
-                    val updated = applyApproxConversion(draft, result.rate, approxTag)
-                    dialog.setMessage(buildMatchedBody(updated))
-                    onUpdated(updated)
+            var resolved = initialDraft
+            if (DraftIssue.LOCAL_AMOUNT_MISSING in resolved.issues) {
+                resolved = resolveApproxConversion(resolved, dialog)
+            }
+            if (existingTransactionId != null) return@launch // "Create Again" stays instant.
+
+            val button = dialog.getButton(AlertDialog.BUTTON_NEUTRAL)
+            if (resolved.amount == null) {
+                // Conversion failed/missing - enable normally rather than leaving the button stuck
+                // disabled with no way forward; tapping falls through to startCreate's own
+                // "amount not ready" toast, same as before this change.
+                button.text = getString(R.string.test_match_create)
+                button.isEnabled = true
+                button.setOnClickListener { startCreate(resolved, message) }
+                return@launch
+            }
+
+            when (val result = checkForDuplicate(context, resolved)) {
+                DuplicateCheckResult.None -> {
+                    button.text = getString(R.string.test_match_create)
+                    button.isEnabled = true
+                    button.setOnClickListener {
+                        dialog.dismiss()
+                        postTransaction(resolved, message)
+                    }
                 }
-                is ExchangeRateClient.Result.Failure -> {
-                    val updatedBody = SpannableStringBuilder(buildMatchedBody(draft))
-                        .append("\n")
-                        .append(getString(R.string.test_match_rate_lookup_failed, result.message))
-                    dialog.setMessage(updatedBody)
+                is DuplicateCheckResult.Found -> {
+                    dialog.dismiss()
+                    showDuplicateConfirmDialog(context, result.id, resolved, message)
+                }
+                is DuplicateCheckResult.FoundMultiple -> {
+                    Toast.makeText(
+                        context,
+                        getString(R.string.create_remote_duplicates_found, result.count),
+                        Toast.LENGTH_LONG,
+                    ).show()
+                    dialog.dismiss()
+                    showDuplicateConfirmDialog(context, result.mostRecentId, resolved, message)
                 }
             }
         }
     }
 
-    /** Entry point for "Создать"/"Create Again" - checks the dedup log (if enabled) before
-     * actually posting, per the user's own call on this: manual creation asks for confirmation on
-     * a likely duplicate rather than silently blocking or silently allowing it. Local dedup first
-     * (`CreatedTransactionsDb`, this app's own log); only if *that* comes up empty does it also
-     * ask Firefly itself (`FireflyApiClient.searchNearbyTransactions`) - a second device/app
-     * notifying about the same real payment wouldn't be in this app's own log at all, so a clean
-     * local lookup alone can't rule that out. */
-    private fun startCreate(draft: TransactionDraft, message: CapturedMessage) {
+    /** Resolves [draft]'s amount via a live exchange-rate fetch if it's missing
+     * (`DraftIssue.LOCAL_AMOUNT_MISSING`), updating [dialog]'s body to show the resolved amount in
+     * place - returns [draft] unchanged if nothing needed resolving. A failed lookup appends why
+     * to the body rather than blocking or retrying; either way this suspends until done, so the
+     * caller can chain the dedup check after it using the final, resolved amount. */
+    private suspend fun resolveApproxConversion(draft: TransactionDraft, dialog: AlertDialog): TransactionDraft {
+        val foreignCurrency = draft.foreignCurrencyCode ?: return draft
         val context = requireContext()
-        if (draft.amount == null) {
-            Toast.makeText(context, R.string.create_amount_not_ready, Toast.LENGTH_SHORT).show()
-            return
+        return when (val result = ExchangeRateClient().fetchRate(foreignCurrency, draft.currencyCode, draft.date)) {
+            is ExchangeRateClient.Result.Success -> {
+                val approxTag = FireflyPrefs(context).getApproxConversionTag()
+                val updated = applyApproxConversion(draft, result.rate, approxTag)
+                dialog.setMessage(buildMatchedBody(updated))
+                updated
+            }
+            is ExchangeRateClient.Result.Failure -> {
+                val updatedBody = SpannableStringBuilder(buildMatchedBody(draft))
+                    .append("\n")
+                    .append(getString(R.string.test_match_rate_lookup_failed, result.message))
+                dialog.setMessage(updatedBody)
+                draft
+            }
         }
+    }
+
+    private sealed interface DuplicateCheckResult {
+        data object None : DuplicateCheckResult
+        data class Found(val id: String) : DuplicateCheckResult
+        data class FoundMultiple(val mostRecentId: String, val count: Int) : DuplicateCheckResult
+    }
+
+    /** Local dedup log first (`CreatedTransactionsDb`, this app's own log); only if *that* comes
+     * up empty does it also ask Firefly itself (`FireflyApiClient.searchNearbyTransactions`) - a
+     * second device/app notifying about the same real payment wouldn't be in this app's own log
+     * at all, so a clean local lookup alone can't rule that out. Shared between the preemptive
+     * check above (fresh create) and [startCreate] below ("Create Again"). */
+    private suspend fun checkForDuplicate(context: Context, draft: TransactionDraft): DuplicateCheckResult {
         val prefs = FireflyPrefs(context)
-        if (!prefs.isDedupEnabled()) {
-            postTransaction(draft, message)
-            return
-        }
+        if (!prefs.isDedupEnabled()) return DuplicateCheckResult.None
 
         val includeDescription = prefs.isDedupIncludeDescription()
         val windowMinutes = prefs.getDedupWindowMinutes()
         val hash = transactionDedupHash(draft, includeDescription)
         val localFoundId = CreatedTransactionsDb.getInstance(context)
             .findWithinWindow(hash, includeDescription, draft.date.toEpochMilli(), windowMinutes)
-
-        // TEMPORARY while tracking down a real miss the user hit - remove once resolved.
-        val debug = StringBuilder()
-            .append("hash=$hash\n")
-            .append("includeDescription=$includeDescription windowMinutes=$windowMinutes\n")
-            .append("draft.date=${draft.date}\n")
-            .append("sourceAccountId=${draft.sourceAccountId} destinationAccountId=${draft.destinationAccountId}\n")
-            .append("sourceName=${draft.sourceName} destinationName=${draft.destinationName}\n")
-            .append("amount=${draft.amount} ${draft.currencyCode}\n")
-            .append("description=${draft.description}\n")
-            .append("local dedup: ${if (localFoundId != null) "FOUND #$localFoundId" else "not found"}\n")
-
-        if (localFoundId != null) {
-            showDebugDialog(context, debug.toString()) { showDuplicateConfirmDialog(context, localFoundId, draft, message) }
-            return
-        }
+        if (localFoundId != null) return DuplicateCheckResult.Found(localFoundId)
 
         // Only an asset account has a Firefly id on this app's side (see FireflyAccount's KDoc) -
         // without one there's no account to scope the remote query to, so it's skipped entirely
         // rather than searching unscoped (same amount/date could coincidentally match an unrelated
         // transaction on a different account).
-        val accountId = draft.sourceAccountId ?: draft.destinationAccountId
-        if (accountId == null) {
-            debug.append("accountId=null -> remote search skipped")
-            showDebugDialog(context, debug.toString()) { postTransaction(draft, message) }
-            return
-        }
+        val accountId = draft.sourceAccountId ?: draft.destinationAccountId ?: return DuplicateCheckResult.None
 
-        viewLifecycleOwner.lifecycleScope.launch {
-            val client = FireflyApiClient(prefs.getBaseUrl(), prefs.getToken())
-            when (val result = client.searchNearbyTransactions(accountId, draft.date, windowMinutes)) {
-                is FireflyApiClient.Result.Success -> {
-                    debug.append("accountId=$accountId\n")
-                    debug.append("remote raw candidates=${result.value.size}\n")
-                    result.value.forEach {
-                        debug.append(
-                            " - #${it.groupId} ${it.date} ${it.amount} ${it.currencyCode} \"${it.description}\" " +
-                                "src=${it.sourceId}/${it.sourceName} dst=${it.destinationId}/${it.destinationName}\n",
+        val client = FireflyApiClient(prefs.getBaseUrl(), prefs.getToken())
+        return when (val result = client.searchNearbyTransactions(accountId, draft.date, windowMinutes)) {
+            is FireflyApiClient.Result.Success -> {
+                val matches = result.value
+                    .map {
+                        RemoteTransactionCandidate(
+                            groupId = it.groupId,
+                            date = it.date,
+                            amount = it.amount,
+                            currencyCode = it.currencyCode,
+                            description = it.description,
+                            sourceId = it.sourceId,
+                            sourceName = it.sourceName,
+                            destinationId = it.destinationId,
+                            destinationName = it.destinationName,
                         )
                     }
-                    val matches = result.value
-                        .map {
-                            RemoteTransactionCandidate(
-                                groupId = it.groupId,
-                                date = it.date,
-                                amount = it.amount,
-                                currencyCode = it.currencyCode,
-                                description = it.description,
-                                sourceId = it.sourceId,
-                                sourceName = it.sourceName,
-                                destinationId = it.destinationId,
-                                destinationName = it.destinationName,
-                            )
-                        }
-                        .filter { remoteCandidateMatches(draft, it, includeDescription, windowMinutes) }
-                    debug.append("matched=${matches.size}")
-                    when {
-                        matches.isEmpty() -> showDebugDialog(context, debug.toString()) { postTransaction(draft, message) }
-                        matches.size == 1 ->
-                            showDebugDialog(context, debug.toString()) {
-                                showDuplicateConfirmDialog(context, matches.first().groupId, draft, message)
-                            }
-                        else -> {
-                            // More than one plausible match - the user's own call: an extra
-                            // warning on top of (not instead of) the usual duplicate-confirm
-                            // dialog, since this is a *stronger* signal of a real duplicate, not a
-                            // weaker one. The dialog itself only has room for one "found" id - the
-                            // most recent match, same tie-break `findWithinWindow` already uses.
-                            Toast.makeText(
-                                context,
-                                getString(R.string.create_remote_duplicates_found, matches.size),
-                                Toast.LENGTH_LONG,
-                            ).show()
-                            val mostRecent = matches.maxBy { it.date }
-                            showDebugDialog(context, debug.toString()) {
-                                showDuplicateConfirmDialog(context, mostRecent.groupId, draft, message)
-                            }
-                        }
-                    }
-                }
-                is FireflyApiClient.Result.Failure -> {
-                    // A failed remote check shouldn't block creation - it's an extra safety net on
-                    // top of the local dedup log above, not the primary mechanism; that one already
-                    // ran and found nothing.
-                    debug.append("remote search FAILED: ${result.message}")
-                    showDebugDialog(context, debug.toString()) { postTransaction(draft, message) }
+                    .filter { remoteCandidateMatches(draft, it, includeDescription, windowMinutes) }
+                when {
+                    matches.isEmpty() -> DuplicateCheckResult.None
+                    matches.size == 1 -> DuplicateCheckResult.Found(matches.first().groupId)
+                    // The dialog only has room for one "found" id - the most recent match, same
+                    // tie-break `CreatedTransactionsDb.findWithinWindow` already uses.
+                    else -> DuplicateCheckResult.FoundMultiple(matches.maxBy { it.date }.groupId, matches.size)
                 }
             }
+            // A failed remote check shouldn't block creation - it's an extra safety net on top of
+            // the local dedup log above, not the primary mechanism; that one already ran and found
+            // nothing.
+            is FireflyApiClient.Result.Failure -> DuplicateCheckResult.None
         }
     }
 
-    /** TEMPORARY - a plain-text dump of what the dedup check actually saw/decided, shown before
-     * [onProceed] runs, while tracking down a real on-device miss the user hit (local AND remote
-     * checks both apparently found nothing for a transaction that does already exist in Firefly).
-     * Remove this and go back to running straight through once that's diagnosed. */
-    private fun showDebugDialog(context: Context, text: String, onProceed: () -> Unit) {
-        AlertDialog.Builder(context)
-            .setTitle("DEBUG dedup")
-            .setMessage(text)
-            .setPositiveButton(android.R.string.ok) { _, _ -> onProceed() }
-            .setCancelable(false)
-            .show()
+    /** Entry point for "Create Again" only now - the fresh-create path runs [checkForDuplicate]
+     * preemptively instead (see [showTestMatch]). Kept instant/click-first per the user's own
+     * call: re-creating from a message that's already linked is already an explicit "yes, another
+     * one anyway" decision, nothing ambiguous to resolve before the tap. */
+    private fun startCreate(draft: TransactionDraft, message: CapturedMessage) {
+        val context = requireContext()
+        if (draft.amount == null) {
+            Toast.makeText(context, R.string.create_amount_not_ready, Toast.LENGTH_SHORT).show()
+            return
+        }
+        viewLifecycleOwner.lifecycleScope.launch {
+            when (val result = checkForDuplicate(context, draft)) {
+                DuplicateCheckResult.None -> postTransaction(draft, message)
+                is DuplicateCheckResult.Found -> showDuplicateConfirmDialog(context, result.id, draft, message)
+                is DuplicateCheckResult.FoundMultiple -> {
+                    Toast.makeText(
+                        context,
+                        getString(R.string.create_remote_duplicates_found, result.count),
+                        Toast.LENGTH_LONG,
+                    ).show()
+                    showDuplicateConfirmDialog(context, result.mostRecentId, draft, message)
+                }
+            }
+        }
     }
 
     /** Four actions, not three ("Use Created"/"Open"/"Create anyway"/"Cancel", Cancel always

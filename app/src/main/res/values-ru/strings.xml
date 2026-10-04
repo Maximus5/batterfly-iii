@@ -126,6 +126,7 @@
     <string name="test_match_rate_lookup_failed">⚠ Не удалось получить курс: %1$s — это правило не сможет создать транзакцию для этого сообщения.</string>
     <string name="test_match_create">Создать транзакцию</string>
     <string name="create_amount_not_ready">Сумма ещё не готова — дождитесь загрузки курса.</string>
+    <string name="create_checking">Проверка…</string>
     <string name="create_remote_duplicates_found">Внимание: в Firefly найдено %1$d подходящих транзакций, а не одна.</string>
     <string name="create_duplicate_confirm_title">Возможный дубль</string>
     <string name="create_duplicate_confirm_message">В пределах окна дедупликации уже создана транзакция (№%1$s) с теми же счетами, суммой и валютой. Всё равно создать эту?</string>

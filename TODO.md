@@ -144,14 +144,26 @@ work.
       ever catches a transaction *this app* created - a second device
       (or a different app's own direct integration) notifying about the
       same real payment never touches `CreatedTransactionsDb` at all.
-      `startCreate` now also asks Firefly itself
-      (`FireflyApiClient.searchNearbyTransactions`, `GET
+      `checkForDuplicate` (shared by the fresh-create and "Create Again"
+      paths - see the preemptive-dialog item below) now also asks
+      Firefly itself (`FireflyApiClient.searchNearbyTransactions`, `GET
       /v1/accounts/{id}/transactions?start=...&end=...` - account-
       scoped, confirmed against `Account/ListController::transactions()`'s
       source rather than assumed) once the local lookup comes up empty,
       scoped to whichever side of the draft has a Firefly account id
       (skipped entirely if neither side does - nothing to scope the
-      query to). `rules.remoteCandidateMatches` (pure, unit tested -
+      query to). **Real on-device gap found this way**: a rule whose
+      asset-side account was typed as free text instead of picked via
+      `RuleEditFragment.showAccountPicker` has neither id, so the
+      remote check never runs for it at all - confirmed against the
+      user's own real rule (debug build dump: `sourceAccountId=null
+      destinationAccountId=null`). Not yet fixed - would need either
+      nudging the user to re-pick the account from the list, or falling
+      back to Firefly's free-text `/v1/search/transactions` endpoint
+      (not yet verified - its query syntax wasn't pinned down when
+      `searchNearbyTransactions` was first built, which is why the
+      account-scoped endpoint was chosen instead) when no account id is
+      available on either side. `rules.remoteCandidateMatches` (pure, unit tested -
       `TransactionDedupTest`) does the exact-match check client-side
       (date window, amount, currency, description-if-the-toggle-says-so,
       account by id-or-name) by reshaping the candidate into a throwaway
@@ -170,6 +182,22 @@ work.
       connection) falls through to posting normally rather than
       blocking - it's an extra safety net on top of the local log, not
       the primary mechanism.
+      **Done, prompted directly by the user after hitting a real
+      unwanted duplicate**: the fresh-create "Создать" button used to
+      run the whole check above only *after* being tapped, so the same
+      tap could silently post straight through, silently reuse a found
+      transaction, or pop up a second "possible duplicate" dialog - no
+      way to tell which in advance, a "blind click" by the user's own
+      description. `showTestMatch` now runs `resolveApproxConversion`
+      (if needed) then `checkForDuplicate` right after showing the
+      match dialog, with the "Создать" button added disabled
+      ("Checking…") until that resolves - it only ever becomes tappable
+      once its own outcome is already decided, so there's never a
+      second dialog popping up as a surprise afterward. "Create Again"
+      (already-linked messages) deliberately keeps the old
+      click-first/instant behavior, per the user's own call - it's
+      already an explicit "yes, another one anyway" decision with
+      nothing ambiguous left to resolve.
     - `LOCAL_AMOUNT_MISSING` (currency captured by the pattern differs
       from the rule's `homeCurrency`, no explicit `foreignAmount`/
       `foreignCurrency` groups to tell us the converted amount - e.g. a

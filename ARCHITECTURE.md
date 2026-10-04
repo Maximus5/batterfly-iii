@@ -706,41 +706,60 @@ Single `:app` module, packages under
     date field in this dialog at all before that feature existed, so a
     wrong override would've been invisible until a transaction actually
     posted with it. When the draft has `LOCAL_AMOUNT_MISSING`
-    (foreign-currency message, no home-currency amount), the dialog
-    shows "no amount" immediately and, in the background
-    (`fetchApproxConversionIfNeeded`, `viewLifecycleOwner.lifecycleScope`),
-    fetches a real rate from `network.ExchangeRateClient` for the
-    message's own date and swaps the already-shown dialog's message in
-    place (`AlertDialog.setMessage`, works after `.show()`) once it
+    (foreign-currency message, no home-currency amount),
+    `resolveApproxConversion` (suspend, not fire-and-forget - see below
+    for why) fetches a real rate from `network.ExchangeRateClient` for
+    the message's own date and swaps the already-shown dialog's message
+    in place (`AlertDialog.setMessage`, works after `.show()`) once it
     resolves - a computed amount + the approx tag on success
     (`rules.applyApproxConversion`), or the original body plus an
-    explicit "lookup failed: <reason>" line on failure. A local `var
-    draft` in `showTestMatch` (not the original `outcome.draft`) tracks
-    whichever is current, since the dialog's "Создать" button (below)
-    reads it at click time, after it may have already been swapped.
+    explicit "lookup failed: <reason>" line on failure.
 
     The dialog's buttons depend on whether *this message*
     (`message.fireflyTransactionId`, not the draft) already has a
     linked transaction - only added when the match produced a draft
     *and* `FireflyPrefs.isConfigured()`, not shown at all for a no-match
     or an unconfigured connection:
-    - Nothing linked yet: neutral = "Создать" (`test_match_create`).
     - Already linked: neutral = "Open Transaction" (same
       `network.transactionUrl`/`ACTION_VIEW` as the success dialog's own
       button, factored into one `openTransaction(context, id)` helper
-      both call), negative = "Create Again" - kept out of the neutral
-      slot on purpose, so the single most relevant secondary action
-      always sits there (create when nothing's linked, open when
-      something is) and "do it again" stays a deliberate second choice,
-      not the default. "Create Again" re-runs the exact same
-      `startCreate` flow as a first-time create, dedup check included -
-      no separate skip-dedup path, since the user didn't ask for one
-      and it would've doubled the logic for no clear benefit (the dedup
-      log almost certainly *will* find the transaction this message is
-      already linked to, and "create anyway" in that dialog is already
-      how the user pushes past it).
+      both call, wired immediately - no async dependency), negative =
+      "Create Again" - kept out of the neutral slot on purpose, so the
+      single most relevant secondary action always sits there (create
+      when nothing's linked, open when something is) and "do it again"
+      stays a deliberate second choice, not the default. "Create Again"
+      stays click-first/instant (`startCreate`, below) - a deliberate
+      exception to the preemptive check described next, per the user's
+      own call: re-creating from an already-linked message is already
+      an explicit "yes, another one anyway" decision, nothing ambiguous
+      left to resolve before the tap.
+    - Nothing linked yet: neutral = "Создать" (`test_match_create`),
+      but **not tappable yet** - it's added disabled, showing
+      "Checking…" (`create_checking`), until the dedup check below
+      resolves. **Fixed a real user complaint**: the original design
+      only ran the dedup check *after* the tap, so the exact same
+      button could silently post straight through, silently reuse an
+      existing transaction (local or remote match), or pop up a second
+      "possible duplicate" dialog - no way to tell which in advance, a
+      "blind click" by the user's own description, demonstrated with a
+      real duplicate it created by mistake. Now `showTestMatch` itself
+      runs `resolveApproxConversion` (if needed) then `checkForDuplicate`
+      (shared with `startCreate`, see below) on
+      `viewLifecycleOwner.lifecycleScope` right after showing the
+      dialog, then sets the neutral button's final text/enabled
+      state/click handler based on the outcome - the button is only
+      ever interactive once its own tap's result is already decided, no
+      second dialog popping up afterward as a surprise. (If the
+      exchange-rate fetch resolves to a still-null amount, the button is
+      enabled anyway with the normal label - tapping it just hits
+      `startCreate`'s existing "amount not ready" toast, same fallback
+      as before this change, rather than leaving the button stuck
+      disabled with no way forward.)
 
-    `startCreate` first checks the dedup log
+    `checkForDuplicate(context, draft)` (shared by both paths above) is
+    the dedup logic itself, returning a `DuplicateCheckResult`
+    (`None`/`Found(id)`/`FoundMultiple(mostRecentId, count)`) instead of
+    directly branching to a dialog - local log first
     (`rules.CreatedTransactionsDb.findWithinWindow`, skipped entirely
     when `FireflyPrefs.isDedupEnabled()` is off) using
     `rules.transactionDedupHash` (source/destination id-or-name +
@@ -754,20 +773,24 @@ Single `:app` module, packages under
     `network` section above) - the local log alone can't catch a
     duplicate a second device or app's own integration created, since
     it never touches this app's log at all. Scoped to whichever of
-    `draft`'s source/destination has a Firefly account id (skipped
-    entirely if neither does - nothing to scope the query to), filtered
-    client-side via `rules.remoteCandidateMatches` (see the `rules`
-    section above). Zero remote matches posts normally; exactly one
-    goes through the same duplicate-confirm dialog as a local hit; more
-    than one shows an *additional* Toast warning
-    (`create_remote_duplicates_found`) on top of that same dialog
-    (using the most recent match as the dialog's "found" id) rather
-    than replacing it - the user's own call, since more matches is a
-    stronger signal, not a reason to short-circuit the usual flow. A
-    failed remote call falls through to posting normally, same
-    "flag it, don't guess, but don't block on a best-effort extra check"
-    reasoning as everywhere else in this app - the local check already
-    ran and found nothing.
+    `draft`'s source/destination has a Firefly account id - **a real
+    on-device gap, not yet fixed**: a rule whose asset-side account was
+    typed as free text rather than picked from `showAccountPicker`
+    (see the `RuleEditFragment` notes below) has neither id, so the
+    remote check is skipped entirely and only the local log can ever
+    catch anything for it; confirmed via a debug build the user ran
+    against a real rule shaped exactly like this. Filtered client-side
+    via `rules.remoteCandidateMatches` (see the `rules` section above).
+    Zero remote matches -> `None`; exactly one -> `Found`; more than one
+    -> `FoundMultiple`, which both call sites turn into an *additional*
+    Toast warning (`create_remote_duplicates_found`) on top of the same
+    duplicate-confirm dialog a single match gets (using the most recent
+    match as the dialog's "found" id) rather than replacing it - the
+    user's own call, since more matches is a stronger signal, not a
+    reason to short-circuit the usual flow. A failed remote call maps to
+    `None`, same "flag it, don't guess, but don't block on a
+    best-effort extra check" reasoning as everywhere else in this app -
+    the local check already ran and found nothing.
 
     A likely duplicate (local or remote)
     shows the found transaction's id in the message itself
