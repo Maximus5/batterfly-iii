@@ -497,28 +497,42 @@ Single `:app` module, packages under
     - `RulesListFragment` - the ordered rule list (`RulesAdapter`);
       tap opens `RuleEditFragment` to edit, the overflow (⋮) menu per
       row has move up/down, duplicate, delete - all straight
-      `RulesDb` calls followed by a reload. A FAB opens
-      `RuleEditFragment` with no rule id, to create one. Export/Import
-      (`RulesJson`, see `backup` above) are 40dp icon `ImageButton`s
-      (`ic_export`/`ic_import`, `selectableItemBackgroundBorderless`)
-      sitting in the *same* bottom-end row as the FAB, not a separate
-      row above the list - the first version put them in their own row
-      (matching the FAB's "icon, not text" language but not its
-      position), which the user flagged directly ("я же просил
-      поставить кнопки рядом с +"). The icons themselves went through a
-      multi-round design review (plain Material up/down tray arrows ->
-      a thin arrow overlaid on a DB-barrel silhouette, rejected as
-      illegible and for not actually being an outline -> the current
-      design: an outlined folder silhouette with an outlined DB
-      cylinder inside and an *outlined* block arrow - head + stem, not
-      a hairline - passing through a deliberate gap in the folder's top
-      edge, wide enough on both sides that the arrow and the folder
-      outline don't visually fuse; export's arrow exits upward, import's
-      enters downward, otherwise identical paths) - all of it iterated
-      live via a published Design-type Artifact (JSON shared record of
-      a design review, not committed anywhere in this repo) before any
-      drawable XML was written, per the user's explicit "покажи дизайн
-      прежде чем реализовать". Each row's
+      `RulesDb` calls followed by a reload. Add/Export/Import
+      (`RulesJson`, see `backup` above) are three `menu_rules_list`
+      action icons (`ic_add`/`ic_export`/`ic_import`) on the hosting
+      `SettingsActivity`'s toolbar, wired via a `MenuProvider` added in
+      `onViewCreated` (`viewLifecycleOwner`, `Lifecycle.State.RESUMED`
+      - scoped to this fragment's own lifecycle, so it stops
+      contributing the moment the user navigates away, same pattern
+      `MainActivity`'s selection-mode menu switch uses at the Activity
+      level). This replaced an actual `FloatingActionButton` plus two
+      `ImageButton`s, round-tripped through several placements this
+      session: first a row of icon buttons above the list (matching the
+      FAB's "icon, not text" language but not its position - flagged
+      directly, "я же просил поставить кнопки рядом с +"), then the
+      same icon buttons moved into the FAB's own bottom-end row - which
+      the user then rejected outright too, not for position but because
+      a filled, colored, elevated Material FAB sitting next to two
+      plain borderless icon buttons never reads as "the same kind of
+      button" ("какого фига разные кнопки делаешь?"; the FAB's own
+      shadow also visibly clipped against its parent's bounds at that
+      position, a separate rendering bug this change sidesteps
+      entirely). Toolbar action icons give all three the exact same
+      rendering for free (tinted icon, ripple, no background, no
+      elevation) with no custom layout to get wrong. The icons
+      themselves also went through a multi-round design review (plain
+      Material up/down tray-arrow icons -> an attempt at a folder
+      silhouette with a DB cylinder inside and an arrow through a gap
+      in the outline, iterated live via a published Design-type
+      Artifact - several rounds fixed in the abstract HTML mockup
+      didn't survive contact with the real on-device render at actual
+      icon size, e.g. an arrow-to-outline overlap that looked connected
+      in the browser read as a floating, disconnected arrow on device -
+      before the user called the whole direction a net loss and asked
+      for the original tray-arrow icons back). Net result: still the
+      original plain up/down tray-arrow `ic_export`/`ic_import` glyphs,
+      plus a new matching filled `ic_add` (Material's own "add" glyph)
+      so all three toolbar icons share one visual language. Each row's
       subtitle is the app name bold on its own line (`SpannableStringBuilder`
       + `StyleSpan`, not a separate `TextView` - it's the row's identity,
       everything else is detail about that one app), then

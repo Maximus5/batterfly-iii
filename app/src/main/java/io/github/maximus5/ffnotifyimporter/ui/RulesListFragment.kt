@@ -3,12 +3,17 @@ package io.github.maximus5.ffnotifyimporter.ui
 import android.net.Uri
 import android.os.Bundle
 import android.view.LayoutInflater
+import android.view.Menu
+import android.view.MenuInflater
+import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
 import android.widget.PopupMenu
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.view.MenuProvider
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.Lifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import io.github.maximus5.ffnotifyimporter.R
 import io.github.maximus5.ffnotifyimporter.backup.rulesFromJson
@@ -53,13 +58,37 @@ class RulesListFragment : Fragment() {
         binding.rulesRecyclerView.layoutManager = LinearLayoutManager(requireContext())
         binding.rulesRecyclerView.adapter = adapter
 
-        binding.addRuleButton.setOnClickListener { openEditor(null) }
-        binding.exportRulesButton.setOnClickListener {
-            exportLauncher.launch(defaultExportFileName())
-        }
-        binding.importRulesButton.setOnClickListener {
-            importLauncher.launch(arrayOf("application/json"))
-        }
+        // Toolbar action icons, not a FAB - all three (add/export/import) render in the same
+        // style this way (plain tinted icon, no colored background or elevation shadow), which a
+        // custom FAB-plus-ImageButtons mix couldn't give for free; see ARCHITECTURE.md's
+        // RulesListFragment notes.
+        requireActivity().addMenuProvider(
+            object : MenuProvider {
+                override fun onCreateMenu(menu: Menu, menuInflater: MenuInflater) {
+                    menuInflater.inflate(R.menu.menu_rules_list, menu)
+                }
+
+                override fun onMenuItemSelected(menuItem: MenuItem): Boolean {
+                    return when (menuItem.itemId) {
+                        R.id.action_add_rule -> {
+                            openEditor(null)
+                            true
+                        }
+                        R.id.action_export_rules -> {
+                            exportLauncher.launch(defaultExportFileName())
+                            true
+                        }
+                        R.id.action_import_rules -> {
+                            importLauncher.launch(arrayOf("application/json"))
+                            true
+                        }
+                        else -> false
+                    }
+                }
+            },
+            viewLifecycleOwner,
+            Lifecycle.State.RESUMED,
+        )
     }
 
     override fun onResume() {

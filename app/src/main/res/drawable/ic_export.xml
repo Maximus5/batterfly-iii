@@ -1,8 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Folder (outline, wide flat tab) with a DB cylinder (outline) inside, and an outlined block
-     arrow exiting through a gap in the folder's top edge. The arrow's stem overlaps 3 units into
-     the folder's interior past the gap line - a 1-unit overlap read as a floating, disconnected
-     arrow once rendered at real icon size (see ARCHITECTURE.md's RulesListFragment notes). -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
@@ -10,38 +6,6 @@
     android:viewportHeight="24"
     android:tint="?attr/colorOnSurfaceVariant">
     <path
-        android:pathData="M20,8 L22,8 L22,22 L2,22 L2,8 L4,8 L4,5 L10,5 L10,8 L14,8"
-        android:fillColor="@android:color/transparent"
-        android:strokeColor="#FF000000"
-        android:strokeWidth="1.5"
-        android:strokeLineCap="butt"
-        android:strokeLineJoin="miter" />
-    <path
-        android:pathData="M6,16.5 A6,1.8 0 1,0 18,16.5 A6,1.8 0 1,0 6,16.5 Z"
-        android:fillColor="@android:color/transparent"
-        android:strokeColor="#FF000000"
-        android:strokeWidth="1.5"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round" />
-    <path
-        android:pathData="M6,16.5 V20 A6,1.8 0 0,0 18,20 V16.5"
-        android:fillColor="@android:color/transparent"
-        android:strokeColor="#FF000000"
-        android:strokeWidth="1.5"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round" />
-    <path
-        android:pathData="M6,18.25 A6,1.8 0 0,0 18,18.25"
-        android:fillColor="@android:color/transparent"
-        android:strokeColor="#FF000000"
-        android:strokeWidth="1.5"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round" />
-    <path
-        android:pathData="M17,1 L21,6 L18,6 L18,11 L16,11 L16,6 L13,6 Z"
-        android:fillColor="@android:color/transparent"
-        android:strokeColor="#FF000000"
-        android:strokeWidth="1.5"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round" />
+        android:fillColor="#FF000000"
+        android:pathData="M9,16h6v-6h4l-7,-7l-7,7h4v6zM5,18h14v2H5z" />
 </vector>
