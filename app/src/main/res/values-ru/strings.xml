@@ -47,8 +47,8 @@
     <string name="settings_rules_subtitle">Сопоставление уведомлений с транзакциями Firefly III</string>
     <string name="rules_empty">Правил пока нет. Нажмите +, чтобы добавить.</string>
     <string name="rules_add">Добавить правило</string>
-    <string name="rules_export">Экспорт…</string>
-    <string name="rules_import">Импорт…</string>
+    <string name="rules_export">Экспорт правил</string>
+    <string name="rules_import">Импорт правил</string>
     <string name="rules_export_success">Экспортировано правил: %1$d.</string>
     <string name="rules_export_failed">Ошибка экспорта: %1$s</string>
     <string name="rules_import_success">Импортировано правил: %1$d.</string>

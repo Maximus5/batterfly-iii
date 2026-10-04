@@ -491,7 +491,13 @@ Single `:app` module, packages under
       tap opens `RuleEditFragment` to edit, the overflow (⋮) menu per
       row has move up/down, duplicate, delete - all straight
       `RulesDb` calls followed by a reload. A FAB opens
-      `RuleEditFragment` with no rule id, to create one. Each row's
+      `RuleEditFragment` with no rule id, to create one. Export/Import
+      (`RulesJson`, see `backup` above) are plain icon `ImageButton`s
+      (`ic_export`/`ic_import`, `selectableItemBackgroundBorderless`,
+      48dp) in a row above the list - matching the FAB's "icon, not a
+      text button" language instead of the borderless *text* buttons
+      this screen used at first, per user feedback once the FAB was
+      sitting right next to them. Each row's
       subtitle is the app name bold on its own line (`SpannableStringBuilder`
       + `StyleSpan`, not a separate `TextView` - it's the row's identity,
       everything else is detail about that one app), then

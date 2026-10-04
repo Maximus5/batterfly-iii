@@ -47,8 +47,8 @@
     <string name="settings_rules_subtitle">Match notifications to Firefly III transactions</string>
     <string name="rules_empty">No rules yet. Tap + to add one.</string>
     <string name="rules_add">Add rule</string>
-    <string name="rules_export">Export…</string>
-    <string name="rules_import">Import…</string>
+    <string name="rules_export">Export rules</string>
+    <string name="rules_import">Import rules</string>
     <string name="rules_export_success">Exported %1$d rule(s).</string>
     <string name="rules_export_failed">Export failed: %1$s</string>
     <string name="rules_import_success">Imported %1$d rule(s).</string>
