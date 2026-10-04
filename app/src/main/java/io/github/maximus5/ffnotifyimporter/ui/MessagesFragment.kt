@@ -1,5 +1,6 @@
 package io.github.maximus5.ffnotifyimporter.ui
 
+import android.content.Context
 import android.graphics.Typeface
 import android.os.Bundle
 import android.text.SpannableStringBuilder
@@ -8,6 +9,7 @@ import android.text.style.StyleSpan
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
@@ -17,7 +19,10 @@ import io.github.maximus5.ffnotifyimporter.data.CapturedMessage
 import io.github.maximus5.ffnotifyimporter.data.MessageStore
 import io.github.maximus5.ffnotifyimporter.databinding.FragmentMessagesBinding
 import io.github.maximus5.ffnotifyimporter.network.ExchangeRateClient
+import io.github.maximus5.ffnotifyimporter.network.FireflyApiClient
+import io.github.maximus5.ffnotifyimporter.network.FireflyTransactionRequest
 import io.github.maximus5.ffnotifyimporter.prefs.FireflyPrefs
+import io.github.maximus5.ffnotifyimporter.rules.CreatedTransactionsDb
 import io.github.maximus5.ffnotifyimporter.rules.CurrenciesDb
 import io.github.maximus5.ffnotifyimporter.rules.DraftIssue
 import io.github.maximus5.ffnotifyimporter.rules.NoMatchReason
@@ -26,6 +31,7 @@ import io.github.maximus5.ffnotifyimporter.rules.RuleEngine
 import io.github.maximus5.ffnotifyimporter.rules.RulesDb
 import io.github.maximus5.ffnotifyimporter.rules.TransactionDraft
 import io.github.maximus5.ffnotifyimporter.rules.applyApproxConversion
+import io.github.maximus5.ffnotifyimporter.rules.transactionDedupHash
 import kotlinx.coroutines.launch
 
 class MessagesFragment : Fragment() {
@@ -77,6 +83,7 @@ class MessagesFragment : Fragment() {
         // (if any) actually fired.
         val title: CharSequence
         val body: CharSequence
+        var draft: TransactionDraft? = null
         when (outcome) {
             is ParseOutcome.NoMatch -> {
                 title = getString(R.string.test_match_no_match_title)
@@ -85,25 +92,40 @@ class MessagesFragment : Fragment() {
             is ParseOutcome.Matched -> {
                 title = outcome.rule.label
                 body = buildMatchedBody(outcome.draft)
+                draft = outcome.draft
             }
         }
 
-        val dialog = AlertDialog.Builder(requireContext())
+        val context = requireContext()
+        val builder = AlertDialog.Builder(context)
             .setTitle(title)
             .setMessage(body)
             .setPositiveButton(android.R.string.ok, null)
-            .show()
 
-        if (outcome is ParseOutcome.Matched) {
-            fetchApproxConversionIfNeeded(outcome.draft, dialog)
+        // "Создать" only offered once there's an actual draft to post and a Firefly connection to
+        // post it to - reads the latest `draft` at click time, not a stale copy, so it still works
+        // after fetchApproxConversionIfNeeded swaps in a resolved amount underneath it.
+        if (draft != null && FireflyPrefs(context).isConfigured()) {
+            builder.setNeutralButton(R.string.test_match_create) { _, _ -> draft?.let { startCreate(it) } }
+        }
+
+        val dialog = builder.show()
+
+        draft?.let {
+            fetchApproxConversionIfNeeded(it, dialog) { updated -> draft = updated }
         }
     }
 
     /** When a draft is missing its home-currency amount (foreign currency only), fetches a real
      * exchange rate for the message's own date and swaps the already-shown dialog's body in place
-     * once it resolves. Preview-only convenience - no Firefly posting exists yet (see TODO.md) -
-     * so a failed lookup just appends why, it doesn't block or retry anything. */
-    private fun fetchApproxConversionIfNeeded(draft: TransactionDraft, dialog: AlertDialog) {
+     * once it resolves, reporting the resolved draft back via [onUpdated] so "Создать" posts the
+     * right amount. Preview-only beyond that - a failed lookup just appends why, it doesn't block
+     * or retry anything. */
+    private fun fetchApproxConversionIfNeeded(
+        draft: TransactionDraft,
+        dialog: AlertDialog,
+        onUpdated: (TransactionDraft) -> Unit,
+    ) {
         if (DraftIssue.LOCAL_AMOUNT_MISSING !in draft.issues) return
         val foreignCurrency = draft.foreignCurrencyCode ?: return
         val context = requireContext()
@@ -113,6 +135,7 @@ class MessagesFragment : Fragment() {
                     val approxTag = FireflyPrefs(context).getApproxConversionTag()
                     val updated = applyApproxConversion(draft, result.rate, approxTag)
                     dialog.setMessage(buildMatchedBody(updated))
+                    onUpdated(updated)
                 }
                 is ExchangeRateClient.Result.Failure -> {
                     val updatedBody = SpannableStringBuilder(buildMatchedBody(draft))
@@ -122,6 +145,75 @@ class MessagesFragment : Fragment() {
                 }
             }
         }
+    }
+
+    /** Entry point for the "Создать" button - checks the dedup log (if enabled) before actually
+     * posting, per the user's own call on this: manual creation asks for confirmation on a likely
+     * duplicate rather than silently blocking or silently allowing it. */
+    private fun startCreate(draft: TransactionDraft) {
+        val context = requireContext()
+        if (draft.amount == null) {
+            Toast.makeText(context, R.string.create_amount_not_ready, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val prefs = FireflyPrefs(context)
+        val hash = transactionDedupHash(draft, prefs.isDedupIncludeDescription())
+        val isDuplicate = prefs.isDedupEnabled() &&
+            CreatedTransactionsDb.getInstance(context)
+                .existsWithinWindow(hash, draft.date.toEpochMilli(), prefs.getDedupWindowMinutes())
+
+        if (isDuplicate) {
+            AlertDialog.Builder(context)
+                .setTitle(R.string.create_duplicate_confirm_title)
+                .setMessage(R.string.create_duplicate_confirm_message)
+                .setPositiveButton(R.string.create_duplicate_confirm_button) { _, _ -> postTransaction(draft, hash) }
+                .setNegativeButton(android.R.string.cancel, null)
+                .show()
+        } else {
+            postTransaction(draft, hash)
+        }
+    }
+
+    private fun postTransaction(draft: TransactionDraft, hash: String) {
+        val amount = draft.amount ?: return
+        val context = requireContext()
+        val prefs = FireflyPrefs(context)
+        val request = FireflyTransactionRequest(
+            type = draft.kind.name.lowercase(),
+            dateIso = draft.date.toString(),
+            amount = amount.toPlainString(),
+            description = draft.description,
+            currencyCode = draft.currencyCode,
+            sourceId = draft.sourceAccountId,
+            sourceName = draft.sourceName,
+            destinationId = draft.destinationAccountId,
+            destinationName = draft.destinationName,
+            categoryName = draft.category,
+            tags = draft.tags,
+            notes = draft.notes.takeIf { it.isNotBlank() },
+            foreignAmount = draft.foreignAmount?.toPlainString(),
+            foreignCurrencyCode = draft.foreignCurrencyCode,
+        )
+        viewLifecycleOwner.lifecycleScope.launch {
+            val client = FireflyApiClient(prefs.getBaseUrl(), prefs.getToken())
+            when (val result = client.createTransaction(request)) {
+                is FireflyApiClient.Result.Success -> {
+                    CreatedTransactionsDb.getInstance(context).recordCreated(hash, draft.date.toEpochMilli(), result.value)
+                    showResultDialog(context, R.string.create_success_title, getString(R.string.create_success_message, result.value))
+                }
+                is FireflyApiClient.Result.Failure -> {
+                    showResultDialog(context, R.string.create_failed_title, result.message)
+                }
+            }
+        }
+    }
+
+    private fun showResultDialog(context: Context, titleRes: Int, message: String) {
+        AlertDialog.Builder(context)
+            .setTitle(titleRes)
+            .setMessage(message)
+            .setPositiveButton(android.R.string.ok, null)
+            .show()
     }
 
     /** Bolds each field's label ("Source:", "Amount:", ...) so a multi-field dialog reads as a

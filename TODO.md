@@ -42,23 +42,56 @@ work.
       also now pre-highlights whichever account already matches the
       field's current text when reopened (`setSingleChoiceItems`, also
       user-raised).
-    - **Not done yet**: `createTransaction()` still has no caller - a
-      local "created transactions" log (hash + source notification +
-      Firefly transaction id, the latter from `createTransaction()`'s
-      return value) for both the dedup check and an "already created"
-      state; the "Создать" button itself on the Messages screen's
-      test-match dialog, which is what actually calls
-      `createTransaction()` for the first time; the auto-create path
-      (WorkManager retry on failure, per AGENTS.md's stack note).
-    - Once full posting exists, it needs an automatic-posting setting
-      (**done** - see above) *and* a transaction-level dedup option
-      (**done** - see above) - two different problems from
+    - **Done**: `createTransaction()` finally has a caller - the
+      "Создать" neutral button on the Messages screen's test-match
+      dialog (`MessagesFragment.startCreate`/`postTransaction`), shown
+      whenever a rule matched, a Firefly connection is configured, and
+      the draft's amount is resolved (reads the *current* draft at
+      click time, so it still works after the async exchange-rate fetch
+      above swaps a resolved amount in). On success: records the
+      transaction in a new local log
+      (`rules.CreatedTransactionsDb` - hash + the transaction's own
+      date + the returned Firefly transaction id, one row per
+      successful `createTransaction()` call - plain SQLite, same
+      reasoning as `MessageHistoryDb`/`RulesDb`) and shows an OK dialog
+      with the Firefly transaction id. On failure: shows the real
+      failure reason, same pattern as every other Firefly-call failure
+      in this app (`firefly_test_connection_failure`,
+      `rule_firefly_accounts_failed`, ...).
+      `TransactionDraft` gained `sourceAccountId`/`destinationAccountId`
+      (from `ParseRule`, populated in `RuleEngine.buildDraft`) so
+      posting can prefer the Firefly account id the same way
+      `FireflyJson.buildTransactionRequestBody` already does.
+      **Still not done**: the auto-create path (WorkManager retry on
+      failure, per AGENTS.md's stack note) - `FireflyPrefs.
+      isAutoCreateEnabled()` exists as a setting but nothing reads it
+      yet. Decided (asked the user directly, not assumed) for when this
+      gets built: manual creation (the button above) asks for an
+      explicit confirmation on a likely duplicate before creating it
+      anyway; automatic creation *skips* a likely duplicate instead and
+      surfaces that as a system notification, and a *successful*
+      automatic creation also gets a system notification (manual
+      creation's success feedback stays the in-app OK dialog it has
+      now, not a notification - the user is already looking at the
+      screen).
+    - Transaction-level dedup (**done**, manual-creation path only -
+      see above): `rules.transactionDedupHash` (pure, unit tested -
+      `TransactionDedupTest`) hashes source/destination
+      (account id when present, else the rendered name)
+      + amount (canonical 2-decimal string, so `12.5`/`12.50` hash the
+      same) + currency + description (only when
+      `FireflyPrefs.isDedupIncludeDescription()`), and
+      `CreatedTransactionsDb.existsWithinWindow` checks it against
+      `FireflyPrefs.getDedupWindowMinutes()` centered on the new
+      transaction's own date (not "now"), so two apps notifying about
+      the same payment seconds apart both land in the same window
+      regardless of processing order. This is a different problem from
       `MessageStore`'s existing notification-level dedup
       (`(packageName, title, text)` within a window - see its
       ARCHITECTURE.md entry):
         - A bank can re-post the same notification a few times - already
           handled by that same-app dedup, but it's worth actually
-          confirming against a real repeat-notification case once
+          confirming against a real repeat-notification case now that
           posting makes a duplicate actually cost something (an extra
           transaction in Firefly), rather than trusting it untested.
         - Rules can legitimately exist for *two different apps* that
@@ -66,20 +99,19 @@ work.
           bank's own app and Google/Apple Wallet both firing for one
           card tap, for example. `MessageStore`'s dedup never catches
           this (different `packageName`, so it's two distinct captured
-          messages by design) - each would independently match its own
-          rule and, without something new, produce two Firefly
-          transactions for one real payment.
+          messages by design) - this is exactly what the hash-based
+          check above catches instead, as long as both land within the
+          configured window.
         - Open question, not resolved: how to tell "the same payment,
           reported twice by two apps" apart from "the same payment,
           genuinely happening twice in a row" (e.g. tapping a phone
           twice for two separate NFC turnstile entries) - a naive
           same-amount-same-account-within-a-few-seconds rule would
-          collapse the second real transaction into a false dedup.
-          Likely a minor, low-probability case in practice (two people
-          tapping in close succession would typically use two separate
-          phones, not the same phone twice) - not blocking, but needs
-          an explicit answer before building the dedup logic, not an
-          assumption baked in silently.
+          collapse the second real transaction into a false dedup. The
+          manual path's "create anyway" confirmation is the safety net
+          for this today (the user sees the warning and decides); the
+          auto-create path above has no equivalent human-in-the-loop
+          moment, which is part of why it's still deferred.
     - `LOCAL_AMOUNT_MISSING` (currency captured by the pattern differs
       from the rule's `homeCurrency`, no explicit `foreignAmount`/
       `foreignCurrency` groups to tell us the converted amount - e.g. a
@@ -216,7 +248,13 @@ work.
   message, including the foreign-currency/LOCAL_AMOUNT_MISSING case)
   - see ARCHITECTURE.md's Known bugs/gotchas. Notification capture +
   dedup + fullscreen fix are already confirmed working on a real
-  device.
+  device. Also needs real-device verification now that it exists: the
+  "Создать" button against a real Firefly instance (both a clean create
+  and the duplicate-confirmation path - create the same message twice
+  within the dedup window and confirm the warning actually fires), and
+  `CreatedTransactionsDb`'s schema/upgrade path (no SQLite-level test
+  coverage exists for it, same as every other `SQLiteOpenHelper` in
+  this app).
 - No cap on `MessageStore`'s in-memory list size, or on
   `MessageHistoryDb` beyond the retention-window purge - for personal,
   low-volume bank notifications this is unlikely to matter. Revisit if

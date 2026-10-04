@@ -179,8 +179,34 @@ Single `:app` module, packages under
     description/notes/account names/etc, using the match's captured
     groups plus always-available `{title}`/`{body}`.
   - `TransactionDraft`/`DraftIssue`/`ParseOutcome`/`NoMatchReason` -
-    what a match produced (or why it didn't match), not yet a Firefly
-    API request.
+    what a match produced (or why it didn't match) - postable now
+    (`ui.MessagesFragment`'s "Создать" button, see its entry above),
+    via a plain mapping onto `network.FireflyTransactionRequest`, not a
+    `rules` -> `network` dependency (the mapping lives in the UI layer
+    that already depends on both). `sourceAccountId`/
+    `destinationAccountId` (from the same-named `ParseRule` fields,
+    populated in `RuleEngine.buildDraft`) ride along specifically so
+    posting - and `transactionDedupHash` below - can prefer the Firefly
+    account id over its name, same as `FireflyJson.
+    buildTransactionRequestBody` already did for `ParseRule` itself.
+  - `applyApproxConversion` (`ApproxConversionTest`) - pure
+    `amount = foreignAmount * rate` (`HALF_UP`, 2 decimals) plus
+    appending the approx-conversion tag, given a rate the caller
+    already fetched (`network.ExchangeRateClient`, see the `network`
+    section above) - `rules` still has no dependency on `network`.
+  - `transactionDedupHash`/`CreatedTransactionsDb`
+    (`TransactionDedupTest`) - the transaction-level dedup check, a
+    different problem from `MessageStore`'s notification-level dedup
+    (see TODO.md's dedup history for why both exist). The hash is pure
+    (source/destination id-or-name, canonical-scale amount, currency,
+    description only when `FireflyPrefs.isDedupIncludeDescription()`);
+    `CreatedTransactionsDb` is the usual plain-SQLite log (one row per
+    successful `createTransaction()` call - hash, the transaction's own
+    date, the returned Firefly id), queried by
+    `existsWithinWindow(hash, date, windowMinutes)` centered on the new
+    transaction's own date, not "now", so two apps notifying about the
+    same payment seconds apart land in the same window regardless of
+    which one gets processed first.
   - `RuleEngine.match(message)` (`RuleEngineTest`) - the
     first-rule-in-order-that-matches algorithm described above. Takes
     an optional `currencySymbols: Map<String,String>` (symbol -> code,
@@ -478,10 +504,33 @@ Single `:app` module, packages under
     place (`AlertDialog.setMessage`, works after `.show()`) once it
     resolves - a computed amount + the approx tag on success
     (`rules.applyApproxConversion`), or the original body plus an
-    explicit "lookup failed: <reason>" line on failure. This is a
-    preview-only convenience - nothing is posted to Firefly from this
-    dialog, see TODO.md for the still-missing "Создать" button/posting
-    pipeline this would feed into.
+    explicit "lookup failed: <reason>" line on failure. A local `var
+    draft` in `showTestMatch` (not the original `outcome.draft`) tracks
+    whichever is current, since the dialog's "Создать" button (below)
+    reads it at click time, after it may have already been swapped.
+
+    The dialog's neutral button is "Создать" (`setNeutralButton`,
+    `test_match_create`) - only added when the match produced a draft
+    *and* `FireflyPrefs.isConfigured()`, not shown at all for a no-match
+    or an unconfigured connection. `startCreate` first checks the dedup
+    log (`rules.CreatedTransactionsDb.existsWithinWindow`, skipped
+    entirely when `FireflyPrefs.isDedupEnabled()` is off) using
+    `rules.transactionDedupHash` (source/destination id-or-name +
+    canonical-scale amount + currency + description-if-the-toggle-says-so,
+    see its own KDoc and TODO.md's dedup history) - a likely duplicate
+    shows a confirm dialog ("create anyway?") rather than silently
+    blocking or silently proceeding, a deliberate answer the user gave
+    directly when asked (manual creation always asks; an eventual
+    auto-create path would instead skip-and-notify, see TODO.md - not
+    built yet). `postTransaction` builds a `FireflyTransactionRequest`
+    straight from the draft (`sourceAccountId ?: sourceName` preference
+    already lives in `FireflyJson.buildTransactionRequestBody`, nothing
+    new needed here) and calls `FireflyApiClient.createTransaction` on
+    `viewLifecycleOwner.lifecycleScope`; a success records a row in
+    `CreatedTransactionsDb` (hash + the transaction's own date + the
+    returned Firefly id) and shows an OK dialog with that id, a failure
+    shows the real failure reason, same pattern every other
+    Firefly-call failure in this app already uses.
   - `SettingsActivity` - everything else, as a stack of fragments
     pushed via plain `FragmentManager` back-stack transactions (no
     Navigation Component - the flow is small and linear enough not to

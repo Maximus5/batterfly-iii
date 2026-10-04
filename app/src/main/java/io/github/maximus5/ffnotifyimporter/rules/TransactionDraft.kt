@@ -9,8 +9,8 @@ enum class DraftIssue {
     LOCAL_AMOUNT_MISSING,
 }
 
-/** What a [ParseRule] detected in a notification. Not yet a Firefly III API request - posting is
- * a separate, not-yet-built step (see TODO.md); this is purely "what we matched". */
+/** What a [ParseRule] detected in a notification - "what we matched", now postable via
+ * `network.FireflyApiClient.createTransaction` (see `ui.MessagesFragment`'s "Создать" button). */
 data class TransactionDraft(
     val kind: RuleKind,
     val date: Instant,
@@ -19,7 +19,9 @@ data class TransactionDraft(
     val foreignAmount: BigDecimal?,
     val foreignCurrencyCode: String?,
     val sourceName: String?,
+    val sourceAccountId: String?, // from ParseRule.sourceAccountId - preferred over sourceName when posting
     val destinationName: String?,
+    val destinationAccountId: String?, // from ParseRule.destinationAccountId
     val description: String,
     val notes: String,
     val category: String?,
