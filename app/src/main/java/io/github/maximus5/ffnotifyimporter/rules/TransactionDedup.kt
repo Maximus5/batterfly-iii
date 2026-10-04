@@ -12,6 +12,25 @@ import java.time.Instant
  * two captured messages themselves are completely different (see TODO.md's dedup history). Pure,
  * no DB/network dependency, so it's plain-Kotlin unit testable on its own.
  *
+ * Only the account side(s) that actually define identity for [TransactionDraft.kind] go into the
+ * hash - source for `WITHDRAWAL`, destination for `DEPOSIT`, both for `TRANSFER` - the same sides
+ * `RuleValidation.validateRule` requires a name for, and the same reasoning: the other side isn't
+ * part of what makes this transaction *this* transaction. A `WITHDRAWAL` rule is never required to
+ * name a destination, so including it anyway meant the hash leaned on a field this app frequently
+ * leaves unset - harmless for comparing two local hashes against each other (always equally
+ * blank), but a real bug once anything *else* (Firefly's own stored data, see
+ * `remoteCandidateMatches`) entered the comparison with a real value sitting there instead,
+ * caught directly by the user.
+ *
+ * **Breaking change, accepted deliberately, not fixed**: this changes what hash the same draft
+ * produces whenever the kind-irrelevant side was non-blank before (an uncommon but real case -
+ * e.g. a `WITHDRAWAL` rule whose destination macro template still rendered something). A
+ * `CreatedTransactionsDb` row written under the old formula for one of those won't be found by a
+ * lookup computed under this one. The user's own explicit call on it ("не мудри, меняй
+ * transactionDedupHash") rather than threading a kind-awareness workaround through every caller
+ * instead - same "don't guess, ask/do the obvious thing" instinct as elsewhere in this app, just
+ * applied to *not* over-engineering around a real fix this time.
+ *
  * [includeDescription] - on by default (`FireflyPrefs.isDedupIncludeDescription`) - trades a
  * slightly higher false-negative rate (an occasional real duplicate charge from the same merchant
  * within the window goes uncaught) for zero risk of a false positive silently dropping a
@@ -22,9 +41,15 @@ import java.time.Instant
  */
 fun transactionDedupHash(draft: TransactionDraft, includeDescription: Boolean): String {
     val amount = requireNotNull(draft.amount) { "transactionDedupHash needs a resolved amount" }
-    val parts = listOf(
-        draft.sourceAccountId ?: draft.sourceName.orEmpty(),
-        draft.destinationAccountId ?: draft.destinationName.orEmpty(),
+    val accountParts = when (draft.kind) {
+        RuleKind.WITHDRAWAL -> listOf(draft.sourceAccountId ?: draft.sourceName.orEmpty())
+        RuleKind.DEPOSIT -> listOf(draft.destinationAccountId ?: draft.destinationName.orEmpty())
+        RuleKind.TRANSFER -> listOf(
+            draft.sourceAccountId ?: draft.sourceName.orEmpty(),
+            draft.destinationAccountId ?: draft.destinationName.orEmpty(),
+        )
+    }
+    val parts = accountParts + listOf(
         amount.setScale(2, RoundingMode.HALF_UP).toPlainString(),
         draft.currencyCode,
         if (includeDescription) draft.description else "",
@@ -52,10 +77,17 @@ data class RemoteTransactionCandidate(
 /**
  * True if [candidate] - a transaction Firefly already has, found by `ui.MessagesFragment`'s
  * remote duplicate check once the local dedup log already came up empty (see TODO.md's dedup
- * history) - looks like the same real-world payment as [draft]. Reuses [transactionDedupHash]
+ * history) - looks like the same real-world payment as [draft]. Needed because [candidate] isn't
+ * a [TransactionDraft] (different shape - no notes/category/tags/foreignAmount, but a `groupId`)
+ * and because [transactionDedupHash] deliberately doesn't cover date at all (the window check
+ * below is its own thing, same reason `CreatedTransactionsDb.findWithinWindow` does its own SQL
+ * `BETWEEN` rather than folding date into the hash). Reuses [transactionDedupHash] for the rest
  * rather than re-deriving the same amount/currency/description/account comparison a second way:
  * [candidate] is reshaped into a throwaway [TransactionDraft] first, then the two hashes are
- * compared directly.
+ * compared directly - this is also why [transactionDedupHash] being kind-aware (only the side(s)
+ * that matter for [TransactionDraft.kind]) is enough on its own to fix a real miss the user
+ * caught, with nothing extra needed here: whichever side doesn't matter for this kind never
+ * enters the comparison, however it's filled in on either side.
  *
  * One wrinkle [candidate] has that a locally-recorded row never does: Firefly assigns a real
  * account id to *every* account, including a counterparty this app only ever captured by name

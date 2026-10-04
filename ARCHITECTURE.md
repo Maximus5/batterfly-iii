@@ -249,9 +249,33 @@ Single `:app` module, packages under
     (`TransactionDedupTest`, `FullBackupJsonTest`) - the
     transaction-level dedup check, a different problem from
     `MessageStore`'s notification-level dedup (see TODO.md's dedup
-    history for why both exist). The hash is pure (source/destination
-    id-or-name, canonical-scale amount, currency, description only when
-    `includeDescription` is true); `CreatedTransactionsDb` is the usual
+    history for why both exist). The hash is pure - canonical-scale
+    amount, currency, description only when `includeDescription` is
+    true, and only the account side(s) `RuleValidation.validateRule`
+    actually requires a name for *this draft's kind* (id-or-name):
+    source only for `WITHDRAWAL`, destination only for `DEPOSIT`, both
+    for `TRANSFER`. **Fixed a second real bug, found right after the
+    first one below**: it used to always hash both sides regardless of
+    kind - harmless comparing two local hashes against each other
+    (the kind-irrelevant side is always equally blank for the same
+    rule), but once a comparison involves data from *outside* this
+    app (see `remoteCandidateMatches` below) the irrelevant side can
+    have a real value sitting there that this app never asserted
+    anything about, and the hash rejected an otherwise-exact match
+    over it - caught directly by the user testing a `WITHDRAWAL` rule
+    with no destination name configured, matched against Firefly's own
+    stored transaction (whose destination was a real account, not
+    blank). The user's own direct call, deliberately not routed around
+    with a smaller, more defensive patch: "не мудри, меняй
+    transactionDedupHash" - a kind-aware workaround at every call site
+    would have been the "мудри" version. **Breaking change, accepted
+    deliberately**: a `CreatedTransactionsDb` row written under the old
+    always-both-sides formula, for the uncommon case where the
+    kind-irrelevant side was actually non-blank, won't be found by a
+    lookup computed under this one - no migration for this, same as
+    the two-hash fix below couldn't recover data the old single-hash
+    schema never kept either.
+    `CreatedTransactionsDb` is the usual
     plain-SQLite log (one row per successful `createTransaction()`
     call), queried by
     `findWithinWindow(hash, includeDescription, date, windowMinutes): String?`
@@ -295,19 +319,31 @@ Single `:app` module, packages under
     own design: the local check above only ever catches a transaction
     *this app* created, never one a second device (or a different app's
     direct Firefly integration) posted for the same real payment.
+    Needed as its own function rather than just calling
+    `transactionDedupHash` on `candidate` directly for two reasons:
+    `candidate` isn't a `TransactionDraft` (different shape - a
+    `groupId`, no notes/category/tags/foreignAmount - see
+    `network.FireflyTransactionCandidate`, which `MessagesFragment`
+    maps into this plain, `network`-free form), and
+    `transactionDedupHash` deliberately doesn't cover date at all (the
+    window check here is its own explicit thing, same reason
+    `CreatedTransactionsDb.findWithinWindow` does its own SQL `BETWEEN`
+    rather than folding date into the hash).
     `remoteCandidateMatches(draft, candidate, includeDescription,
-    windowMinutes)` reshapes `candidate` (plain values, kept
-    `network`-free - see `network.FireflyTransactionCandidate`, which
-    `MessagesFragment` maps into this) into a throwaway `TransactionDraft`
-    and compares `transactionDedupHash` output directly rather than
-    re-deriving the same amount/currency/description/account comparison
-    a second way - plus an explicit date-window check, since the hash
-    itself doesn't cover date at all. The one wrinkle: Firefly assigns
-    every account (even a counterparty this app only ever captured by
-    name) a real id, so the throwaway draft only keeps the candidate's
-    id for a side `draft` *also* has one for - otherwise it's compared
-    by name instead, same as `draft` itself is, so a real counterparty
-    match isn't rejected just because this app never had an id for it.
+    windowMinutes)` reshapes `candidate` into a throwaway
+    `TransactionDraft` and compares `transactionDedupHash` output
+    directly rather than re-deriving the same amount/currency/
+    description/account comparison a second way - this is also why
+    making `transactionDedupHash` itself kind-aware (above) was enough
+    on its own to fix a real miss the user caught, with nothing extra
+    needed here: whichever side doesn't matter for `draft.kind` never
+    enters the comparison, however it's filled in on either side. The
+    one remaining wrinkle: Firefly assigns every account (even a
+    counterparty this app only ever captured by name) a real id, so the
+    throwaway draft only keeps the candidate's id for a side `draft`
+    *also* has one for - otherwise it's compared by name instead, same
+    as `draft` itself is, so a real counterparty match isn't rejected
+    just because this app never had an id for it.
   - `RuleEngine.match(message)` (`RuleEngineTest`) - the
     first-rule-in-order-that-matches algorithm described above. Takes
     an optional `currencySymbols: Map<String,String>` (symbol -> code,

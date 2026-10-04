@@ -218,12 +218,19 @@ work.
       when pasted into Firefly's own web search box. Follow-up test
       ruled out `SearchFailed` - the search actually succeeded and
       returned exactly one raw candidate, which `remoteCandidateMatches`
-      then rejected; root cause of *that* mismatch (case? whitespace? a
-      stale stored date? something else in the candidate's actual
-      returned fields) is still unknown - the not-found dialog now
-      lists each raw candidate's real field values next to the query
-      searched with (see the "Check if created" entry below) so the
-      next on-device test should finally show which.
+      then rejected. **Root cause found and fixed, separately from this
+      `findNothing()` item** (that one is still open): the per-candidate
+      field dump the "Check if created" fix below added showed the
+      candidate's real `destination_name` was a Firefly-side placeholder
+      ("(no name)") while the draft's own `destinationName` was null (a
+      `WITHDRAWAL` rule only ever requires a *source* name -
+      `RuleValidation.validateRule` - so destination here was never
+      configured at all) - `transactionDedupHash` used to hash both
+      sides regardless of kind, so "" (draft) vs. "(no name)" (Firefly)
+      never matched. Fixed by making the hash itself kind-aware (see
+      `transactionDedupHash`'s own entry above) rather than patching
+      around it here - the user's own direct call on *how* to fix it,
+      not just that it needed fixing.
       Also simplified separately, per the user's own observation:
       `dedupSearchQuery` used to always emit both `date_after` and
       `date_before` even when they're the identical date (the common
