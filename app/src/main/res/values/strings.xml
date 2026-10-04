@@ -112,7 +112,7 @@
     <string name="test_match_label_notes">Notes:</string>
     <string name="test_match_label_category">Category:</string>
     <string name="test_match_label_tags">Tags:</string>
-    <string name="test_match_issue_local_amount_missing">⚠ Local amount missing - enter manually.</string>
+    <string name="test_match_issue_local_amount_missing">⚠ No amount in the account\'s own currency - automatic conversion isn\'t implemented yet, this rule can\'t post a transaction for this message.</string>
 
     <string name="settings_currencies_title">Currencies</string>
     <string name="settings_currencies_subtitle">Code↔symbol table, e.g. EUR↔€ - used to read bank notifications</string>
