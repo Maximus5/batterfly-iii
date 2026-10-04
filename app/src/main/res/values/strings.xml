@@ -122,9 +122,12 @@
     <string name="create_duplicate_confirm_title">Possible duplicate</string>
     <string name="create_duplicate_confirm_message">A transaction with the same accounts, amount, and currency was already created within the dedup window. Create this one too?</string>
     <string name="create_duplicate_confirm_button">Create anyway</string>
+    <string name="create_duplicate_already_created">Already Created</string>
+    <string name="create_already_created_linked">Linked to Firefly transaction #%1$s.</string>
     <string name="create_success_title">Created</string>
     <string name="create_success_message">Firefly transaction #%1$s.</string>
     <string name="create_open_transaction">Open Transaction</string>
+    <string name="create_again">Create Again</string>
     <string name="create_failed_title">Create failed</string>
 
     <string name="settings_currencies_title">Currencies</string>

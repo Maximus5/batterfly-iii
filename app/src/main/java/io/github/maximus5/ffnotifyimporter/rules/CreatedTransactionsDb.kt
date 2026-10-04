@@ -45,22 +45,25 @@ class CreatedTransactionsDb(context: Context) : SQLiteOpenHelper(context, DB_NAM
         writableDatabase.insert(TABLE, null, values)
     }
 
-    /** True if a transaction with [hash] was already recorded within [windowMinutes] of
-     * [transactionDateMillis] - the window is centered on the new transaction's own date (not
-     * "now"), so two apps notifying about the same payment seconds apart both hash-match
-     * regardless of which one this app happens to process first. */
-    fun existsWithinWindow(hash: String, transactionDateMillis: Long, windowMinutes: Int): Boolean {
+    /** The Firefly transaction id of the most recent match for [hash] recorded within
+     * [windowMinutes] of [transactionDateMillis] - null if there isn't one. The window is
+     * centered on the new transaction's own date (not "now"), so two apps notifying about the
+     * same payment seconds apart both hash-match regardless of which one this app happens to
+     * process first. The id lets the caller offer "this is already created" as a real answer -
+     * link the found transaction to the message instead of just refusing to post - not only
+     * "yes/no, a duplicate exists". */
+    fun findWithinWindow(hash: String, transactionDateMillis: Long, windowMinutes: Int): String? {
         val windowMillis = windowMinutes * 60_000L
         readableDatabase.query(
             TABLE,
-            arrayOf(COL_HASH),
+            arrayOf(COL_FIREFLY_TRANSACTION_ID),
             "$COL_HASH = ? AND $COL_DATE_MILLIS BETWEEN ? AND ?",
             arrayOf(hash, (transactionDateMillis - windowMillis).toString(), (transactionDateMillis + windowMillis).toString()),
             null,
             null,
-            null,
+            "$COL_DATE_MILLIS DESC",
         ).use { cursor ->
-            return cursor.moveToFirst()
+            return if (cursor.moveToFirst()) cursor.getString(cursor.getColumnIndexOrThrow(COL_FIREFLY_TRANSACTION_ID)) else null
         }
     }
 

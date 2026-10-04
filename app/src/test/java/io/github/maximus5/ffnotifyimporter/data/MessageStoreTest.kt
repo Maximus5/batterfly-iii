@@ -144,4 +144,52 @@ class MessageStoreTest {
         store.remove(target)
         assertEquals(listOf(target), removed)
     }
+
+    @Test
+    fun `setTransactionId updates the matching entry and keeps its position`() {
+        val store = MessageStore(dedupWindowMillis = 1000, clock = { 0L })
+        store.add("bank.a", "Bank A", "First", "text")
+        store.add("bank.b", "Bank B", "Second", "text")
+        val target = store.snapshot().first { it.title == "First" }
+
+        val updated = store.setTransactionId(target, "42")
+
+        assertEquals("42", updated?.fireflyTransactionId)
+        assertEquals(listOf("Second", "First"), store.snapshot().map { it.title })
+        assertEquals("42", store.snapshot().first { it.title == "First" }.fireflyTransactionId)
+    }
+
+    @Test
+    fun `setTransactionId matches by identity, ignoring a stale fireflyTransactionId on the argument`() {
+        val store = MessageStore(dedupWindowMillis = 1000, clock = { 0L })
+        store.add("bank.a", "Bank A", "Payment", "text")
+        val staleCopy = store.snapshot().single().copy(fireflyTransactionId = "old-and-wrong")
+
+        val updated = store.setTransactionId(staleCopy, "99")
+
+        assertEquals("99", updated?.fireflyTransactionId)
+    }
+
+    @Test
+    fun `setTransactionId returns null and changes nothing for a message that is not present`() {
+        val store = MessageStore(dedupWindowMillis = 1000, clock = { 0L })
+        store.add("bank.a", "Bank A", "Keep", "text")
+        val notPresent = CapturedMessage("bank.x", "Bank X", "Nope", "text", timestampMillis = 999)
+
+        assertEquals(null, store.setTransactionId(notPresent, "1"))
+        assertEquals(null, store.snapshot().single().fireflyTransactionId)
+    }
+
+    @Test
+    fun `setTransactionId invokes onMessageUpdated with the updated message`() {
+        val store = MessageStore(dedupWindowMillis = 1000, clock = { 0L })
+        val updated = mutableListOf<CapturedMessage>()
+        store.onMessageUpdated = { updated.add(it) }
+        store.add("bank.a", "Bank A", "Payment", "text")
+        val target = store.snapshot().single()
+
+        store.setTransactionId(target, "7")
+
+        assertEquals("7", updated.single().fireflyTransactionId)
+    }
 }

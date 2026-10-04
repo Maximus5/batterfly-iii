@@ -62,6 +62,34 @@ work.
       (from `ParseRule`, populated in `RuleEngine.buildDraft`) so
       posting can prefer the Firefly account id the same way
       `FireflyJson.buildTransactionRequestBody` already does.
+    - **Done**, prompted by the user directly after confirming dedup
+      works on a real device: the created transaction's id is now
+      linked back to the *notification* it came from, not just logged
+      in `CreatedTransactionsDb` by hash. `data.CapturedMessage` gained
+      `fireflyTransactionId` (nullable, deliberately excluded from what
+      identifies a message for dedup/removal/`MessageHistoryDb`
+      lookups, since it's exactly the field being updated in place -
+      see `MessageStore.setTransactionId`'s KDoc), persisted through
+      `MessageHistoryDb` same as everything else there (`DB_VERSION`
+      1->2, a real additive `ALTER TABLE` migration - the first actual
+      test of the promise that table's `onUpgrade` comment had been
+      making since the `RulesDb` incident, see ARCHITECTURE.md's Known
+      bugs/gotchas). The Messages list shows "#<id>" next to the
+      timestamp once a message has one (`MessagesAdapter`); the
+      test-match dialog's buttons change once it does too - "Open"
+      (links to Firefly's own page for it) replaces "Create Transaction"
+      in the neutral slot, "Create Again" appears in the negative slot
+      (re-runs the normal create flow, including the dedup check - no
+      separate skip-dedup path, simpler and the user didn't ask for
+      one; overwrites the message's linked id with whichever transaction
+      was created most recently). `CreatedTransactionsDb.
+      existsWithinWindow` became `findWithinWindow`, returning the
+      matched row's Firefly id (most recent match,
+      `ORDER BY date_millis DESC`) instead of just `Boolean` - the
+      duplicate-confirm dialog gained a third option beyond "create
+      anyway"/"cancel": "Already Created" links *that* found id to the
+      message via `MessageStore.setTransactionId` instead of posting a
+      new one, per the user's own answer on this exact question.
       **Still not done**: the auto-create path (WorkManager retry on
       failure, per AGENTS.md's stack note) - `FireflyPrefs.
       isAutoCreateEnabled()` exists as a setting but nothing reads it
@@ -81,7 +109,7 @@ work.
       + amount (canonical 2-decimal string, so `12.5`/`12.50` hash the
       same) + currency + description (only when
       `FireflyPrefs.isDedupIncludeDescription()`), and
-      `CreatedTransactionsDb.existsWithinWindow` checks it against
+      `CreatedTransactionsDb.findWithinWindow` checks it against
       `FireflyPrefs.getDedupWindowMinutes()` centered on the new
       transaction's own date (not "now"), so two apps notifying about
       the same payment seconds apart both land in the same window
@@ -251,10 +279,15 @@ work.
   device. Also needs real-device verification now that it exists: the
   "Создать" button against a real Firefly instance (both a clean create
   and the duplicate-confirmation path - create the same message twice
-  within the dedup window and confirm the warning actually fires), and
-  `CreatedTransactionsDb`'s schema/upgrade path (no SQLite-level test
-  coverage exists for it, same as every other `SQLiteOpenHelper` in
-  this app).
+  within the dedup window and confirm the warning actually fires, plus
+  the new "Already Created" option, "Create Again"/"Open" once a
+  message has a linked id, and the "#<id>" badge actually showing up in
+  the Messages list), and `CreatedTransactionsDb`'s and
+  `MessageHistoryDb`'s schema/upgrade paths (no SQLite-level test
+  coverage exists for either, same as every other `SQLiteOpenHelper` in
+  this app - `MessageHistoryDb`'s v1->v2 `ALTER TABLE` migration in
+  particular has never run against a real on-disk v1 database yet, only
+  against a fresh `onCreate`).
 - No cap on `MessageStore`'s in-memory list size, or on
   `MessageHistoryDb` beyond the retention-window purge - for personal,
   low-volume bank notifications this is unlikely to matter. Revisit if

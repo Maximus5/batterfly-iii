@@ -20,20 +20,22 @@ class MessageHistoryDb(context: Context) : SQLiteOpenHelper(context, DB_NAME, nu
                 $COL_APP_LABEL TEXT NOT NULL,
                 $COL_TITLE TEXT NOT NULL,
                 $COL_TEXT TEXT NOT NULL,
-                $COL_TIMESTAMP INTEGER NOT NULL
+                $COL_TIMESTAMP INTEGER NOT NULL,
+                $COL_FIREFLY_TRANSACTION_ID TEXT
             )
             """.trimIndent(),
         )
         db.execSQL("CREATE INDEX idx_${TABLE}_timestamp ON $TABLE ($COL_TIMESTAMP)")
     }
 
-    // DB_VERSION has never actually bumped yet, so this has never run - but don't drop+recreate
-    // when it does. RulesDb did exactly this on a real schema change and silently wiped the
-    // user's actual saved rules, not test data by that point. Write a real `if (oldVersion < N)`
-    // + `ALTER TABLE ... ADD COLUMN` migration instead when this table's schema actually changes.
+    // v1 -> v2: added COL_FIREFLY_TRANSACTION_ID. This table's schema had never actually changed
+    // before, so this is the first real test of the promise this comment used to make - additive
+    // only, same as RulesDb since the data-loss incident documented in ARCHITECTURE.md's Known
+    // bugs/gotchas. Never go back to DROP TABLE + recreate here.
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        db.execSQL("DROP TABLE IF EXISTS $TABLE")
-        onCreate(db)
+        if (oldVersion < 2) {
+            db.execSQL("ALTER TABLE $TABLE ADD COLUMN $COL_FIREFLY_TRANSACTION_ID TEXT")
+        }
     }
 
     fun insert(message: CapturedMessage) {
@@ -43,8 +45,23 @@ class MessageHistoryDb(context: Context) : SQLiteOpenHelper(context, DB_NAME, nu
             put(COL_TITLE, message.title)
             put(COL_TEXT, message.text)
             put(COL_TIMESTAMP, message.timestampMillis)
+            put(COL_FIREFLY_TRANSACTION_ID, message.fireflyTransactionId)
         }
         writableDatabase.insert(TABLE, null, values)
+    }
+
+    /** Updates the row matching [message] on every column *except* [COL_FIREFLY_TRANSACTION_ID]
+     * (same "match on the stable identity, not the field being changed" reasoning as
+     * `MessageStore.setTransactionId`, which calls this via `RetentionController`'s
+     * `onMessageUpdated` hook) to carry [message]'s current `fireflyTransactionId`. */
+    fun updateTransactionId(message: CapturedMessage) {
+        val values = ContentValues().apply { put(COL_FIREFLY_TRANSACTION_ID, message.fireflyTransactionId) }
+        writableDatabase.update(
+            TABLE,
+            values,
+            "$COL_PACKAGE_NAME = ? AND $COL_TITLE = ? AND $COL_TEXT = ? AND $COL_TIMESTAMP = ?",
+            arrayOf(message.packageName, message.title, message.text, message.timestampMillis.toString()),
+        )
     }
 
     /** Oldest first, so callers can feed them into `MessageStore.restore` in the right order. */
@@ -64,6 +81,7 @@ class MessageHistoryDb(context: Context) : SQLiteOpenHelper(context, DB_NAME, nu
             val titleIdx = cursor.getColumnIndexOrThrow(COL_TITLE)
             val textIdx = cursor.getColumnIndexOrThrow(COL_TEXT)
             val timestampIdx = cursor.getColumnIndexOrThrow(COL_TIMESTAMP)
+            val transactionIdIdx = cursor.getColumnIndexOrThrow(COL_FIREFLY_TRANSACTION_ID)
             while (cursor.moveToNext()) {
                 messages.add(
                     CapturedMessage(
@@ -72,6 +90,7 @@ class MessageHistoryDb(context: Context) : SQLiteOpenHelper(context, DB_NAME, nu
                         title = cursor.getString(titleIdx),
                         text = cursor.getString(textIdx),
                         timestampMillis = cursor.getLong(timestampIdx),
+                        fireflyTransactionId = if (cursor.isNull(transactionIdIdx)) null else cursor.getString(transactionIdIdx),
                     ),
                 )
             }
@@ -99,13 +118,14 @@ class MessageHistoryDb(context: Context) : SQLiteOpenHelper(context, DB_NAME, nu
 
     companion object {
         private const val DB_NAME = "message_history.db"
-        private const val DB_VERSION = 1
+        private const val DB_VERSION = 2
         private const val TABLE = "messages"
         private const val COL_PACKAGE_NAME = "package_name"
         private const val COL_APP_LABEL = "app_label"
         private const val COL_TITLE = "title"
         private const val COL_TEXT = "text"
         private const val COL_TIMESTAMP = "timestamp_millis"
+        private const val COL_FIREFLY_TRANSACTION_ID = "firefly_transaction_id"
 
         @Volatile
         private var instance: MessageHistoryDb? = null

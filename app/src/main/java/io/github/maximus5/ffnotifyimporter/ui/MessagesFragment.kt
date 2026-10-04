@@ -105,11 +105,23 @@ class MessagesFragment : Fragment() {
             .setMessage(body)
             .setPositiveButton(android.R.string.ok, null)
 
-        // "Создать" only offered once there's an actual draft to post and a Firefly connection to
-        // post it to - reads the latest `draft` at click time, not a stale copy, so it still works
-        // after fetchApproxConversionIfNeeded swaps in a resolved amount underneath it.
+        // Offered once there's an actual draft to post and a Firefly connection to post it to -
+        // reads the latest `draft` at click time, not a stale copy, so it still works after
+        // fetchApproxConversionIfNeeded swaps in a resolved amount underneath it. A message that
+        // already has a linked transaction (`message.fireflyTransactionId`) gets "Open" in the
+        // neutral slot instead of "Create Transaction" - "Create Again" moves to negative rather
+        // than displacing it, so the single most relevant secondary action always has the neutral
+        // slot (create when nothing's linked yet, open when something is).
+        val existingTransactionId = message.fireflyTransactionId
         if (draft != null && FireflyPrefs(context).isConfigured()) {
-            builder.setNeutralButton(R.string.test_match_create) { _, _ -> draft?.let { startCreate(it) } }
+            if (existingTransactionId != null) {
+                builder.setNeutralButton(R.string.create_open_transaction) { _, _ ->
+                    openTransaction(context, existingTransactionId)
+                }
+                builder.setNegativeButton(R.string.create_again) { _, _ -> draft?.let { startCreate(it, message) } }
+            } else {
+                builder.setNeutralButton(R.string.test_match_create) { _, _ -> draft?.let { startCreate(it, message) } }
+            }
         }
 
         val dialog = builder.show()
@@ -150,10 +162,14 @@ class MessagesFragment : Fragment() {
         }
     }
 
-    /** Entry point for the "Создать" button - checks the dedup log (if enabled) before actually
-     * posting, per the user's own call on this: manual creation asks for confirmation on a likely
-     * duplicate rather than silently blocking or silently allowing it. */
-    private fun startCreate(draft: TransactionDraft) {
+    /** Entry point for "Создать"/"Create Again" - checks the dedup log (if enabled) before
+     * actually posting, per the user's own call on this: manual creation asks for confirmation on
+     * a likely duplicate rather than silently blocking or silently allowing it, with a third
+     * option beyond "create anyway"/"cancel" - "Already Created" links the *found* transaction's
+     * id to [message] instead of posting a new one, for exactly the case that prompted this: the
+     * dedup check already did the work of finding it, no reason to make the user go dig it up by
+     * hand in Firefly. */
+    private fun startCreate(draft: TransactionDraft, message: CapturedMessage) {
         val context = requireContext()
         if (draft.amount == null) {
             Toast.makeText(context, R.string.create_amount_not_ready, Toast.LENGTH_SHORT).show()
@@ -161,23 +177,30 @@ class MessagesFragment : Fragment() {
         }
         val prefs = FireflyPrefs(context)
         val hash = transactionDedupHash(draft, prefs.isDedupIncludeDescription())
-        val isDuplicate = prefs.isDedupEnabled() &&
+        val foundId = if (prefs.isDedupEnabled()) {
             CreatedTransactionsDb.getInstance(context)
-                .existsWithinWindow(hash, draft.date.toEpochMilli(), prefs.getDedupWindowMinutes())
+                .findWithinWindow(hash, draft.date.toEpochMilli(), prefs.getDedupWindowMinutes())
+        } else {
+            null
+        }
 
-        if (isDuplicate) {
+        if (foundId != null) {
             AlertDialog.Builder(context)
                 .setTitle(R.string.create_duplicate_confirm_title)
                 .setMessage(R.string.create_duplicate_confirm_message)
-                .setPositiveButton(R.string.create_duplicate_confirm_button) { _, _ -> postTransaction(draft, hash) }
+                .setPositiveButton(R.string.create_duplicate_confirm_button) { _, _ -> postTransaction(draft, hash, message) }
                 .setNegativeButton(android.R.string.cancel, null)
+                .setNeutralButton(R.string.create_duplicate_already_created) { _, _ ->
+                    MessageStore.shared.setTransactionId(message, foundId)
+                    Toast.makeText(context, getString(R.string.create_already_created_linked, foundId), Toast.LENGTH_SHORT).show()
+                }
                 .show()
         } else {
-            postTransaction(draft, hash)
+            postTransaction(draft, hash, message)
         }
     }
 
-    private fun postTransaction(draft: TransactionDraft, hash: String) {
+    private fun postTransaction(draft: TransactionDraft, hash: String, message: CapturedMessage) {
         val amount = draft.amount ?: return
         val context = requireContext()
         val prefs = FireflyPrefs(context)
@@ -202,7 +225,12 @@ class MessagesFragment : Fragment() {
             when (val result = client.createTransaction(request)) {
                 is FireflyApiClient.Result.Success -> {
                     CreatedTransactionsDb.getInstance(context).recordCreated(hash, draft.date.toEpochMilli(), result.value)
-                    showCreateSuccessDialog(context, prefs.getBaseUrl(), result.value)
+                    // Re-created from a message that already had an id (via "Create Again") just
+                    // overwrites it with the new one - this message's transaction is whatever was
+                    // created most recently, same "latest wins" reasoning as the dedup lookup
+                    // itself (ORDER BY date DESC).
+                    MessageStore.shared.setTransactionId(message, result.value)
+                    showCreateSuccessDialog(context, result.value)
                 }
                 is FireflyApiClient.Result.Failure -> {
                     showResultDialog(context, R.string.create_failed_title, result.message)
@@ -211,15 +239,18 @@ class MessagesFragment : Fragment() {
         }
     }
 
-    private fun showCreateSuccessDialog(context: Context, baseUrl: String, transactionId: String) {
+    private fun showCreateSuccessDialog(context: Context, transactionId: String) {
         AlertDialog.Builder(context)
             .setTitle(R.string.create_success_title)
             .setMessage(getString(R.string.create_success_message, transactionId))
             .setPositiveButton(android.R.string.ok, null)
-            .setNeutralButton(R.string.create_open_transaction) { _, _ ->
-                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(transactionUrl(baseUrl, transactionId))))
-            }
+            .setNeutralButton(R.string.create_open_transaction) { _, _ -> openTransaction(context, transactionId) }
             .show()
+    }
+
+    private fun openTransaction(context: Context, transactionId: String) {
+        val baseUrl = FireflyPrefs(context).getBaseUrl()
+        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(transactionUrl(baseUrl, transactionId))))
     }
 
     private fun showResultDialog(context: Context, titleRes: Int, message: String) {

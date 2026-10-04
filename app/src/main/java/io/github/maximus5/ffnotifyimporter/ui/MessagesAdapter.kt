@@ -3,6 +3,7 @@ package io.github.maximus5.ffnotifyimporter.ui
 import android.graphics.Color
 import android.text.format.DateFormat
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import io.github.maximus5.ffnotifyimporter.data.CapturedMessage
@@ -69,6 +70,12 @@ class MessagesAdapter(
             binding.messageAppLabel.text = message.appLabel
             val timestamp = Date(message.timestampMillis)
             binding.messageTime.text = "${dateFormat.format(timestamp)} ${timeFormat.format(timestamp)}"
+            if (message.fireflyTransactionId != null) {
+                binding.messageTransactionId.text = "#${message.fireflyTransactionId}"
+                binding.messageTransactionId.visibility = View.VISIBLE
+            } else {
+                binding.messageTransactionId.visibility = View.GONE
+            }
             binding.messageTitle.text = message.title
             binding.messageText.text = message.text
             binding.root.setBackgroundColor(

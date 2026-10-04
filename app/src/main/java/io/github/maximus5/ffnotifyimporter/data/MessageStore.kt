@@ -28,6 +28,10 @@ class MessageStore(
     /** Mirror of [onNewMessage] for [remove] - lets persistence delete the on-disk row too. */
     var onMessageRemoved: ((CapturedMessage) -> Unit)? = null
 
+    /** Mirror of [onNewMessage] for [setTransactionId] - lets persistence update the on-disk
+     * row's `firefly_transaction_id` too. */
+    var onMessageUpdated: ((CapturedMessage) -> Unit)? = null
+
     /** Returns true if a new entry was recorded, false if it was dropped as a duplicate. */
     fun add(packageName: String, appLabel: String, title: String, text: String): Boolean {
         val now = clock()
@@ -90,6 +94,33 @@ class MessageStore(
         listeners.forEach { it(snapshot) }
         onMessageRemoved?.invoke(message)
         return true
+    }
+
+    /**
+     * Replaces the entry matching [message] - identified by every field *except*
+     * [CapturedMessage.fireflyTransactionId], since that's exactly the field being changed - with
+     * a copy carrying [transactionId], preserving its position in the list. Returns the updated
+     * message (so the caller doesn't have to re-derive it), or null if [message] isn't in the
+     * store anymore (e.g. deleted between the dialog opening and the create call finishing).
+     */
+    fun setTransactionId(message: CapturedMessage, transactionId: String?): CapturedMessage? {
+        val updated: CapturedMessage
+        val snapshot: List<CapturedMessage>
+        synchronized(lock) {
+            val index = messages.indexOfFirst {
+                it.packageName == message.packageName &&
+                    it.title == message.title &&
+                    it.text == message.text &&
+                    it.timestampMillis == message.timestampMillis
+            }
+            if (index < 0) return null
+            updated = messages[index].copy(fireflyTransactionId = transactionId)
+            messages[index] = updated
+            snapshot = messages.toList()
+        }
+        listeners.forEach { it(snapshot) }
+        onMessageUpdated?.invoke(updated)
+        return updated
     }
 
     fun snapshot(): List<CapturedMessage> = synchronized(lock) { messages.toList() }

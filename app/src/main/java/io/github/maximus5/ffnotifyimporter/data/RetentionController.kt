@@ -39,6 +39,7 @@ object RetentionController {
         if (retentionDays <= 0) {
             store.onNewMessage = null
             store.onMessageRemoved = null
+            store.onMessageUpdated = null
             db.clearAll()
             return
         }
@@ -57,5 +58,6 @@ object RetentionController {
             db.deleteOlderThan(cutoffMillis(now(), retentionDays))
         }
         store.onMessageRemoved = { message -> db.delete(message) }
+        store.onMessageUpdated = { message -> db.updateTransactionId(message) }
     }
 }

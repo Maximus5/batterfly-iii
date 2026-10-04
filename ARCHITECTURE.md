@@ -120,27 +120,48 @@ Single `:app` module, packages under
 
 - `data` - the core, Android-independent pure-Kotlin logic, unit
   tested without instrumentation:
-  - `CapturedMessage` (app/title/text/timestamp).
+  - `CapturedMessage` (app/title/text/timestamp, plus a nullable
+    `fireflyTransactionId` - set once a transaction has been created
+    from this message, see `ui.MessagesFragment`/`MessageStore.
+    setTransactionId` below). Deliberately *not* part of what
+    identifies a message anywhere else in this file (dedup, removal,
+    `MessageHistoryDb` lookups all key on the other five fields) -
+    it's exactly the field those call sites want to change in place,
+    so including it in identity would make "find this message and
+    update its id" impossible to express as a lookup.
   - `MessageStore` - the in-memory, time-windowed dedup store
     (`MessageStoreTest`). `MessageStore.shared` is the one instance
     used by the listener service and the UI. `add` dedups and notifies
     listeners; `restore` bulk-seeds already-deduplicated entries
     (loaded from disk at startup) without re-running the dedup check;
     `remove` deletes one entry (matched by value equality - there's no
-    separate id) for the Messages screen's delete action. The optional
-    `onNewMessage`/`onMessageRemoved` hooks are how persistence attaches
-    itself without `MessageStore` knowing persistence exists. Dedup key
-    is `(packageName, title, text)` - *notification*-level, same app
+    separate id) for the Messages screen's delete action.
+    `setTransactionId(message, id)` replaces the entry matching
+    [message]'s other five fields with a copy carrying `id`, in place
+    (same list position) - used instead of full value-equality matching
+    specifically because the field being changed can't be part of the
+    match. The optional `onNewMessage`/`onMessageRemoved`/
+    `onMessageUpdated` hooks are how persistence attaches itself
+    without `MessageStore` knowing persistence exists. Dedup key is
+    `(packageName, title, text)` - *notification*-level, same app
     only. It says nothing about two *different* apps notifying about
     the same real-world transaction (e.g. a bank's own app plus
-    Google/Apple Wallet both firing for one card tap) - that's a
-    transaction-level dedup problem for whenever Firefly posting exists,
-    see TODO.md.
+    Google/Apple Wallet both firing for one card tap) - that's the
+    separate, now-built transaction-level dedup, see `rules.
+    transactionDedupHash`/`CreatedTransactionsDb` below and TODO.md.
   - `MessageHistoryDb` - the on-disk mirror, plain `SQLiteOpenHelper`
     (no ORM), one `messages` table. Only ever written to while
     retention is enabled. `MessageHistoryDb.getInstance(context)` is
     the one shared instance (a `SQLiteOpenHelper` per call would leak
-    connections).
+    connections). `DB_VERSION` 1->2 added
+    `firefly_transaction_id` via a real `ALTER TABLE ... ADD COLUMN`
+    migration - this table's schema had never actually changed before,
+    so this was the first real test of the promise its `onUpgrade`
+    comment had been making since the `RulesDb` data-loss incident (see
+    Known bugs/gotchas below): additive only, never drop+recreate.
+    `updateTransactionId(message)` mirrors `MessageStore.
+    setTransactionId` on disk, matching the row the same "every column
+    except the one being changed" way.
   - `RetentionController` (`RetentionControllerTest` for the pure
     cutoff-date math) - wires `MessageStore` and `MessageHistoryDb`
     together based on the user's retention setting.
@@ -149,6 +170,10 @@ Single `:app` module, packages under
     the settings UI when the user changes the value mid-session) never
     does, since `restore` has no dedup against what's already in
     memory and calling it twice would duplicate entries already shown.
+    Wires all three `MessageStore` hooks (`onNewMessage`/
+    `onMessageRemoved`/`onMessageUpdated`) to the matching
+    `MessageHistoryDb` call, and clears all three (not just the first
+    two) when retention is turned off.
 - `parser` - regex mechanics only, zero knowledge of transactions,
   Firefly, or what any group name means:
   - `extractGroups(pattern, input): Map<String,String>?` /
@@ -203,10 +228,15 @@ Single `:app` module, packages under
     `CreatedTransactionsDb` is the usual plain-SQLite log (one row per
     successful `createTransaction()` call - hash, the transaction's own
     date, the returned Firefly id), queried by
-    `existsWithinWindow(hash, date, windowMinutes)` centered on the new
-    transaction's own date, not "now", so two apps notifying about the
-    same payment seconds apart land in the same window regardless of
-    which one gets processed first.
+    `findWithinWindow(hash, date, windowMinutes): String?` centered on
+    the new transaction's own date, not "now", so two apps notifying
+    about the same payment seconds apart land in the same window
+    regardless of which one gets processed first - returns the matched
+    row's Firefly id (most recent match if more than one,
+    `ORDER BY date_millis DESC`), not just whether one exists, so the
+    caller can offer "this is already created, link it" as a real
+    answer (see `MessagesFragment` below) instead of only "create
+    anyway"/"don't".
   - `RuleEngine.match(message)` (`RuleEngineTest`) - the
     first-rule-in-order-that-matches algorithm described above. Takes
     an optional `currencySymbols: Map<String,String>` (symbol -> code,
@@ -435,7 +465,14 @@ Single `:app` module, packages under
     `RulesDb` isn't) - the new "Backup & restore" Settings row
     (`BackupFragment`), covering monitored apps, currencies, rules
     (reusing `RulesJson`'s per-rule shape), and message history in one
-    file. Deliberately excludes the Firefly connection (base URL/
+    file. Hand-picks each message's fields rather than serializing
+    `CapturedMessage` wholesale, so `fireflyTransactionId` (added after
+    this file was written) isn't included without anyone deciding to -
+    same "Firefly-instance-specific derived id, excluded even here"
+    treatment rules' own `sourceAccountId`/`destinationAccountId` get,
+    just by omission rather than an explicit choice; restored messages
+    simply come back with no linked transaction. Deliberately excludes
+    the Firefly connection (base URL/
     token): the one real secret in this app, `KeystoreCipher`-encrypted
     against an Android Keystore key that wouldn't even decrypt on a
     different device or after a reinstall, and a backup file is exactly
@@ -466,7 +503,12 @@ Single `:app` module, packages under
   - `MainActivity` - home screen, just hosts `MessagesFragment` plus a
     toolbar with a settings action. `MessagesFragment` subscribes to
     `MessageStore.shared` while visible (`onStart`/`onStop`) and
-    renders the current snapshot, newest first. Long-press starts
+    renders the current snapshot, newest first.
+    `MessagesAdapter` shows "#<id>" (`messageTransactionId`, bold,
+    `colorPrimary`) next to the received time once a row's
+    `fireflyTransactionId` is set, `View.GONE` otherwise - the one
+    place in the UI that surfaces the link without having to reopen the
+    test-match dialog. Long-press starts
     multi-select (tap toggles more items in or out); its delete action
     calls `MessageStore.shared.remove` for each selected message after
     a confirmation dialog. Multi-select is a hand-rolled toggle of
@@ -515,29 +557,56 @@ Single `:app` module, packages under
     whichever is current, since the dialog's "Создать" button (below)
     reads it at click time, after it may have already been swapped.
 
-    The dialog's neutral button is "Создать" (`setNeutralButton`,
-    `test_match_create`) - only added when the match produced a draft
+    The dialog's buttons depend on whether *this message*
+    (`message.fireflyTransactionId`, not the draft) already has a
+    linked transaction - only added when the match produced a draft
     *and* `FireflyPrefs.isConfigured()`, not shown at all for a no-match
-    or an unconfigured connection. `startCreate` first checks the dedup
-    log (`rules.CreatedTransactionsDb.existsWithinWindow`, skipped
-    entirely when `FireflyPrefs.isDedupEnabled()` is off) using
+    or an unconfigured connection:
+    - Nothing linked yet: neutral = "Создать" (`test_match_create`).
+    - Already linked: neutral = "Open Transaction" (same
+      `network.transactionUrl`/`ACTION_VIEW` as the success dialog's own
+      button, factored into one `openTransaction(context, id)` helper
+      both call), negative = "Create Again" - kept out of the neutral
+      slot on purpose, so the single most relevant secondary action
+      always sits there (create when nothing's linked, open when
+      something is) and "do it again" stays a deliberate second choice,
+      not the default. "Create Again" re-runs the exact same
+      `startCreate` flow as a first-time create, dedup check included -
+      no separate skip-dedup path, since the user didn't ask for one
+      and it would've doubled the logic for no clear benefit (the dedup
+      log almost certainly *will* find the transaction this message is
+      already linked to, and "create anyway" in that dialog is already
+      how the user pushes past it).
+
+    `startCreate` first checks the dedup log
+    (`rules.CreatedTransactionsDb.findWithinWindow`, skipped entirely
+    when `FireflyPrefs.isDedupEnabled()` is off) using
     `rules.transactionDedupHash` (source/destination id-or-name +
     canonical-scale amount + currency + description-if-the-toggle-says-so,
-    see its own KDoc and TODO.md's dedup history) - a likely duplicate
-    shows a confirm dialog ("create anyway?") rather than silently
-    blocking or silently proceeding, a deliberate answer the user gave
-    directly when asked (manual creation always asks; an eventual
-    auto-create path would instead skip-and-notify, see TODO.md - not
-    built yet). `postTransaction` builds a `FireflyTransactionRequest`
-    straight from the draft (`sourceAccountId ?: sourceName` preference
-    already lives in `FireflyJson.buildTransactionRequestBody`, nothing
-    new needed here) and calls `FireflyApiClient.createTransaction` on
+    see its own KDoc and TODO.md's dedup history). A likely duplicate
+    shows a confirm dialog with *three* options, not two - a deliberate
+    answer the user gave directly when asked, not assumed:
+    "create anyway" (posts a new transaction regardless), "cancel", and
+    "Already Created" (`create_duplicate_already_created`) - the one
+    the user asked for specifically: links the *found* transaction's id
+    (`findWithinWindow`'s return value, not a fresh post) to this
+    message via `MessageStore.setTransactionId`, since the dedup check
+    already did the work of locating it. (An eventual auto-create path
+    would instead skip-and-notify on a likely duplicate rather than
+    asking anything, see TODO.md - not built yet.) `postTransaction`
+    builds a `FireflyTransactionRequest` straight from the draft
+    (`sourceAccountId ?: sourceName` preference already lives in
+    `FireflyJson.buildTransactionRequestBody`, nothing new needed here)
+    and calls `FireflyApiClient.createTransaction` on
     `viewLifecycleOwner.lifecycleScope`; a success records a row in
     `CreatedTransactionsDb` (hash + the transaction's own date + the
-    returned Firefly id) and shows an OK dialog with that id plus a
-    neutral "Open Transaction" button (`network.transactionUrl`,
-    `ACTION_VIEW`) linking straight to Firefly's own web UI page for it
-    - `{baseUrl}/transactions/show/{id}`, confirmed against Firefly's
+    returned Firefly id), links that id to the message
+    (`MessageStore.setTransactionId` - re-creating from a message that
+    already had one just overwrites it, "latest wins", same reasoning
+    as `findWithinWindow`'s own most-recent-match ordering), and shows
+    an OK dialog with that id plus a neutral "Open Transaction" button
+    linking straight to Firefly's own web UI page for it -
+    `{baseUrl}/transactions/show/{id}`, confirmed against Firefly's
     current `routes/web.php` on GitHub rather than guessed (its `id`
     parameter is the transaction *group* id, exactly what
     `createTransaction`'s returned `data.id` already is - see
