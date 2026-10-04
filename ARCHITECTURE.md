@@ -290,6 +290,24 @@ Single `:app` module, packages under
     `RENAME COLUMN` in 3.25, newer than what ships on this app's minSdk
     26 devices; `COL_HASH_WITH_DESCRIPTION`'s Kotlin name maps to the
     old physical `hash` column instead.
+  - `RemoteTransactionCandidate`/`remoteCandidateMatches`
+    (`TransactionDedupTest`) - the *remote* half of dedup, the user's
+    own design: the local check above only ever catches a transaction
+    *this app* created, never one a second device (or a different app's
+    direct Firefly integration) posted for the same real payment.
+    `remoteCandidateMatches(draft, candidate, includeDescription,
+    windowMinutes)` reshapes `candidate` (plain values, kept
+    `network`-free - see `network.FireflyTransactionCandidate`, which
+    `MessagesFragment` maps into this) into a throwaway `TransactionDraft`
+    and compares `transactionDedupHash` output directly rather than
+    re-deriving the same amount/currency/description/account comparison
+    a second way - plus an explicit date-window check, since the hash
+    itself doesn't cover date at all. The one wrinkle: Firefly assigns
+    every account (even a counterparty this app only ever captured by
+    name) a real id, so the throwaway draft only keeps the candidate's
+    id for a side `draft` *also* has one for - otherwise it's compared
+    by name instead, same as `draft` itself is, so a real counterparty
+    match isn't rejected just because this app never had an id for it.
   - `RuleEngine.match(message)` (`RuleEngineTest`) - the
     first-rule-in-order-that-matches algorithm described above. Takes
     an optional `currencySymbols: Map<String,String>` (symbol -> code,
@@ -440,7 +458,14 @@ Single `:app` module, packages under
     every other helper here, which all build `/api/v1/...` paths - the
     route itself was checked against Firefly's current `routes/web.php`
     on GitHub, not assumed; see `MessagesFragment`'s "Open Transaction"
-    button below).
+    button below). `dedupSearchDateRange(centerDate, windowMinutes)` -
+    the `start`/`end` (plain `yyyy-MM-dd`, Firefly's own date-only
+    filter granularity - confirmed against `Account/
+    ListController::transactions()`'s source) that generously cover a
+    ±window around a transaction's date, for `searchNearbyTransactions`
+    below; the precise minute-level check happens client-side afterwards
+    (`rules.remoteCandidateMatches`), this just avoids pulling an
+    account's entire history over the network.
   - `FireflyApiClient` - plain `HttpURLConnection` + `org.json`, not
     OkHttp/Retrofit - same "avoid a new dependency when the framework
     already covers it" reasoning as the planned rules export/import
@@ -472,6 +497,24 @@ Single `:app` module, packages under
     a free extra safety net on top of this app's own planned dedup
     check (see TODO.md), since Firefly rejects the request outright if
     *it* also thinks this is a duplicate.
+    `searchNearbyTransactions(accountId, centerDate, windowMinutes)` -
+    `GET /v1/accounts/{id}/transactions?start=...&end=...`
+    (account-scoped, not the free-text `/v1/search/transactions`
+    endpoint - that one's query syntax wasn't worth depending on when
+    an exact date/account filter plus client-side matching is both
+    simpler and more precise; confirmed the chosen endpoint exists and
+    reads `start`/`end`/`type`/`limit`/`page` against
+    `routes/api.php`/`Account/ListController`'s current source, not
+    assumed), paginated the same way `listAssetAccounts` is. Response
+    parsing (`FireflyJson.parseTransactionList`) flattens every
+    returned group's splits into one list, each keeping its own
+    group's id - this app's own transactions never split, but a real
+    one in Firefly might; field names (`date` as Carbon's
+    `toAtomString()`, `amount`, `currency_code`, `description`,
+    `source_id`/`source_name`/`destination_id`/`destination_name`)
+    confirmed against `TransactionGroupTransformer`'s current source.
+    Used by `MessagesFragment`'s remote duplicate check below once the
+    local dedup log already came up empty.
   - Cleartext (`http://`) support: Android blocks it by default at
     API 28+. `res/xml/network_security_config.xml` allows it globally
     (`<base-config cleartextTrafficPermitted="true" />`) rather than
@@ -706,7 +749,27 @@ Single `:app` module, packages under
     `isDedupIncludeDescription()` flag, so the lookup compares against
     whichever of the two stored hash columns matches the setting right
     now (see `CreatedTransactionsDb`'s own KDoc for why both are always
-    written). A likely duplicate
+    written). Only if *that* comes up empty does it also ask Firefly
+    itself (`FireflyApiClient.searchNearbyTransactions`, see the
+    `network` section above) - the local log alone can't catch a
+    duplicate a second device or app's own integration created, since
+    it never touches this app's log at all. Scoped to whichever of
+    `draft`'s source/destination has a Firefly account id (skipped
+    entirely if neither does - nothing to scope the query to), filtered
+    client-side via `rules.remoteCandidateMatches` (see the `rules`
+    section above). Zero remote matches posts normally; exactly one
+    goes through the same duplicate-confirm dialog as a local hit; more
+    than one shows an *additional* Toast warning
+    (`create_remote_duplicates_found`) on top of that same dialog
+    (using the most recent match as the dialog's "found" id) rather
+    than replacing it - the user's own call, since more matches is a
+    stronger signal, not a reason to short-circuit the usual flow. A
+    failed remote call falls through to posting normally, same
+    "flag it, don't guess, but don't block on a best-effort extra check"
+    reasoning as everywhere else in this app - the local check already
+    ran and found nothing.
+
+    A likely duplicate (local or remote)
     shows the found transaction's id in the message itself
     (`create_duplicate_confirm_message`, `#%1$s`) and offers *four*
     actions, not the two an "are you sure?" confirm would have - a

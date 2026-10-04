@@ -3,6 +3,9 @@ package io.github.maximus5.ffnotifyimporter.network
 import org.json.JSONException
 import org.json.JSONObject
 import java.net.URI
+import java.time.Instant
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
 
 /**
  * Pure helpers around the Firefly III base URL/API responses - kept separate from
@@ -31,6 +34,21 @@ fun parseAboutVersion(body: String): String? = try {
     JSONObject(body).optJSONObject("data")?.optString("version")?.takeIf { it.isNotBlank() }
 } catch (e: JSONException) {
     null
+}
+
+/** The `start`/`end` query values (plain `yyyy-MM-dd`, Firefly's own date-only filter granularity
+ * - confirmed against `Account/ListController::transactions()`'s source, not assumed) that fully
+ * cover a ±[windowMinutes] window around [centerDate], for `FireflyApiClient.
+ * searchNearbyTransactions`. Deliberately generous (whole calendar days, UTC) rather than trying
+ * to match the window's exact minute boundary server-side - the precise check happens
+ * client-side afterwards (`rules.remoteCandidateMatches`) against each candidate's real
+ * timestamp, this just avoids pulling the account's entire history over the network. */
+fun dedupSearchDateRange(centerDate: Instant, windowMinutes: Int): Pair<String, String> {
+    val windowMillis = windowMinutes * 60_000L
+    val formatter = DateTimeFormatter.ISO_LOCAL_DATE
+    val start = centerDate.minusMillis(windowMillis).atZone(ZoneOffset.UTC).format(formatter)
+    val end = centerDate.plusMillis(windowMillis).atZone(ZoneOffset.UTC).format(formatter)
+    return start to end
 }
 
 /** The web UI page for one created transaction (not an API path) - `transactions/show/{id}`,

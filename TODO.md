@@ -140,6 +140,36 @@ work.
           for this today (the user sees the warning and decides); the
           auto-create path above has no equivalent human-in-the-loop
           moment, which is part of why it's still deferred.
+      **Done, per the user's own design**: the local check above only
+      ever catches a transaction *this app* created - a second device
+      (or a different app's own direct integration) notifying about the
+      same real payment never touches `CreatedTransactionsDb` at all.
+      `startCreate` now also asks Firefly itself
+      (`FireflyApiClient.searchNearbyTransactions`, `GET
+      /v1/accounts/{id}/transactions?start=...&end=...` - account-
+      scoped, confirmed against `Account/ListController::transactions()`'s
+      source rather than assumed) once the local lookup comes up empty,
+      scoped to whichever side of the draft has a Firefly account id
+      (skipped entirely if neither side does - nothing to scope the
+      query to). `rules.remoteCandidateMatches` (pure, unit tested -
+      `TransactionDedupTest`) does the exact-match check client-side
+      (date window, amount, currency, description-if-the-toggle-says-so,
+      account by id-or-name) by reshaping the candidate into a throwaway
+      `TransactionDraft` and reusing `transactionDedupHash` directly,
+      rather than re-deriving the same comparison a second way - the one
+      wrinkle handled there: Firefly assigns a real account id to *every*
+      account, including a counterparty this app only ever captured by
+      name, so the throwaway draft only keeps the candidate's id for a
+      side the draft *also* has one for. Zero matches -> post normally;
+      exactly one -> the existing duplicate-confirm dialog; more than
+      one -> an *additional* Toast warning
+      (`create_remote_duplicates_found`) on top of that same dialog (the
+      user's own call - more matches is a stronger signal, not a reason
+      to short-circuit the usual flow), using the most recent match as
+      the dialog's "found" id. A failed remote call (network error, bad
+      connection) falls through to posting normally rather than
+      blocking - it's an extra safety net on top of the local log, not
+      the primary mechanism.
     - `LOCAL_AMOUNT_MISSING` (currency captured by the pattern differs
       from the rule's `homeCurrency`, no explicit `foreignAmount`/
       `foreignCurrency` groups to tell us the converted amount - e.g. a

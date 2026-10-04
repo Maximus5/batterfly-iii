@@ -3,6 +3,8 @@ package io.github.maximus5.ffnotifyimporter.network
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
+import java.math.BigDecimal
+import java.time.OffsetDateTime
 
 /**
  * Pure request-building/response-parsing for the accounts-list and create-transaction calls -
@@ -78,5 +80,57 @@ fun buildTransactionRequestBody(request: FireflyTransactionRequest): String {
 fun parseCreatedTransactionId(body: String): String? = try {
     JSONObject(body).optJSONObject("data")?.optString("id")?.takeIf { it.isNotBlank() }
 } catch (e: JSONException) {
+    null
+}
+
+/** `GET /v1/accounts/{id}/transactions`'s body is `{"data": [{"id": "<group id>", "attributes":
+ * {"transactions": [{"date", "amount", "currency_code", "description", "source_id",
+ * "source_name", "destination_id", "destination_name", ...}, ...]}}, ...], "meta": {...}}` -
+ * exact field names confirmed against `TransactionGroupTransformer`'s current source, not
+ * assumed. Flattens every group's splits into one list (each keeping its own group's id - this
+ * app's own transactions never split, but Firefly/a manual entry might), skipping anything
+ * missing a field this app actually needs (malformed entry, not the whole list). `date` is
+ * Carbon's `toAtomString()` - ISO-8601 *with* a numeric offset (`+01:00`), not the bare `Z`-suffix
+ * form `Instant.parse` expects - hence `OffsetDateTime.parse(...).toInstant()`. */
+fun parseTransactionList(body: String): List<FireflyTransactionCandidate> = try {
+    val data = JSONObject(body).optJSONArray("data")
+    if (data == null) {
+        emptyList()
+    } else {
+        (0 until data.length()).flatMap { i ->
+            val group = data.optJSONObject(i) ?: return@flatMap emptyList()
+            val groupId = group.optString("id").takeIf { it.isNotBlank() } ?: return@flatMap emptyList()
+            val splits = group.optJSONObject("attributes")?.optJSONArray("transactions") ?: return@flatMap emptyList()
+            (0 until splits.length()).mapNotNull { j ->
+                val split = splits.optJSONObject(j) ?: return@mapNotNull null
+                val dateRaw = split.optString("date").takeIf { it.isNotBlank() } ?: return@mapNotNull null
+                val date = try {
+                    OffsetDateTime.parse(dateRaw).toInstant()
+                } catch (e: java.time.format.DateTimeParseException) {
+                    return@mapNotNull null
+                }
+                val amount = split.optString("amount").toBigDecimalOrNull() ?: return@mapNotNull null
+                val currencyCode = split.optString("currency_code").takeIf { it.isNotBlank() } ?: return@mapNotNull null
+                FireflyTransactionCandidate(
+                    groupId = groupId,
+                    date = date,
+                    amount = amount,
+                    currencyCode = currencyCode,
+                    description = split.optString("description", ""),
+                    sourceId = split.optString("source_id").takeIf { it.isNotBlank() && it != "0" },
+                    sourceName = split.optString("source_name").takeIf { it.isNotBlank() },
+                    destinationId = split.optString("destination_id").takeIf { it.isNotBlank() && it != "0" },
+                    destinationName = split.optString("destination_name").takeIf { it.isNotBlank() },
+                )
+            }
+        }
+    }
+} catch (e: JSONException) {
+    emptyList()
+}
+
+private fun String.toBigDecimalOrNull(): BigDecimal? = try {
+    BigDecimal(this)
+} catch (e: NumberFormatException) {
     null
 }

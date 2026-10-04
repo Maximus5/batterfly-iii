@@ -31,10 +31,12 @@ import io.github.maximus5.ffnotifyimporter.rules.CurrenciesDb
 import io.github.maximus5.ffnotifyimporter.rules.DraftIssue
 import io.github.maximus5.ffnotifyimporter.rules.NoMatchReason
 import io.github.maximus5.ffnotifyimporter.rules.ParseOutcome
+import io.github.maximus5.ffnotifyimporter.rules.RemoteTransactionCandidate
 import io.github.maximus5.ffnotifyimporter.rules.RuleEngine
 import io.github.maximus5.ffnotifyimporter.rules.RulesDb
 import io.github.maximus5.ffnotifyimporter.rules.TransactionDraft
 import io.github.maximus5.ffnotifyimporter.rules.applyApproxConversion
+import io.github.maximus5.ffnotifyimporter.rules.remoteCandidateMatches
 import io.github.maximus5.ffnotifyimporter.rules.transactionDedupHash
 import java.time.Instant
 import java.util.Date
@@ -167,7 +169,11 @@ class MessagesFragment : Fragment() {
 
     /** Entry point for "Создать"/"Create Again" - checks the dedup log (if enabled) before
      * actually posting, per the user's own call on this: manual creation asks for confirmation on
-     * a likely duplicate rather than silently blocking or silently allowing it. */
+     * a likely duplicate rather than silently blocking or silently allowing it. Local dedup first
+     * (`CreatedTransactionsDb`, this app's own log); only if *that* comes up empty does it also
+     * ask Firefly itself (`FireflyApiClient.searchNearbyTransactions`) - a second device/app
+     * notifying about the same real payment wouldn't be in this app's own log at all, so a clean
+     * local lookup alone can't rule that out. */
     private fun startCreate(draft: TransactionDraft, message: CapturedMessage) {
         val context = requireContext()
         if (draft.amount == null) {
@@ -175,19 +181,77 @@ class MessagesFragment : Fragment() {
             return
         }
         val prefs = FireflyPrefs(context)
-        val includeDescription = prefs.isDedupIncludeDescription()
-        val hash = transactionDedupHash(draft, includeDescription)
-        val foundId = if (prefs.isDedupEnabled()) {
-            CreatedTransactionsDb.getInstance(context)
-                .findWithinWindow(hash, includeDescription, draft.date.toEpochMilli(), prefs.getDedupWindowMinutes())
-        } else {
-            null
+        if (!prefs.isDedupEnabled()) {
+            postTransaction(draft, message)
+            return
         }
 
-        if (foundId != null) {
-            showDuplicateConfirmDialog(context, foundId, draft, message)
-        } else {
+        val includeDescription = prefs.isDedupIncludeDescription()
+        val windowMinutes = prefs.getDedupWindowMinutes()
+        val hash = transactionDedupHash(draft, includeDescription)
+        val localFoundId = CreatedTransactionsDb.getInstance(context)
+            .findWithinWindow(hash, includeDescription, draft.date.toEpochMilli(), windowMinutes)
+
+        if (localFoundId != null) {
+            showDuplicateConfirmDialog(context, localFoundId, draft, message)
+            return
+        }
+
+        // Only an asset account has a Firefly id on this app's side (see FireflyAccount's KDoc) -
+        // without one there's no account to scope the remote query to, so it's skipped entirely
+        // rather than searching unscoped (same amount/date could coincidentally match an unrelated
+        // transaction on a different account).
+        val accountId = draft.sourceAccountId ?: draft.destinationAccountId
+        if (accountId == null) {
             postTransaction(draft, message)
+            return
+        }
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            val client = FireflyApiClient(prefs.getBaseUrl(), prefs.getToken())
+            when (val result = client.searchNearbyTransactions(accountId, draft.date, windowMinutes)) {
+                is FireflyApiClient.Result.Success -> {
+                    val matches = result.value
+                        .map {
+                            RemoteTransactionCandidate(
+                                groupId = it.groupId,
+                                date = it.date,
+                                amount = it.amount,
+                                currencyCode = it.currencyCode,
+                                description = it.description,
+                                sourceId = it.sourceId,
+                                sourceName = it.sourceName,
+                                destinationId = it.destinationId,
+                                destinationName = it.destinationName,
+                            )
+                        }
+                        .filter { remoteCandidateMatches(draft, it, includeDescription, windowMinutes) }
+                    when {
+                        matches.isEmpty() -> postTransaction(draft, message)
+                        matches.size == 1 -> showDuplicateConfirmDialog(context, matches.first().groupId, draft, message)
+                        else -> {
+                            // More than one plausible match - the user's own call: an extra
+                            // warning on top of (not instead of) the usual duplicate-confirm
+                            // dialog, since this is a *stronger* signal of a real duplicate, not a
+                            // weaker one. The dialog itself only has room for one "found" id - the
+                            // most recent match, same tie-break `findWithinWindow` already uses.
+                            Toast.makeText(
+                                context,
+                                getString(R.string.create_remote_duplicates_found, matches.size),
+                                Toast.LENGTH_LONG,
+                            ).show()
+                            val mostRecent = matches.maxBy { it.date }
+                            showDuplicateConfirmDialog(context, mostRecent.groupId, draft, message)
+                        }
+                    }
+                }
+                is FireflyApiClient.Result.Failure -> {
+                    // A failed remote check shouldn't block creation - it's an extra safety net on
+                    // top of the local dedup log above, not the primary mechanism; that one already
+                    // ran and found nothing.
+                    postTransaction(draft, message)
+                }
+            }
         }
     }
 

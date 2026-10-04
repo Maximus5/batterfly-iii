@@ -5,6 +5,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.Instant
 
 class FireflyUrlTest {
 
@@ -60,5 +61,20 @@ class FireflyUrlTest {
     @Test
     fun `transactionUrl normalizes a trailing slash on the base URL`() {
         assertEquals("https://firefly.example.com/transactions/show/42", transactionUrl("https://firefly.example.com/", "42"))
+    }
+
+    @Test
+    fun `dedupSearchDateRange covers a window that stays within one day`() {
+        // 2026-03-01T12:00:00Z +/- 5 minutes never crosses midnight UTC.
+        val (start, end) = dedupSearchDateRange(Instant.parse("2026-03-01T12:00:00Z"), 5)
+        assertEquals("2026-03-01", start)
+        assertEquals("2026-03-01", end)
+    }
+
+    @Test
+    fun `dedupSearchDateRange spans two days when the window crosses midnight`() {
+        val (start, end) = dedupSearchDateRange(Instant.parse("2026-03-01T00:02:00Z"), 5)
+        assertEquals("2026-02-28", start)
+        assertEquals("2026-03-01", end)
     }
 }

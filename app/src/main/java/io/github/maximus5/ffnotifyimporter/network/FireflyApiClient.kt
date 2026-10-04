@@ -5,6 +5,7 @@ import kotlinx.coroutines.withContext
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
+import java.time.Instant
 
 /**
  * Thin wrapper over Firefly III's REST API - plain [HttpURLConnection] + `org.json`
@@ -88,6 +89,37 @@ class FireflyApiClient(baseUrl: String, private val token: String) {
             Result.Failure(e.message ?: e.javaClass.simpleName)
         }
     }
+
+    /** `GET /v1/accounts/{accountId}/transactions?start=...&end=...` - every transaction split
+     * touching [accountId] within a `±windowMinutes` window around [centerDate] (confirmed
+     * against `Account/ListController::transactions()`'s source, not assumed - `start`/`end` are
+     * whole calendar days, `dedupSearchDateRange` rounds generously to cover the real window).
+     * Used by `MessagesFragment`'s remote duplicate check (see TODO.md's dedup history) once the
+     * local dedup log already came up empty - a second device/app notifying about the same real
+     * payment wouldn't be in *this* app's own log at all. Follows `meta.pagination` the same way
+     * [listAssetAccounts] does, though a single-account date-windowed query is unlikely to need
+     * more than one page in practice. */
+    suspend fun searchNearbyTransactions(accountId: String, centerDate: Instant, windowMinutes: Int): Result<List<FireflyTransactionCandidate>> =
+        withContext(Dispatchers.IO) {
+            try {
+                val (start, end) = dedupSearchDateRange(centerDate, windowMinutes)
+                val candidates = mutableListOf<FireflyTransactionCandidate>()
+                var page = 1
+                var totalPagesSeen: Int
+                do {
+                    val connection = openConnection("/api/v1/accounts/$accountId/transactions?start=$start&end=$end&page=$page", "GET")
+                    val code = connection.responseCode
+                    if (code !in 200..299) return@withContext Result.Failure(errorMessage(connection, code))
+                    val body = connection.inputStream.bufferedReader().use { it.readText() }
+                    candidates += parseTransactionList(body)
+                    totalPagesSeen = totalPages(body)
+                    page++
+                } while (page <= totalPagesSeen)
+                Result.Success(candidates)
+            } catch (e: IOException) {
+                Result.Failure(e.message ?: e.javaClass.simpleName)
+            }
+        }
 
     private fun openConnection(path: String, method: String): HttpURLConnection {
         val connection = URL(baseUrl + path).openConnection() as HttpURLConnection

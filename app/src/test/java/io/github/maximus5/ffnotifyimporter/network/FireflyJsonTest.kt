@@ -5,6 +5,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.math.BigDecimal
+import java.time.Instant
 
 class FireflyJsonTest {
 
@@ -146,5 +148,90 @@ class FireflyJsonTest {
     fun `parseCreatedTransactionId returns null for malformed input instead of throwing`() {
         assertNull(parseCreatedTransactionId("not json"))
         assertNull(parseCreatedTransactionId("""{"nope": true}"""))
+    }
+
+    @Test
+    fun `parseTransactionList extracts every field from a real-shaped response`() {
+        val body = """
+            {"data": [
+                {"id": "99", "attributes": {"transactions": [
+                    {"date": "2026-03-01T12:00:00+01:00", "amount": "12.50", "currency_code": "EUR",
+                     "description": "Shop1234", "source_id": "2", "source_name": "Bank Account A",
+                     "destination_id": "9", "destination_name": "Shop1234"}
+                ]}}
+            ]}
+        """.trimIndent()
+
+        val candidates = parseTransactionList(body)
+
+        assertEquals(1, candidates.size)
+        val candidate = candidates.single()
+        assertEquals("99", candidate.groupId)
+        assertEquals(Instant.parse("2026-03-01T11:00:00Z"), candidate.date)
+        assertEquals(BigDecimal("12.50"), candidate.amount)
+        assertEquals("EUR", candidate.currencyCode)
+        assertEquals("Shop1234", candidate.description)
+        assertEquals("2", candidate.sourceId)
+        assertEquals("Bank Account A", candidate.sourceName)
+        assertEquals("9", candidate.destinationId)
+        assertEquals("Shop1234", candidate.destinationName)
+    }
+
+    @Test
+    fun `parseTransactionList flattens every split of every group`() {
+        val body = """
+            {"data": [
+                {"id": "1", "attributes": {"transactions": [
+                    {"date": "2026-03-01T12:00:00Z", "amount": "5.00", "currency_code": "EUR", "description": "a"}
+                ]}},
+                {"id": "2", "attributes": {"transactions": [
+                    {"date": "2026-03-01T13:00:00Z", "amount": "6.00", "currency_code": "EUR", "description": "b"},
+                    {"date": "2026-03-01T13:00:00Z", "amount": "7.00", "currency_code": "EUR", "description": "c"}
+                ]}}
+            ]}
+        """.trimIndent()
+
+        val candidates = parseTransactionList(body)
+
+        assertEquals(3, candidates.size)
+        assertEquals(setOf("a", "b", "c"), candidates.map { it.description }.toSet())
+    }
+
+    @Test
+    fun `parseTransactionList treats a zero account id as unknown, not a real Firefly id`() {
+        val body = """
+            {"data": [
+                {"id": "1", "attributes": {"transactions": [
+                    {"date": "2026-03-01T12:00:00Z", "amount": "5.00", "currency_code": "EUR",
+                     "description": "a", "source_id": "0", "destination_id": "9"}
+                ]}}
+            ]}
+        """.trimIndent()
+
+        val candidate = parseTransactionList(body).single()
+
+        assertNull(candidate.sourceId)
+        assertEquals("9", candidate.destinationId)
+    }
+
+    @Test
+    fun `parseTransactionList skips a split missing a required field rather than failing the whole list`() {
+        val body = """
+            {"data": [
+                {"id": "1", "attributes": {"transactions": [
+                    {"amount": "5.00", "currency_code": "EUR", "description": "no date"},
+                    {"date": "2026-03-01T12:00:00Z", "currency_code": "EUR", "description": "no amount"},
+                    {"date": "2026-03-01T12:00:00Z", "amount": "5.00", "currency_code": "EUR", "description": "fine"}
+                ]}}
+            ]}
+        """.trimIndent()
+
+        assertEquals(listOf("fine"), parseTransactionList(body).map { it.description })
+    }
+
+    @Test
+    fun `parseTransactionList returns empty for malformed input instead of throwing`() {
+        assertTrue(parseTransactionList("not json").isEmpty())
+        assertTrue(parseTransactionList("""{"nope": true}""").isEmpty())
     }
 }
