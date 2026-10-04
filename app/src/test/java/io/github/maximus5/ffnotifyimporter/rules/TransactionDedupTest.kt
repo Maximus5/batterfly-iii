@@ -13,6 +13,8 @@ class TransactionDedupTest {
     private fun draft(
         amount: BigDecimal? = BigDecimal("12.50"),
         currencyCode: String = "EUR",
+        foreignAmount: BigDecimal? = null,
+        foreignCurrencyCode: String? = null,
         sourceName: String? = "Bank Account A",
         sourceAccountId: String? = null,
         destinationName: String? = null,
@@ -24,8 +26,8 @@ class TransactionDedupTest {
         date = Instant.ofEpochMilli(1000),
         amount = amount,
         currencyCode = currencyCode,
-        foreignAmount = null,
-        foreignCurrencyCode = null,
+        foreignAmount = foreignAmount,
+        foreignCurrencyCode = foreignCurrencyCode,
         sourceName = sourceName,
         sourceAccountId = sourceAccountId,
         destinationName = destinationName,
@@ -117,6 +119,8 @@ class TransactionDedupTest {
     private fun candidate(
         amount: BigDecimal = BigDecimal("12.50"),
         currencyCode: String = "EUR",
+        foreignAmount: BigDecimal? = null,
+        foreignCurrencyCode: String? = null,
         description: String = "Shop1234",
         sourceId: String? = "1",
         sourceName: String? = "Bank Account A",
@@ -128,6 +132,8 @@ class TransactionDedupTest {
         date = date,
         amount = amount,
         currencyCode = currencyCode,
+        foreignAmount = foreignAmount,
+        foreignCurrencyCode = foreignCurrencyCode,
         description = description,
         sourceId = sourceId,
         sourceName = sourceName,
@@ -256,5 +262,45 @@ class TransactionDedupTest {
 
         val differentDestination = candidate(sourceId = "2", sourceName = "Checking", destinationId = "9", destinationName = "Other")
         assertFalse(remoteCandidateMatches(d, differentDestination, true, 5))
+    }
+
+    // --- Foreign-currency matching - a real on-device miss: the draft's own home-currency
+    // amount is only this app's approximate conversion when a foreign amount/currency is set, not
+    // something Firefly's stored amount is likely to match exactly, so the foreign side is
+    // compared instead whenever the draft has one (see transactionDedupHash/remoteCandidateMatches
+    // KDoc). ---
+
+    @Test
+    fun `remoteCandidateMatches compares by foreign amount-currency when the draft has one, ignoring a mismatched home amount`() {
+        val d = draft(amount = BigDecimal("123.45"), currencyCode = "EUR", foreignAmount = BigDecimal("987.65"), foreignCurrencyCode = "HKD")
+        // Firefly's own stored home-currency amount differs from this app's own approx conversion -
+        // must not matter, since the foreign amount/currency is what's actually compared.
+        val c = candidate(amount = BigDecimal("123.00"), currencyCode = "EUR", foreignAmount = BigDecimal("987.65"), foreignCurrencyCode = "HKD")
+
+        assertTrue(remoteCandidateMatches(d, c, true, 5))
+    }
+
+    @Test
+    fun `remoteCandidateMatches is false when the foreign currency differs`() {
+        val d = draft(foreignAmount = BigDecimal("987.65"), foreignCurrencyCode = "HKD")
+        val c = candidate(foreignAmount = BigDecimal("987.65"), foreignCurrencyCode = "USD")
+
+        assertFalse(remoteCandidateMatches(d, c, true, 5))
+    }
+
+    @Test
+    fun `remoteCandidateMatches is false when the foreign amount differs`() {
+        val d = draft(foreignAmount = BigDecimal("987.65"), foreignCurrencyCode = "HKD")
+        val c = candidate(foreignAmount = BigDecimal("987.66"), foreignCurrencyCode = "HKD")
+
+        assertFalse(remoteCandidateMatches(d, c, true, 5))
+    }
+
+    @Test
+    fun `remoteCandidateMatches is false when the draft has a foreign amount but the candidate has none`() {
+        val d = draft(foreignAmount = BigDecimal("987.65"), foreignCurrencyCode = "HKD")
+        val c = candidate(foreignAmount = null, foreignCurrencyCode = null)
+
+        assertFalse(remoteCandidateMatches(d, c, true, 5))
     }
 }

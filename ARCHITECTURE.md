@@ -344,6 +344,24 @@ Single `:app` module, packages under
     *also* has one for - otherwise it's compared by name instead, same
     as `draft` itself is, so a real counterparty match isn't rejected
     just because this app never had an id for it.
+    **Fixed a third real bug, a foreign-currency false negative the
+    user caught on a HKD Amex notification**: when `draft` has
+    `foreignAmount`/`foreignCurrencyCode` set, its own `amount`/
+    `currencyCode` are only this app's *own* approximate conversion
+    (`applyApproxConversion`, a Frankfurter-fetched exchange rate this
+    app picked independently) - not a value Firefly's own stored amount
+    is likely to match exactly. `remoteCandidateMatches` now compares
+    the foreign amount/currency directly in that case instead (both
+    sides' one precise, bank-reported value), and builds the throwaway
+    draft with `draft`'s own (already-validated-identical) amount/
+    currency rather than `candidate`'s, so `transactionDedupHash`'s own
+    unconditional amount/currency contribution can't independently
+    re-reject what the foreign-aware comparison already confirmed. Same
+    reasoning applies to `network.dedupSearchQuery` (see below) - the
+    remote search itself now queries by `foreign_amount_is`/
+    `foreign_currency_is` instead of `amount_is`/`currency_is` whenever
+    both are known, for the same "approx conversion isn't a reliable
+    match key" reason.
   - `RuleEngine.match(message)` (`RuleEngineTest`) - the
     first-rule-in-order-that-matches algorithm described above. Takes
     an optional `currencySymbols: Map<String,String>` (symbol -> code,
@@ -500,15 +518,17 @@ Single `:app` module, packages under
     `dedupSearchQuery` below; the precise minute-level check happens
     client-side afterwards (`rules.remoteCandidateMatches`), this just
     avoids pulling unrelated history over the network.
-    `dedupSearchQuery(amount, currencyCode, centerDate, windowMinutes,
-    sourceName, destinationName, description, includeDescription)` -
+    `dedupSearchQuery(amount, currencyCode, foreignAmount,
+    foreignCurrencyCode, centerDate, windowMinutes, sourceName,
+    destinationName, description, includeDescription)` -
     builds the query string for `FireflyApiClient.
     searchTransactionsByQuery` (`FireflyUrlTest`): Firefly's own
     operator-trigger search syntax (`field:value`/`field:"quoted
     value"`, built on the `gdbots/query-parser` composer dependency -
     confirmed both the operator names
-    (`amount_is`/`currency_is`/`date_after`/`date_before`/
-    `source_account_is`/`destination_account_is`/`description_is`)
+    (`amount_is`/`currency_is`/`foreign_amount_is`/`foreign_currency_is`/
+    `date_after`/`date_before`/`source_account_is`/
+    `destination_account_is`/`description_is`)
     against `OperatorQuerySearch`'s current source and the quoting
     syntax against `gdbots/query-parser`'s own docs, not guessed).
     Deliberately scoped by *name*, not a Firefly account id - see
@@ -517,6 +537,13 @@ Single `:app` module, packages under
     remote check entirely) when the amount is unresolved or neither
     account side has a name to search on - searching on amount+date
     alone could coincidentally match an unrelated transaction.
+    When `foreignAmount`/`foreignCurrencyCode` are both known,
+    `foreign_amount_is`/`foreign_currency_is` are used *instead of*
+    `amount_is`/`currency_is` - a real false negative the user caught on
+    a foreign-currency (HKD) notification, same "approx conversion isn't
+    a reliable match key" reasoning as `rules.remoteCandidateMatches`
+    above; see its KDoc for the full rationale, shared between both
+    sides of this search.
   - `FireflyApiClient` - plain `HttpURLConnection` + `org.json`, not
     OkHttp/Retrofit - same "avoid a new dependency when the framework
     already covers it" reasoning as the planned rules export/import
@@ -578,6 +605,22 @@ Single `:app` module, packages under
     confirmed against `TransactionGroupTransformer`'s current source.
     Used by `MessagesFragment`'s remote duplicate check below once the
     local dedup log already came up empty.
+    `getTransaction(id)` - `GET /v1/transactions/{id}`, the full fields
+    of one already-known transaction (confirmed `ShowController::show()`
+    wraps a single Fractal `Item`, not a `Collection`, against its
+    current source - `data` is one object, not an array, hence a
+    separate `FireflyJson.parseSingleTransaction` rather than reusing
+    `parseTransactionList`). The user's own request: a *locally* found
+    duplicate (`CreatedTransactionsDb.findWithinWindow` only ever
+    returns a bare id, no fields at all) used to show nothing but that
+    id in the duplicate-confirm dialog, unlike a remote match (which
+    already carries full fields from the search response) - this fetches
+    the missing fields on demand so the dialog always shows the same
+    level of detail (date/amount/description/accounts) regardless of
+    which path found the match. `null` on success with no usable data
+    (malformed/empty response), same "missing data isn't a failed call"
+    distinction `searchTransactionsByQuery` already draws via
+    `DuplicateCheckResult`.
   - Cleartext (`http://`) support: Android blocks it by default at
     API 28+. `res/xml/network_security_config.xml` allows it globally
     (`<base-config cleartextTrafficPermitted="true" />`) rather than
@@ -785,8 +828,11 @@ Single `:app` module, packages under
       destination id-or-name) right next to the query that was searched
       with - seeing the two side by side is what actually shows *why* a
       match failed (case, whitespace, a stale date, ...) instead of
-      needing another debug round-trip. Root cause not yet found as of
-      this writing - still open, see TODO.md.
+      needing another debug round-trip. Root cause of *this* particular
+      rejection turned out to be the kind-aware `transactionDedupHash`
+      bug documented above (the user's own `WITHDRAWAL` rule, a real
+      destination name sitting on Firefly's side that this hash wasn't
+      supposed to care about at all) - fixed there, not here.
       Also simplified around the same time, per the user's own
       observation: `dedupSearchQuery` used to always emit both
       `date_after`/`date_before`, even when they were the identical
@@ -794,6 +840,44 @@ Single `:app` module, packages under
       midnight) - now emits a single `date_on` instead in that case,
       falling back to the `date_after`/`date_before` pair only when the
       window actually spans two different days.
+      **Manual-only retry without description, the user's own call**:
+      if `FireflyPrefs.isDedupIncludeDescription()` is on and the first
+      `findDuplicate` call comes back `None`, `checkIfCreated` retries
+      once more with `includeDescription = false` before giving up. A
+      `Found`/`FoundMultiple` on the retry is shown with
+      `descriptionMismatch = true`, which prepends an explicit warning
+      (`check_found_description_mismatch_warning`) to the duplicate-
+      confirm dialog - deliberately *not* silently treated as "good
+      enough", since a weaker match still needs a human looking at it
+      to judge whether it's really the same payment. The create-flow
+      callers (`checkForDuplicate`, feeding `startCreate`/
+      `showTestMatch`) deliberately do *not* retry this way - posting on
+      top of a transaction that only matched once description was
+      dropped, with no human in the loop to catch a wrong guess, would
+      risk linking the wrong transaction; a manual lookup always has a
+      human looking at the result either way, so showing the weaker
+      match (with a clear warning) is the right trade-off only there.
+      **Always show found-transaction info, the user's own request** -
+      "как ты сделал для ошибки, когда найденная не совпадает по
+      счету": the not-found dialog's per-candidate field dump (above)
+      already showed real field values for a *rejected* candidate;
+      `showDuplicateConfirmDialog` (used by all three callers, not just
+      `checkIfCreated`) now always appends the same level of detail
+      (date/amount(+foreign)/description/source/destination,
+      `check_found_transaction_info`) for the transaction it's actually
+      offering as *the* match - a bare `#<id>` on its own gave the user
+      no way to independently judge the match without leaving the app.
+      `DuplicateCheckResult.Found`/`FoundMultiple` now carry an optional
+      `candidate: RemoteTransactionCandidate?` - already populated for
+      free for a remote-search hit, `null` for a local-log hit (which
+      only ever has a bare id). `showDuplicateConfirmDialog` is now
+      `suspend`: when `knownCandidate` is null it calls the new
+      `FireflyApiClient.getTransaction(id)` itself (see the `network`
+      section above) to fetch the missing fields - a locally-recorded
+      duplicate gets the same display as a remote one, just one extra
+      API round-trip first. Best-effort: a failed fetch (or a genuinely
+      missing transaction) just shows the dialog without the info block,
+      same as before this existed, rather than failing to show anything.
       Long-press starts
     multi-select (tap toggles more items in or out); its delete action
     calls `MessageStore.shared.remove` for each selected message after

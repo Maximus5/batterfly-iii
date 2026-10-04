@@ -122,6 +122,30 @@ class FireflyApiClient(baseUrl: String, private val token: String) {
             }
         }
 
+    /** `GET /v1/transactions/{id}` - the full fields of one known transaction (confirmed
+     * `ShowController::show()` wraps a single `Item`, not a `Collection`, against its current
+     * source - `data` is one object, not an array, hence [parseSingleTransaction] instead of
+     * [parseTransactionList]). Used to fetch real info for a *locally* found duplicate
+     * (`CreatedTransactionsDb` only ever returns an id, no fields) so the duplicate-confirm
+     * dialog can always show what the found transaction actually looks like, the same way it
+     * already can for a remote match. Null on success with no usable data (malformed/empty
+     * response) rather than a failure - same "missing data isn't the same as a failed call"
+     * distinction `searchTransactionsByQuery` draws via `DuplicateCheckResult`. */
+    suspend fun getTransaction(id: String): Result<FireflyTransactionCandidate?> = withContext(Dispatchers.IO) {
+        try {
+            val connection = openConnection("/api/v1/transactions/$id", "GET")
+            val code = connection.responseCode
+            if (code in 200..299) {
+                val body = connection.inputStream.bufferedReader().use { it.readText() }
+                Result.Success(parseSingleTransaction(body))
+            } else {
+                Result.Failure(errorMessage(connection, code))
+            }
+        } catch (e: IOException) {
+            Result.Failure(e.message ?: e.javaClass.simpleName)
+        }
+    }
+
     private fun openConnection(path: String, method: String): HttpURLConnection {
         val connection = URL(baseUrl + path).openConnection() as HttpURLConnection
         connection.requestMethod = method

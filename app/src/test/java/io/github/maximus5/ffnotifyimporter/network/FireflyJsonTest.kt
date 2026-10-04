@@ -234,4 +234,66 @@ class FireflyJsonTest {
         assertTrue(parseTransactionList("not json").isEmpty())
         assertTrue(parseTransactionList("""{"nope": true}""").isEmpty())
     }
+
+    @Test
+    fun `parseTransactionList extracts foreign_amount and foreign_currency_code when present`() {
+        val body = """
+            {"data": [
+                {"id": "99", "attributes": {"transactions": [
+                    {"date": "2026-03-01T12:00:00Z", "amount": "123.45", "currency_code": "EUR",
+                     "foreign_amount": "987.65", "foreign_currency_code": "HKD",
+                     "description": "Shop1234", "source_name": "Amex"}
+                ]}}
+            ]}
+        """.trimIndent()
+
+        val candidate = parseTransactionList(body).single()
+
+        assertEquals(BigDecimal("987.65"), candidate.foreignAmount)
+        assertEquals("HKD", candidate.foreignCurrencyCode)
+    }
+
+    @Test
+    fun `parseTransactionList leaves foreignAmount-foreignCurrencyCode null when absent`() {
+        val body = """
+            {"data": [
+                {"id": "99", "attributes": {"transactions": [
+                    {"date": "2026-03-01T12:00:00Z", "amount": "12.50", "currency_code": "EUR", "description": "Shop1234"}
+                ]}}
+            ]}
+        """.trimIndent()
+
+        val candidate = parseTransactionList(body).single()
+
+        assertNull(candidate.foreignAmount)
+        assertNull(candidate.foreignCurrencyCode)
+    }
+
+    @Test
+    fun `parseSingleTransaction extracts fields from the singular GET transactions-id response shape`() {
+        val body = """
+            {"data": {"id": "42", "attributes": {"transactions": [
+                {"date": "2026-03-01T12:00:00+01:00", "amount": "12.50", "currency_code": "EUR",
+                 "description": "Shop1234", "source_id": "2", "source_name": "Bank Account A",
+                 "destination_id": "9", "destination_name": "Shop1234"}
+            ]}}}
+        """.trimIndent()
+
+        val candidate = parseSingleTransaction(body)
+
+        assertEquals("42", candidate?.groupId)
+        assertEquals(Instant.parse("2026-03-01T11:00:00Z"), candidate?.date)
+        assertEquals(BigDecimal("12.50"), candidate?.amount)
+        assertEquals("Shop1234", candidate?.description)
+    }
+
+    @Test
+    fun `parseSingleTransaction returns null when data isn't a single object or has no splits`() {
+        assertNull(parseSingleTransaction("not json"))
+        assertNull(parseSingleTransaction("""{"nope": true}"""))
+        assertNull(parseSingleTransaction("""{"data": {"id": "42", "attributes": {"transactions": []}}}"""))
+        // The array-shaped list response, not the singular show-endpoint shape - must not be
+        // mistaken for one by accident.
+        assertNull(parseSingleTransaction("""{"data": [{"id": "42"}]}"""))
+    }
 }

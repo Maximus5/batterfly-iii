@@ -84,14 +84,13 @@ fun parseCreatedTransactionId(body: String): String? = try {
 }
 
 /** `GET /v1/accounts/{id}/transactions`'s body is `{"data": [{"id": "<group id>", "attributes":
- * {"transactions": [{"date", "amount", "currency_code", "description", "source_id",
- * "source_name", "destination_id", "destination_name", ...}, ...]}}, ...], "meta": {...}}` -
- * exact field names confirmed against `TransactionGroupTransformer`'s current source, not
- * assumed. Flattens every group's splits into one list (each keeping its own group's id - this
- * app's own transactions never split, but Firefly/a manual entry might), skipping anything
- * missing a field this app actually needs (malformed entry, not the whole list). `date` is
- * Carbon's `toAtomString()` - ISO-8601 *with* a numeric offset (`+01:00`), not the bare `Z`-suffix
- * form `Instant.parse` expects - hence `OffsetDateTime.parse(...).toInstant()`. */
+ * {"transactions": [{"date", "amount", "currency_code", "foreign_amount",
+ * "foreign_currency_code", "description", "source_id", "source_name", "destination_id",
+ * "destination_name", ...}, ...]}}, ...], "meta": {...}}` - exact field names confirmed against
+ * `TransactionGroupTransformer`'s current source, not assumed. Flattens every group's splits into
+ * one list (each keeping its own group's id - this app's own transactions never split, but
+ * Firefly/a manual entry might), skipping anything missing a field this app actually needs
+ * (malformed entry, not the whole list). */
 fun parseTransactionList(body: String): List<FireflyTransactionCandidate> = try {
     val data = JSONObject(body).optJSONArray("data")
     if (data == null) {
@@ -101,32 +100,59 @@ fun parseTransactionList(body: String): List<FireflyTransactionCandidate> = try 
             val group = data.optJSONObject(i) ?: return@flatMap emptyList()
             val groupId = group.optString("id").takeIf { it.isNotBlank() } ?: return@flatMap emptyList()
             val splits = group.optJSONObject("attributes")?.optJSONArray("transactions") ?: return@flatMap emptyList()
-            (0 until splits.length()).mapNotNull { j ->
-                val split = splits.optJSONObject(j) ?: return@mapNotNull null
-                val dateRaw = split.optString("date").takeIf { it.isNotBlank() } ?: return@mapNotNull null
-                val date = try {
-                    OffsetDateTime.parse(dateRaw).toInstant()
-                } catch (e: java.time.format.DateTimeParseException) {
-                    return@mapNotNull null
-                }
-                val amount = split.optString("amount").toBigDecimalOrNull() ?: return@mapNotNull null
-                val currencyCode = split.optString("currency_code").takeIf { it.isNotBlank() } ?: return@mapNotNull null
-                FireflyTransactionCandidate(
-                    groupId = groupId,
-                    date = date,
-                    amount = amount,
-                    currencyCode = currencyCode,
-                    description = split.optString("description", ""),
-                    sourceId = split.optString("source_id").takeIf { it.isNotBlank() && it != "0" },
-                    sourceName = split.optString("source_name").takeIf { it.isNotBlank() },
-                    destinationId = split.optString("destination_id").takeIf { it.isNotBlank() && it != "0" },
-                    destinationName = split.optString("destination_name").takeIf { it.isNotBlank() },
-                )
-            }
+            (0 until splits.length()).mapNotNull { j -> parseTransactionSplit(groupId, splits.optJSONObject(j)) }
         }
     }
 } catch (e: JSONException) {
     emptyList()
+}
+
+/** `GET /v1/transactions/{id}`'s body is `{"data": {"id": "<group id>", "attributes": {...same
+ * shape as one entry of [parseTransactionList]'s "data" array...}}}` - a single object, not an
+ * array (`ShowController::show` wraps the result in a Fractal `Item`, not a `Collection` -
+ * confirmed against its current source, not assumed). Used to fetch the full fields of a
+ * *locally* found duplicate (`CreatedTransactionsDb` only ever returns an id), so the
+ * duplicate-confirm dialog can show real info for a local match the same way it already can for a
+ * remote one. Only the first split, same "this app's own transactions never split" reasoning as
+ * [parseTransactionList] - a locally-recorded id is always something this app itself created. */
+fun parseSingleTransaction(body: String): FireflyTransactionCandidate? = try {
+    val group = JSONObject(body).optJSONObject("data")
+    val groupId = group?.optString("id")?.takeIf { it.isNotBlank() }
+    val splits = group?.optJSONObject("attributes")?.optJSONArray("transactions")
+    if (groupId == null || splits == null || splits.length() == 0) {
+        null
+    } else {
+        parseTransactionSplit(groupId, splits.optJSONObject(0))
+    }
+} catch (e: JSONException) {
+    null
+}
+
+private fun parseTransactionSplit(groupId: String, split: JSONObject?): FireflyTransactionCandidate? {
+    if (split == null) return null
+    val dateRaw = split.optString("date").takeIf { it.isNotBlank() } ?: return null
+    // Carbon's toAtomString() - ISO-8601 *with* a numeric offset (+01:00), not the bare
+    // Z-suffix form Instant.parse expects - hence OffsetDateTime.parse(...).toInstant().
+    val date = try {
+        OffsetDateTime.parse(dateRaw).toInstant()
+    } catch (e: java.time.format.DateTimeParseException) {
+        return null
+    }
+    val amount = split.optString("amount").toBigDecimalOrNull() ?: return null
+    val currencyCode = split.optString("currency_code").takeIf { it.isNotBlank() } ?: return null
+    return FireflyTransactionCandidate(
+        groupId = groupId,
+        date = date,
+        amount = amount,
+        currencyCode = currencyCode,
+        foreignAmount = split.optString("foreign_amount").takeIf { it.isNotBlank() }?.toBigDecimalOrNull(),
+        foreignCurrencyCode = split.optString("foreign_currency_code").takeIf { it.isNotBlank() },
+        description = split.optString("description", ""),
+        sourceId = split.optString("source_id").takeIf { it.isNotBlank() && it != "0" },
+        sourceName = split.optString("source_name").takeIf { it.isNotBlank() },
+        destinationId = split.optString("destination_id").takeIf { it.isNotBlank() && it != "0" },
+        destinationName = split.optString("destination_name").takeIf { it.isNotBlank() },
+    )
 }
 
 private fun String.toBigDecimalOrNull(): BigDecimal? = try {

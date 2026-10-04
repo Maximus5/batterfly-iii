@@ -46,6 +46,8 @@
     <string name="messages_check_no_rule_matched">Ни одно правило не подошло к этому сообщению.</string>
     <string name="check_found_title">Найдено в Firefly</string>
     <string name="check_found_message">Совпадает транзакция #%1$s.</string>
+    <string name="check_found_transaction_info">%1$s\n%2$s\n\"%3$s\"\nsrc=%4$s dst=%5$s</string>
+    <string name="check_found_description_mismatch_warning">Не совпало с учётом описания - найдено повторным поиском без описания, возможно это другая транзакция.</string>
     <string name="check_not_found_title">Не найдено в Firefly</string>
     <string name="check_not_found_message">Подходящая транзакция не найдена для:\n\n%1$s</string>
     <string name="check_not_found_message_with_candidates">Firefly вернул результатов: %2$d, но ни один не совпал точно:\n\n%1$s\n\nКандидаты:\n%3$s</string>

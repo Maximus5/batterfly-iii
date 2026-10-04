@@ -99,7 +99,7 @@ class FireflyUrlTest {
     fun `dedupSearchQuery builds every term when everything is known`() {
         val query = dedupSearchQuery(
             amount = BigDecimal("12.5"),
-            currencyCode = "EUR",
+            currencyCode = "EUR", foreignAmount = null, foreignCurrencyCode = null,
             centerDate = searchDate,
             windowMinutes = 5,
             sourceName = "Bank Account A",
@@ -118,7 +118,7 @@ class FireflyUrlTest {
     @Test
     fun `dedupSearchQuery uses date_on, not two identical date_after-date_before terms, when the window stays within one day`() {
         val query = dedupSearchQuery(
-            amount = BigDecimal("12.50"), currencyCode = "EUR", centerDate = searchDate, windowMinutes = 5,
+            amount = BigDecimal("12.50"), currencyCode = "EUR", foreignAmount = null, foreignCurrencyCode = null, centerDate = searchDate, windowMinutes = 5,
             sourceName = "Bank Account A", destinationName = null, description = "x", includeDescription = false,
         )
 
@@ -131,7 +131,7 @@ class FireflyUrlTest {
     fun `dedupSearchQuery falls back to date_after-date_before when the window crosses midnight`() {
         val query = dedupSearchQuery(
             amount = BigDecimal("12.50"),
-            currencyCode = "EUR",
+            currencyCode = "EUR", foreignAmount = null, foreignCurrencyCode = null,
             centerDate = Instant.parse("2026-03-01T00:02:00Z"),
             windowMinutes = 5,
             sourceName = "Bank Account A",
@@ -149,7 +149,7 @@ class FireflyUrlTest {
     fun `dedupSearchQuery canonicalizes the amount to two decimal places`() {
         val query = dedupSearchQuery(
             amount = BigDecimal("12.5"),
-            currencyCode = "EUR",
+            currencyCode = "EUR", foreignAmount = null, foreignCurrencyCode = null,
             centerDate = searchDate,
             windowMinutes = 5,
             sourceName = "Bank Account A",
@@ -165,7 +165,7 @@ class FireflyUrlTest {
     fun `dedupSearchQuery omits description_is when includeDescription is false`() {
         val query = dedupSearchQuery(
             amount = BigDecimal("12.50"),
-            currencyCode = "EUR",
+            currencyCode = "EUR", foreignAmount = null, foreignCurrencyCode = null,
             centerDate = searchDate,
             windowMinutes = 5,
             sourceName = "Bank Account A",
@@ -180,14 +180,14 @@ class FireflyUrlTest {
     @Test
     fun `dedupSearchQuery only includes whichever side's name is known`() {
         val sourceOnly = dedupSearchQuery(
-            amount = BigDecimal("12.50"), currencyCode = "EUR", centerDate = searchDate, windowMinutes = 5,
+            amount = BigDecimal("12.50"), currencyCode = "EUR", foreignAmount = null, foreignCurrencyCode = null, centerDate = searchDate, windowMinutes = 5,
             sourceName = "Bank Account A", destinationName = null, description = "x", includeDescription = false,
         )
         assertTrue(sourceOnly!!.contains("source_account_is"))
         assertFalse(sourceOnly.contains("destination_account_is"))
 
         val destinationOnly = dedupSearchQuery(
-            amount = BigDecimal("12.50"), currencyCode = "EUR", centerDate = searchDate, windowMinutes = 5,
+            amount = BigDecimal("12.50"), currencyCode = "EUR", foreignAmount = null, foreignCurrencyCode = null, centerDate = searchDate, windowMinutes = 5,
             sourceName = null, destinationName = "Shop1234", description = "x", includeDescription = false,
         )
         assertFalse(destinationOnly!!.contains("source_account_is"))
@@ -198,13 +198,13 @@ class FireflyUrlTest {
     fun `dedupSearchQuery is null when neither account name nor the amount is known`() {
         assertNull(
             dedupSearchQuery(
-                amount = BigDecimal("12.50"), currencyCode = "EUR", centerDate = searchDate, windowMinutes = 5,
+                amount = BigDecimal("12.50"), currencyCode = "EUR", foreignAmount = null, foreignCurrencyCode = null, centerDate = searchDate, windowMinutes = 5,
                 sourceName = null, destinationName = null, description = "x", includeDescription = false,
             ),
         )
         assertNull(
             dedupSearchQuery(
-                amount = null, currencyCode = "EUR", centerDate = searchDate, windowMinutes = 5,
+                amount = null, currencyCode = "EUR", foreignAmount = null, foreignCurrencyCode = null, centerDate = searchDate, windowMinutes = 5,
                 sourceName = "Bank Account A", destinationName = null, description = "x", includeDescription = false,
             ),
         )
@@ -213,7 +213,7 @@ class FireflyUrlTest {
     @Test
     fun `dedupSearchQuery quotes a value containing whitespace, leaves a bare token alone`() {
         val query = dedupSearchQuery(
-            amount = BigDecimal("12.50"), currencyCode = "EUR", centerDate = searchDate, windowMinutes = 5,
+            amount = BigDecimal("12.50"), currencyCode = "EUR", foreignAmount = null, foreignCurrencyCode = null, centerDate = searchDate, windowMinutes = 5,
             sourceName = "Loyalty Program A", destinationName = "Shop1234", description = "x", includeDescription = false,
         )
 
@@ -224,10 +224,49 @@ class FireflyUrlTest {
     @Test
     fun `dedupSearchQuery escapes an embedded double quote in a value`() {
         val query = dedupSearchQuery(
-            amount = BigDecimal("12.50"), currencyCode = "EUR", centerDate = searchDate, windowMinutes = 5,
+            amount = BigDecimal("12.50"), currencyCode = "EUR", foreignAmount = null, foreignCurrencyCode = null, centerDate = searchDate, windowMinutes = 5,
             sourceName = "The \"Best\" Cafe", destinationName = null, description = "x", includeDescription = false,
         )
 
         assertTrue(query!!.contains("source_account_is:\"The \\\"Best\\\" Cafe\""))
+    }
+
+    @Test
+    fun `dedupSearchQuery searches by foreign_amount_is and foreign_currency_is instead of amount_is-currency_is when both are known`() {
+        val query = dedupSearchQuery(
+            amount = BigDecimal("123.45"),
+            currencyCode = "EUR",
+            foreignAmount = BigDecimal("987.65"),
+            foreignCurrencyCode = "HKD",
+            centerDate = searchDate,
+            windowMinutes = 5,
+            sourceName = "Amex",
+            destinationName = null,
+            description = "Shop1234",
+            includeDescription = false,
+        )
+
+        assertTrue(query!!.contains("foreign_amount_is:987.65"))
+        assertTrue(query.contains("foreign_currency_is:HKD"))
+        // Not just the "foreign_" prefixed terms - the plain amount_is/currency_is terms (as their
+        // own space-delimited tokens, not merely as a substring of "foreign_amount_is"/
+        // "foreign_currency_is") must be absent entirely.
+        val terms = query.split(" ")
+        assertFalse(terms.any { it.startsWith("amount_is:") })
+        assertFalse(terms.any { it.startsWith("currency_is:") })
+    }
+
+    @Test
+    fun `dedupSearchQuery falls back to amount_is-currency_is when only one of foreignAmount-foreignCurrencyCode is known`() {
+        val query = dedupSearchQuery(
+            amount = BigDecimal("12.50"), currencyCode = "EUR", foreignAmount = BigDecimal("13.00"), foreignCurrencyCode = null,
+            centerDate = searchDate, windowMinutes = 5,
+            sourceName = "Bank Account A", destinationName = null, description = "x", includeDescription = false,
+        )
+
+        assertTrue(query!!.contains("amount_is:12.50"))
+        assertTrue(query.contains("currency_is:EUR"))
+        assertFalse(query.contains("foreign_amount_is"))
+        assertFalse(query.contains("foreign_currency_is"))
     }
 }

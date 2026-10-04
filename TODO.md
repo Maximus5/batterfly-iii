@@ -237,6 +237,37 @@ work.
       case - a 5-minute window never crosses midnight) - now a single
       `date_on` instead, falling back to the `date_after`/`date_before`
       pair only when the window genuinely spans two different days.
+      **Done, a real false negative the user caught on a foreign-currency
+      (HKD Amex) notification**: `amount`/`currencyCode` are only
+      this app's own approximate conversion
+      (`rules.applyApproxConversion`) whenever a draft has
+      `foreignAmount`/`foreignCurrencyCode` set - not a value Firefly's
+      own stored amount reliably matches. Both halves of dedup now
+      prefer the foreign side whenever it's known: `dedupSearchQuery`
+      emits `foreign_amount_is`/`foreign_currency_is` instead of
+      `amount_is`/`currency_is`, and `remoteCandidateMatches` compares
+      the foreign amount/currency directly instead of the home-currency
+      ones (see both functions' own entries above for the exact
+      mechanics).
+      **Done, the user's own call ("как ты сделал для ошибки, когда
+      найденная не совпадает по счету")**: the duplicate-confirm dialog
+      used to show only a bare `#<id>` for the transaction it found -
+      now always appends the same per-field info
+      (date/amount(+foreign)/description/source/destination) the
+      not-found dialog already showed for a *rejected* candidate. A
+      local-log hit (bare id only) fetches the missing fields itself via
+      the new `FireflyApiClient.getTransaction(id)`
+      (`GET /v1/transactions/{id}`); a remote-search hit already has
+      them for free. See `showDuplicateConfirmDialog`'s entry above.
+      **Done, manual-only, the user's own call**: "Check if created"
+      (not the create-flow's preemptive check) now retries once without
+      description if the first search (with description included, per
+      `FireflyPrefs.isDedupIncludeDescription()`) finds nothing - a
+      match found only that way is shown with an explicit "description
+      didn't match" warning rather than silently treated as certain.
+      Deliberately *not* applied to the create-flow callers - there's no
+      human in the loop there to judge a weaker match, so silently
+      accepting one on retry would risk linking the wrong transaction.
       **Done, prompted directly by the user after hitting a real
       unwanted duplicate**: the fresh-create "Создать" button used to
       run the whole check above only *after* being tapped, so the same

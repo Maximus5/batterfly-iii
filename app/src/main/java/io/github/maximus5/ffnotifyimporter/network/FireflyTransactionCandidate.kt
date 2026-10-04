@@ -19,6 +19,8 @@ data class FireflyTransactionCandidate(
     val date: Instant,
     val amount: BigDecimal,
     val currencyCode: String,
+    val foreignAmount: BigDecimal?,
+    val foreignCurrencyCode: String?,
     val description: String,
     val sourceId: String?,
     val sourceName: String?,

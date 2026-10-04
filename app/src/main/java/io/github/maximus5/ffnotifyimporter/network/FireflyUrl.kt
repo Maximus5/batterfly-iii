@@ -58,18 +58,26 @@ fun dedupSearchDateRange(centerDate: Instant, windowMinutes: Int): Pair<String, 
  * The query string for `FireflyApiClient.searchTransactionsByQuery` - Firefly's own
  * operator-trigger search syntax (`field:value`/`field:"quoted value"`, built on the
  * `gdbots/query-parser` library; operator names confirmed against `OperatorQuerySearch`'s current
- * source, not guessed): exact [amount] + [currencyCode] + a [dedupSearchDateRange] window -
- * `date_on` instead of `date_after`+`date_before` when the window stays within one calendar day
- * (the common case, default 5 minutes), rather than two identical-looking date terms - AND'd
- * with whichever of [sourceName]/[destinationName] is non-null (an account *name*, never an id -
- * deliberately not scoped to a Firefly account id the way an earlier version of this search was,
- * since this app frequently only has a name for an account that was typed rather than picked from
+ * source, not guessed): exact amount+currency + a [dedupSearchDateRange] window - `date_on`
+ * instead of `date_after`+`date_before` when the window stays within one calendar day (the common
+ * case, default 5 minutes), rather than two identical-looking date terms - AND'd with whichever
+ * of [sourceName]/[destinationName] is non-null (an account *name*, never an id - deliberately
+ * not scoped to a Firefly account id the way an earlier version of this search was, since this
+ * app frequently only has a name for an account that was typed rather than picked from
  * `FireflyApiClient.listAssetAccounts`, and posting a transaction by name alone is already fully
  * supported - see `FireflyTransactionRequest`'s KDoc - so dedup searching by name only should be
  * too), plus [description] when [includeDescription] is true. Null if there's nothing to search
  * on at all (no amount, or neither account name known) - the caller skips the remote check
  * entirely rather than searching unscoped (amount+date alone could coincidentally match an
  * unrelated transaction).
+ *
+ * When [foreignAmount]/[foreignCurrencyCode] are both set, `foreign_amount_is`/
+ * `foreign_currency_is` are used *instead of* `amount_is`/`currency_is` - [amount]/[currencyCode]
+ * are this app's own approximate conversion (`rules.applyApproxConversion`, a fetched exchange
+ * rate this app picked independently), not something Firefly's own stored amount is likely to
+ * match exactly; the foreign amount/currency is the one precise, bank-reported value both sides
+ * should agree on. The user's own direct call after a real false negative on a foreign-currency
+ * notification.
  *
  * **Known fragility, not yet resolved** - `OperatorQuerySearch::searchAccount` (backing
  * `source_account_is`/`destination_account_is`) first resolves the given value against a *real*
@@ -87,6 +95,8 @@ fun dedupSearchDateRange(centerDate: Instant, windowMinutes: Int): Pair<String, 
 fun dedupSearchQuery(
     amount: BigDecimal?,
     currencyCode: String,
+    foreignAmount: BigDecimal?,
+    foreignCurrencyCode: String?,
     centerDate: Instant,
     windowMinutes: Int,
     sourceName: String?,
@@ -94,13 +104,17 @@ fun dedupSearchQuery(
     description: String,
     includeDescription: Boolean,
 ): String? {
-    if (amount == null) return null
     if (sourceName == null && destinationName == null) return null
     val (start, end) = dedupSearchDateRange(centerDate, windowMinutes)
-    val terms = mutableListOf(
-        "amount_is:${quoteSearchValue(amount.setScale(2, RoundingMode.HALF_UP).toPlainString())}",
-        "currency_is:${quoteSearchValue(currencyCode)}",
-    )
+    val terms = mutableListOf<String>()
+    if (foreignAmount != null && foreignCurrencyCode != null) {
+        terms += "foreign_amount_is:${quoteSearchValue(foreignAmount.setScale(2, RoundingMode.HALF_UP).toPlainString())}"
+        terms += "foreign_currency_is:${quoteSearchValue(foreignCurrencyCode)}"
+    } else {
+        if (amount == null) return null
+        terms += "amount_is:${quoteSearchValue(amount.setScale(2, RoundingMode.HALF_UP).toPlainString())}"
+        terms += "currency_is:${quoteSearchValue(currencyCode)}"
+    }
     // The common case (window stays within one calendar day) - one date_on instead of two
     // identical date_after/date_before terms for the same day.
     if (start == end) {

@@ -24,6 +24,7 @@ import io.github.maximus5.ffnotifyimporter.data.MessageStore
 import io.github.maximus5.ffnotifyimporter.databinding.FragmentMessagesBinding
 import io.github.maximus5.ffnotifyimporter.network.ExchangeRateClient
 import io.github.maximus5.ffnotifyimporter.network.FireflyApiClient
+import io.github.maximus5.ffnotifyimporter.network.FireflyTransactionCandidate
 import io.github.maximus5.ffnotifyimporter.network.FireflyTransactionRequest
 import io.github.maximus5.ffnotifyimporter.network.dedupSearchQuery
 import io.github.maximus5.ffnotifyimporter.network.searchUrl
@@ -176,7 +177,7 @@ class MessagesFragment : Fragment() {
                 }
                 is DuplicateCheckResult.Found -> {
                     dialog.dismiss()
-                    showDuplicateConfirmDialog(context, result.id, resolved, message)
+                    showDuplicateConfirmDialog(context, result.id, resolved, message, knownCandidate = result.candidate)
                 }
                 is DuplicateCheckResult.FoundMultiple -> {
                     Toast.makeText(
@@ -185,7 +186,7 @@ class MessagesFragment : Fragment() {
                         Toast.LENGTH_LONG,
                     ).show()
                     dialog.dismiss()
-                    showDuplicateConfirmDialog(context, result.mostRecentId, resolved, message)
+                    showDuplicateConfirmDialog(context, result.mostRecentId, resolved, message, knownCandidate = result.candidate)
                 }
             }
         }
@@ -226,8 +227,14 @@ class MessagesFragment : Fragment() {
          * the query, so a mismatch (case, whitespace, a stale date, ...) is visible on sight
          * instead of needing another debug round-trip to find. */
         data class None(val rawCandidates: List<RemoteTransactionCandidate> = emptyList()) : DuplicateCheckResult
-        data class Found(val id: String) : DuplicateCheckResult
-        data class FoundMultiple(val mostRecentId: String, val count: Int) : DuplicateCheckResult
+
+        /** [candidate] is the full matched record when this came from the remote search (already
+         * fetched, no reason to ask Firefly for it again) - null for a local-log hit, which only
+         * ever has the id (`CreatedTransactionsDb` doesn't store full fields); `showDuplicateConfirmDialog`
+         * fetches it itself in that case (`FireflyApiClient.getTransaction`) so it can always show
+         * what the found transaction actually looks like, not just a bare id. */
+        data class Found(val id: String, val candidate: RemoteTransactionCandidate? = null) : DuplicateCheckResult
+        data class FoundMultiple(val mostRecentId: String, val count: Int, val candidate: RemoteTransactionCandidate? = null) : DuplicateCheckResult
 
         /** The remote search's HTTP call itself failed (network error, non-2xx response) - kept
          * distinct from [None] so [checkIfCreated] can show the *real* reason instead of silently
@@ -245,15 +252,16 @@ class MessagesFragment : Fragment() {
     private suspend fun checkForDuplicate(context: Context, draft: TransactionDraft): DuplicateCheckResult {
         val prefs = FireflyPrefs(context)
         if (!prefs.isDedupEnabled()) return DuplicateCheckResult.None()
-        return findDuplicate(context, draft, prefs)
+        return findDuplicate(context, draft, prefs, prefs.isDedupIncludeDescription())
     }
 
     /** Local dedup log first (`CreatedTransactionsDb`, this app's own log); only if *that* comes
      * up empty does it also ask Firefly itself (`FireflyApiClient.searchTransactionsByQuery`) - a
      * second device/app notifying about the same real payment wouldn't be in this app's own log
-     * at all, so a clean local lookup alone can't rule that out. */
-    private suspend fun findDuplicate(context: Context, draft: TransactionDraft, prefs: FireflyPrefs): DuplicateCheckResult {
-        val includeDescription = prefs.isDedupIncludeDescription()
+     * at all, so a clean local lookup alone can't rule that out. [includeDescription] is an
+     * explicit parameter rather than always reading `prefs.isDedupIncludeDescription()` so
+     * [checkIfCreated] can call this twice with different values (see its own KDoc for why). */
+    private suspend fun findDuplicate(context: Context, draft: TransactionDraft, prefs: FireflyPrefs, includeDescription: Boolean): DuplicateCheckResult {
         val windowMinutes = prefs.getDedupWindowMinutes()
         val hash = transactionDedupHash(draft, includeDescription)
         val localFoundId = CreatedTransactionsDb.getInstance(context)
@@ -267,6 +275,8 @@ class MessagesFragment : Fragment() {
         val query = dedupSearchQuery(
             amount = draft.amount,
             currencyCode = draft.currencyCode,
+            foreignAmount = draft.foreignAmount,
+            foreignCurrencyCode = draft.foreignCurrencyCode,
             centerDate = draft.date,
             windowMinutes = windowMinutes,
             sourceName = draft.sourceName,
@@ -278,31 +288,33 @@ class MessagesFragment : Fragment() {
         val client = FireflyApiClient(prefs.getBaseUrl(), prefs.getToken())
         return when (val result = client.searchTransactionsByQuery(query)) {
             is FireflyApiClient.Result.Success -> {
-                val candidates = result.value.map {
-                    RemoteTransactionCandidate(
-                        groupId = it.groupId,
-                        date = it.date,
-                        amount = it.amount,
-                        currencyCode = it.currencyCode,
-                        description = it.description,
-                        sourceId = it.sourceId,
-                        sourceName = it.sourceName,
-                        destinationId = it.destinationId,
-                        destinationName = it.destinationName,
-                    )
-                }
+                val candidates = result.value.map { it.toRemoteCandidate() }
                 val matches = candidates.filter { remoteCandidateMatches(draft, it, includeDescription, windowMinutes) }
                 when {
                     matches.isEmpty() -> DuplicateCheckResult.None(rawCandidates = candidates)
-                    matches.size == 1 -> DuplicateCheckResult.Found(matches.first().groupId)
+                    matches.size == 1 -> DuplicateCheckResult.Found(matches.first().groupId, matches.first())
                     // The dialog only has room for one "found" id - the most recent match, same
                     // tie-break `CreatedTransactionsDb.findWithinWindow` already uses.
-                    else -> DuplicateCheckResult.FoundMultiple(matches.maxBy { it.date }.groupId, matches.size)
+                    else -> matches.maxBy { it.date }.let { DuplicateCheckResult.FoundMultiple(it.groupId, matches.size, it) }
                 }
             }
             is FireflyApiClient.Result.Failure -> DuplicateCheckResult.SearchFailed(result.message)
         }
     }
+
+    private fun FireflyTransactionCandidate.toRemoteCandidate() = RemoteTransactionCandidate(
+        groupId = groupId,
+        date = date,
+        amount = amount,
+        currencyCode = currencyCode,
+        foreignAmount = foreignAmount,
+        foreignCurrencyCode = foreignCurrencyCode,
+        description = description,
+        sourceId = sourceId,
+        sourceName = sourceName,
+        destinationId = destinationId,
+        destinationName = destinationName,
+    )
 
     /** Entry point for "Create Again" only now - the fresh-create path runs [checkForDuplicate]
      * preemptively instead (see [showTestMatch]). Kept instant/click-first per the user's own
@@ -321,14 +333,14 @@ class MessagesFragment : Fragment() {
             // distinction actually matters.
             when (val result = checkForDuplicate(context, draft)) {
                 is DuplicateCheckResult.None, is DuplicateCheckResult.SearchFailed -> postTransaction(draft, message)
-                is DuplicateCheckResult.Found -> showDuplicateConfirmDialog(context, result.id, draft, message)
+                is DuplicateCheckResult.Found -> showDuplicateConfirmDialog(context, result.id, draft, message, knownCandidate = result.candidate)
                 is DuplicateCheckResult.FoundMultiple -> {
                     Toast.makeText(
                         context,
                         getString(R.string.create_remote_duplicates_found, result.count),
                         Toast.LENGTH_LONG,
                     ).show()
-                    showDuplicateConfirmDialog(context, result.mostRecentId, draft, message)
+                    showDuplicateConfirmDialog(context, result.mostRecentId, draft, message, knownCandidate = result.candidate)
                 }
             }
         }
@@ -347,25 +359,40 @@ class MessagesFragment : Fragment() {
      * [showCreateAnyway] drops to three actions - `dialog_duplicate_confirm_3.xml`, one row
      * instead of a grid - for [checkIfCreated]: that flow is an explicit "just tell me" search,
      * not a step on the way to posting a transaction, so "post one anyway" isn't a meaningful
-     * option there; title/message also switch to the check-specific wording in that case. */
-    private fun showDuplicateConfirmDialog(
+     * option there; title/message also switch to the check-specific wording in that case.
+     *
+     * Always shows the found transaction's real fields (date/amount/description/accounts)
+     * alongside the id, not just the bare "#<id>" - the user's own call, same reasoning as the
+     * not-found dialog's candidate dump: seeing what was actually found is what lets the user
+     * judge whether "Use Created" is really correct, not just trust the id. [knownCandidate] is
+     * passed straight through when this came from the remote search (already fetched in full,
+     * no reason to ask again); for a local-log hit (`CreatedTransactionsDb` only ever has the id)
+     * this fetches it itself (`FireflyApiClient.getTransaction`) - suspends briefly for that, a
+     * worthwhile trade for not showing a bare id the user has no way to independently verify.
+     * [descriptionMismatch] (only ever true from [checkIfCreated]'s retry-without-description -
+     * see its own KDoc) prepends an explicit warning that this match ignored description. */
+    private suspend fun showDuplicateConfirmDialog(
         context: Context,
         foundId: String,
         draft: TransactionDraft,
         message: CapturedMessage,
         showCreateAnyway: Boolean = true,
+        knownCandidate: RemoteTransactionCandidate? = null,
+        descriptionMismatch: Boolean = false,
     ) {
+        val candidate = knownCandidate ?: fetchCandidateInfo(context, foundId)
         val layoutRes = if (showCreateAnyway) R.layout.dialog_duplicate_confirm_4 else R.layout.dialog_duplicate_confirm_3
         val view = LayoutInflater.from(context).inflate(layoutRes, null, false)
+        val baseMessage = if (showCreateAnyway) {
+            getString(R.string.create_duplicate_confirm_message, foundId)
+        } else {
+            getString(R.string.check_found_message, foundId)
+        }
+        val warning = if (descriptionMismatch) getString(R.string.check_found_description_mismatch_warning) + "\n\n" else ""
+        val info = candidate?.let { buildFoundTransactionInfo(it) }.orEmpty()
         val dialog = AlertDialog.Builder(context)
             .setTitle(if (showCreateAnyway) R.string.create_duplicate_confirm_title else R.string.check_found_title)
-            .setMessage(
-                if (showCreateAnyway) {
-                    getString(R.string.create_duplicate_confirm_message, foundId)
-                } else {
-                    getString(R.string.check_found_message, foundId)
-                },
-            )
+            .setMessage(warning + baseMessage + info)
             .setView(view)
             .create()
 
@@ -384,6 +411,42 @@ class MessagesFragment : Fragment() {
         view.findViewById<View>(R.id.cancelDuplicateButton).setOnClickListener { dialog.dismiss() }
 
         dialog.show()
+    }
+
+    /** Fetches a known transaction's full fields for [showDuplicateConfirmDialog] - only needed
+     * for a local-log hit, which only ever has the id. Null on any failure (network, malformed
+     * response, or a genuinely missing transaction) - the dialog just shows the bare id in that
+     * case, same as before this existed, rather than failing to show anything at all. */
+    private suspend fun fetchCandidateInfo(context: Context, id: String): RemoteTransactionCandidate? {
+        val prefs = FireflyPrefs(context)
+        val client = FireflyApiClient(prefs.getBaseUrl(), prefs.getToken())
+        return when (val result = client.getTransaction(id)) {
+            is FireflyApiClient.Result.Success -> result.value?.toRemoteCandidate()
+            is FireflyApiClient.Result.Failure -> null
+        }
+    }
+
+    /** Plain-text field dump appended to the duplicate-confirm dialog's message, same spirit as
+     * [showSearchNotFoundDialog]'s "Candidates:" list - seeing the found transaction's actual
+     * date/amount/description/accounts is what lets the user judge a match independently, not
+     * just trust a bare id. Shows the foreign amount/currency alongside the home one when
+     * present, for the same reason the home amount alone is unreliable for matching (see
+     * `network.dedupSearchQuery`'s KDoc) - it's informative here too, not just for searching. */
+    private fun buildFoundTransactionInfo(candidate: RemoteTransactionCandidate): String {
+        val amountText = if (candidate.foreignAmount != null && candidate.foreignCurrencyCode != null) {
+            "${candidate.amount.toPlainString()} ${candidate.currencyCode} " +
+                "(${candidate.foreignAmount.toPlainString()} ${candidate.foreignCurrencyCode})"
+        } else {
+            "${candidate.amount.toPlainString()} ${candidate.currencyCode}"
+        }
+        return "\n\n" + getString(
+            R.string.check_found_transaction_info,
+            formatDraftDate(candidate.date),
+            amountText,
+            candidate.description,
+            candidate.sourceName.orEmpty(),
+            candidate.destinationName.orEmpty(),
+        )
     }
 
     /** Records both dedup hash variants on success - see `CreatedTransactionsDb`'s KDoc for why
@@ -576,7 +639,17 @@ class MessagesFragment : Fragment() {
      * (local log, then Firefly), ignoring `FireflyPrefs.isDedupEnabled()` - that toggle is about
      * whether *creating* gates on a dedup check, not whether this separate, user-initiated "just
      * tell me" action should run at all. Re-parses the message fresh (same `RuleEngine.match` as
-     * `showTestMatch`) rather than requiring the message to already have a cached draft. */
+     * `showTestMatch`) rather than requiring the message to already have a cached draft.
+     *
+     * Manual-only retry, the user's own call: if `isDedupIncludeDescription()` is on and the
+     * first attempt finds nothing, tries again with description excluded entirely (a second
+     * `findDuplicate` call - local log included, since a without-description hash might be
+     * populated there too, see `CreatedTransactionsDb`'s KDoc) before giving up. The create-flow
+     * callers (`checkForDuplicate`) deliberately do *not* do this - silently treating a
+     * description mismatch as "good enough" there would risk posting on top of a genuinely
+     * different transaction that just happens to share amount/account/date; a manual lookup has
+     * a human looking at the result either way, so showing a weaker match *with a clear warning*
+     * is the right trade-off here specifically. */
     private fun checkIfCreated(message: CapturedMessage) {
         val context = requireContext()
         if (!FireflyPrefs(context).isConfigured()) {
@@ -599,29 +672,58 @@ class MessagesFragment : Fragment() {
                 return@launch
             }
             val prefs = FireflyPrefs(context)
-            when (val result = findDuplicate(context, resolved, prefs)) {
+            val includeDescription = prefs.isDedupIncludeDescription()
+            var result = findDuplicate(context, resolved, prefs, includeDescription)
+            var effectiveIncludeDescription = includeDescription
+            var matchedWithoutDescription = false
+            if (result is DuplicateCheckResult.None && includeDescription) {
+                when (val retry = findDuplicate(context, resolved, prefs, includeDescription = false)) {
+                    is DuplicateCheckResult.Found, is DuplicateCheckResult.FoundMultiple -> {
+                        result = retry
+                        effectiveIncludeDescription = false
+                        matchedWithoutDescription = true
+                    }
+                    is DuplicateCheckResult.None -> {
+                        // Still nothing, but the broader (no-description) search may have turned
+                        // up raw candidates the first attempt's query filtered out server-side -
+                        // show those instead, the more informative "last/broadest attempt" result.
+                        result = retry
+                        effectiveIncludeDescription = false
+                    }
+                    is DuplicateCheckResult.SearchFailed -> Unit // keep the original None as-is
+                }
+            }
+            when (val r = result) {
                 is DuplicateCheckResult.None -> {
                     val query = dedupSearchQuery(
                         amount = resolved.amount,
                         currencyCode = resolved.currencyCode,
+                        foreignAmount = resolved.foreignAmount,
+                        foreignCurrencyCode = resolved.foreignCurrencyCode,
                         centerDate = resolved.date,
                         windowMinutes = prefs.getDedupWindowMinutes(),
                         sourceName = resolved.sourceName,
                         destinationName = resolved.destinationName,
                         description = resolved.description,
-                        includeDescription = prefs.isDedupIncludeDescription(),
+                        includeDescription = effectiveIncludeDescription,
                     ).orEmpty()
-                    showSearchNotFoundDialog(context, query, result.rawCandidates)
+                    showSearchNotFoundDialog(context, query, r.rawCandidates)
                 }
                 is DuplicateCheckResult.Found ->
-                    showDuplicateConfirmDialog(context, result.id, resolved, message, showCreateAnyway = false)
+                    showDuplicateConfirmDialog(
+                        context, r.id, resolved, message,
+                        showCreateAnyway = false, knownCandidate = r.candidate, descriptionMismatch = matchedWithoutDescription,
+                    )
                 is DuplicateCheckResult.FoundMultiple -> {
                     Toast.makeText(
                         context,
-                        getString(R.string.create_remote_duplicates_found, result.count),
+                        getString(R.string.create_remote_duplicates_found, r.count),
                         Toast.LENGTH_LONG,
                     ).show()
-                    showDuplicateConfirmDialog(context, result.mostRecentId, resolved, message, showCreateAnyway = false)
+                    showDuplicateConfirmDialog(
+                        context, r.mostRecentId, resolved, message,
+                        showCreateAnyway = false, knownCandidate = r.candidate, descriptionMismatch = matchedWithoutDescription,
+                    )
                 }
                 // Unlike the create-flow callers, this is an explicit "just tell me" lookup - a
                 // failed search gets shown for what it actually was, not quietly presented as
@@ -629,7 +731,7 @@ class MessagesFragment : Fragment() {
                 // the transaction fine when pasted into Firefly's own web search, so an API-side
                 // failure being swallowed as "not found" would be actively misleading here).
                 is DuplicateCheckResult.SearchFailed ->
-                    showResultDialog(context, R.string.check_search_failed_title, result.message)
+                    showResultDialog(context, R.string.check_search_failed_title, r.message)
             }
         }
     }

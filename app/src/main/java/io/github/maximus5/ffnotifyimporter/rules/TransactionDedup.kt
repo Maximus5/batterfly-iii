@@ -67,6 +67,8 @@ data class RemoteTransactionCandidate(
     val date: Instant,
     val amount: BigDecimal,
     val currencyCode: String,
+    val foreignAmount: BigDecimal?,
+    val foreignCurrencyCode: String?,
     val description: String,
     val sourceId: String?,
     val sourceName: String?,
@@ -96,17 +98,36 @@ data class RemoteTransactionCandidate(
  * [draft]'s lack of one for that side would never match even for the exact same counterparty, so
  * the throwaway draft only keeps [candidate]'s id for a side where [draft] *also* has one -
  * otherwise it's compared by name instead, same as [draft] itself is.
- */
+ *
+ * A second wrinkle - a real false negative the user caught on a foreign-currency notification:
+ * when [draft] has [TransactionDraft.foreignAmount]/[TransactionDraft.foreignCurrencyCode] set,
+ * its own [TransactionDraft.amount]/[TransactionDraft.currencyCode] are only this app's *own*
+ * approximate conversion (`rules.applyApproxConversion`), not a value Firefly's own stored amount
+ * is likely to match exactly - comparing those would reject a real match essentially at random.
+ * The foreign amount/currency is compared directly in that case instead (both sides' one precise,
+ * bank-reported value), and the throwaway draft's amount/currency are set to [draft]'s own
+ * (already-validated-identical-by-construction) values rather than [candidate]'s, so
+ * [transactionDedupHash]'s own unconditional amount/currency contribution can't independently
+ * re-reject what this already confirmed through the foreign-aware comparison. */
 fun remoteCandidateMatches(draft: TransactionDraft, candidate: RemoteTransactionCandidate, includeDescription: Boolean, windowMinutes: Int): Boolean {
     val amount = draft.amount ?: return false
     val windowMillis = windowMinutes * 60_000L
     if (Math.abs(candidate.date.toEpochMilli() - draft.date.toEpochMilli()) > windowMillis) return false
-    if (candidate.currencyCode != draft.currencyCode) return false
-    if (candidate.amount.setScale(2, RoundingMode.HALF_UP) != amount.setScale(2, RoundingMode.HALF_UP)) return false
+
+    val draftForeignAmount = draft.foreignAmount
+    val draftForeignCurrency = draft.foreignCurrencyCode
+    if (draftForeignAmount != null && draftForeignCurrency != null) {
+        if (candidate.foreignCurrencyCode != draftForeignCurrency) return false
+        val candidateForeignAmount = candidate.foreignAmount ?: return false
+        if (candidateForeignAmount.setScale(2, RoundingMode.HALF_UP) != draftForeignAmount.setScale(2, RoundingMode.HALF_UP)) return false
+    } else {
+        if (candidate.currencyCode != draft.currencyCode) return false
+        if (candidate.amount.setScale(2, RoundingMode.HALF_UP) != amount.setScale(2, RoundingMode.HALF_UP)) return false
+    }
 
     val candidateAsDraft = draft.copy(
-        amount = candidate.amount,
-        currencyCode = candidate.currencyCode,
+        amount = amount,
+        currencyCode = draft.currencyCode,
         sourceAccountId = if (draft.sourceAccountId != null) candidate.sourceId else null,
         sourceName = candidate.sourceName,
         destinationAccountId = if (draft.destinationAccountId != null) candidate.destinationId else null,
