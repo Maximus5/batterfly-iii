@@ -509,39 +509,26 @@ work.
   If it does: would need named-group aliases (e.g. `currencyBefore`/
   `currencyAfter`, both treated as `Groups.CURRENCY` by `RuleEngine`)
   rather than forcing the user to pick one position.
-- No way to write a literal `{word}` in a template field (description/
-  notes/category/tags/account names) when it isn't meant as a macro -
-  e.g. a real Firefly tag named `{User}`. Two distinct problems today,
-  found while discussing this with the user:
-  - `validateRule` always treats any `{word}` as a macro reference and
-    rejects the rule at save time if `word` isn't a declared group or
-    `FIXED_MACROS` ("Unknown macro(s): User") - even though
-    `renderTemplate` itself would have rendered it fine (an unknown
-    macro is left as literal text, see `MacroTemplate.kt`). So this
-    isn't a render-time mangling bug, it's a save-time false positive
-    that blocks the rule outright.
-  - If `word` *does* happen to collide with an actual declared group
-    name (or a fixed macro), it silently gets substituted instead of
-    staying literal - no way to say "I mean the literal text, not the
-    macro" in that case.
-  Proposed fix (not yet implemented, needs a decision - this is a
-  template-syntax change, worth getting right once rather than
-  revisiting): an escape syntax, doubled braces - `{{User}}` in the
-  field renders to literal `{User}`, braces-in-braces stripped down to
-  one level, content *not* macro-resolved regardless of whether `User`
-  happens to be a declared group. Would need:
-  - `renderTemplate`'s regex to prefer an escaped-pair match
-    (`\{\{(\w+)\}\}`) over the existing single-brace macro match
-    (`\{(\w+)\}`) at the same position, emitting `{$word}` literally
-    for the former.
-  - `templateMacroNames` to *not* count an escaped pair as a macro
-    reference (so `validateRule` doesn't flag `User` as unknown just
-    because it's quoted).
-  - The rule editor's "available macros" hint and insert-macro picker
-    presumably stay as-is (they're about inserting real macros, not
-    escaping literals) - but worth a quick UI gut-check once this
-    lands, in case users need a visible hint that escaping exists at
-    all.
+- **Done**: no way to write a literal `{word}` in a template field
+  (description/notes/category/tags/account names) when it isn't meant
+  as a macro - e.g. a real Firefly tag named `{User}`. (The save-time
+  "Unknown macro(s)" rejection this entry originally also described had
+  already been removed separately before this - `validateRule` doesn't
+  call `templateMacroNames` at all anymore, see its own comment - so
+  the one real remaining problem was `word` silently getting substituted
+  when it happened to collide with an actual declared group or fixed
+  macro, with no way to say "I mean the literal text, not the macro".)
+  `{{User}}` (doubled braces) in the field now renders to literal
+  `{User}`, never macro-resolved regardless of whether `User` collides
+  with a real group/`FIXED_MACROS` - `renderTemplate`'s regex tries the
+  escaped-pair alternative first at each position
+  (`\{\{(\w+)\}\}|\{(\w+)\}`, standard leftmost-alternative-wins regex
+  semantics), and `templateMacroNames` only ever counts the plain-macro
+  capture group, never the escaped one (`MacroTemplateTest`). The rule
+  editor's "available macros" hint (`updateAvailableMacros`) gained a
+  second, static line (`rule_escape_hint`) pointing at the `{{word}}`
+  syntax - the insert-macro picker itself stays as-is, it's about
+  inserting real macros, not escaping literals.
 - Real on-device verification needed for: message history retention
   (toggle on, capture a notification, restart the app, confirm it's
   still there; toggle back off, confirm the on-disk file is actually

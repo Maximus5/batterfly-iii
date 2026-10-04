@@ -251,7 +251,17 @@ Single `:app` module, packages under
   - `renderTemplate`/`templateMacroNames`/`FIXED_MACROS`
     (`MacroTemplateTest`) - `{x}` macro substitution for
     description/notes/account names/etc, using the match's captured
-    groups plus always-available `{title}`/`{body}`.
+    groups plus always-available `{title}`/`{body}`. `{{x}}` (doubled
+    braces) escapes a literal `{x}` that isn't meant as a macro at all
+    (e.g. a real Firefly tag named `{User}`) - the user's own request:
+    before this existed, `x` colliding with a real declared group or
+    `FIXED_MACROS` got silently substituted with no way to say "I mean
+    the literal text". `renderTemplate`'s regex tries the escaped-pair
+    alternative first at each position (standard leftmost-alternative-
+    wins behavior for `\{\{(\w+)\}\}|\{(\w+)\}`), and `templateMacroNames`
+    only ever counts the plain-macro capture group, never the escaped
+    one. `RuleEditFragment`'s "available macros" hint gained a second,
+    static line pointing at the `{{word}}` syntax.
   - `TransactionDraft`/`DraftIssue`/`ParseOutcome`/`NoMatchReason` -
     what a match produced (or why it didn't match) - postable now
     (`ui.MessagesFragment`'s "Создать" button, see its entry above),
