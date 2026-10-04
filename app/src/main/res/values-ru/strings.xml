@@ -168,8 +168,10 @@
     <string name="settings_backup_title">Бэкап и восстановление</string>
     <string name="settings_backup_subtitle">Сохранить или восстановить всё, кроме подключения к Firefly</string>
     <string name="backup_explanation">Включает мониторимые приложения, валюты, правила и историю сообщений. Не включает подключение к Firefly III (URL/токен) — введите их заново после восстановления.</string>
-    <string name="backup_export_button">Экспорт бэкапа…</string>
+    <string name="backup_export_button">Создать бэкап…</string>
     <string name="backup_restore_button">Восстановить из бэкапа…</string>
+    <string name="backup_export_rules_button">Экспорт правил…</string>
+    <string name="backup_import_rules_button">Импорт правил…</string>
     <string name="backup_export_success">Бэкап сохранён.</string>
     <string name="backup_export_failed">Ошибка экспорта: %1$s</string>
     <string name="backup_restore_confirm_title">Восстановить из этого бэкапа?</string>

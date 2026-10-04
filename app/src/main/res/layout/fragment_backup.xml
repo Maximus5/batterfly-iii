@@ -30,6 +30,26 @@
             android:layout_height="wrap_content"
             android:text="@string/backup_restore_button" />
 
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginTop="20dp"
+            android:layout_marginBottom="20dp"
+            android:background="#E0E0E0" />
+
+        <Button
+            android:id="@+id/exportRulesButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            android:text="@string/backup_export_rules_button" />
+
+        <Button
+            android:id="@+id/importRulesButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/backup_import_rules_button" />
+
     </LinearLayout>
 
 </ScrollView>

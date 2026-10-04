@@ -521,7 +521,17 @@ Single `:app` module, packages under
     confirms with the user before calling it (`AlertDialog`,
     "This can't be undone") - the "ask before a destructive/hard-to-
     reverse action" step that was missing from the old `RulesDb`
-    `onUpgrade` pattern that prompted this whole feature.
+    `onUpgrade` pattern that prompted this whole feature. Its "Create
+    Backup…" button label (renamed from "Export backup…") distinguishes
+    it from the rules-only shortcuts below it on the same screen.
+    `BackupFragment` also hosts a second "Export Rules…"/"Import
+    Rules…" entry point onto `RulesListFragment`'s own export/import -
+    literally the same `rulesToJson`/`rulesFromJson`/`RulesDb` calls,
+    not a reimplementation, just reachable from here too so a user
+    looking for "Backup & restore" doesn't have to already know rules
+    export/import lives on a different screen. No `reload()` call after
+    import here (unlike `RulesListFragment`'s) - this screen has no
+    rule list to refresh.
   - Both read/write via Storage Access Framework
     (`ActivityResultContracts.CreateDocument`/`OpenDocument`,
     `application/json`) - no storage permission needed, no app-private
