@@ -664,6 +664,24 @@ connection exists (see TODO.md).
 
 ## Known bugs / gotchas
 
+- **Real incident, data lost**: every `SQLiteOpenHelper.onUpgrade` in
+  this app (`RulesDb`/`MessageHistoryDb`/`CurrenciesDb`) used to just
+  `DROP TABLE` and recreate on *any* `DB_VERSION` bump - "fine for a
+  personal, not-yet-relied-upon rules list" reasoning that was true
+  early on but silently went stale as real rules accumulated over many
+  sessions. The `RulesDb` v5->v6 bump (adding
+  `source_account_id`/`destination_account_id`) wiped the user's actual
+  hand-built rules with no backup and no warning. `RulesDb.onUpgrade`
+  is now a real additive migration (`ALTER TABLE ... ADD COLUMN` per
+  version, never drop+recreate again - see its KDoc);
+  `MessageHistoryDb`/`CurrenciesDb` still have the old destructive
+  `onUpgrade` and need the same treatment *before*, not after, their
+  next schema change - both now carry a comment pointing at this
+  incident so it isn't repeated there either. Lesson: "disposable test
+  data" stops being an accurate justification the moment a user starts
+  relying on what's stored, and that transition has no clear signal -
+  bumping a `DB_VERSION` deserves friction (confirm with the user, or
+  just write the migration) from here on, not habit.
 - Android 15+ (targetSdk 35+, which this app uses) forces the window
   to draw edge-to-edge with no permanent opt-out -
   `android:windowOptOutEdgeToEdgeEnforcement` looked like one but is
@@ -678,9 +696,10 @@ connection exists (see TODO.md).
   revoked by some OEM battery-optimization/"app hibernation" features.
   No detection for that beyond the existing "is access enabled" banner
   check on resume.
-- The settings area, including the whole rules flow added this
-  milestone, hasn't had a real-device pass yet - unit tests and
-  `assembleDebug` pass, but opening each settings screen, toggling
-  retention, and exercising rule create/edit/duplicate/reorder/delete
-  plus "test match" needs manual verification per AGENTS.md's workflow
-  rule.
+- The settings area and the rules flow have both had extensive
+  real-device verification since - see the many rounds of user-reported
+  UI/UX fixes throughout this file's history. Current gap: the
+  Firefly III connection itself (Test connection confirmed working
+  on-device; `listAssetAccounts()`/`createTransaction()` not yet
+  exercised against a real instance, since nothing calls
+  `createTransaction()` yet - see TODO.md).

@@ -24,6 +24,11 @@ class CurrenciesDb(context: Context) : SQLiteOpenHelper(context, DB_NAME, null, 
         DEFAULTS.forEach { entry -> db.insert(TABLE, null, entry.toContentValues()) }
     }
 
+    // DB_VERSION has never actually bumped yet, so this has never run - but don't drop+recreate
+    // when it does. RulesDb did exactly this on a real schema change and silently wiped the
+    // user's actual saved rules, not test data by that point (same risk here: any currency the
+    // user added beyond DEFAULTS). Write a real `if (oldVersion < N)` + `ALTER TABLE ... ADD
+    // COLUMN` migration instead when this table's schema actually changes.
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         db.execSQL("DROP TABLE IF EXISTS $TABLE")
         onCreate(db)

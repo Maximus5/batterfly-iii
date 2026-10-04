@@ -39,9 +39,21 @@ class RulesDb(context: Context) : SQLiteOpenHelper(context, DB_NAME, null, DB_VE
         )
     }
 
+    /**
+     * Real, additive migrations from here on - *never* drop and recreate this table again. It
+     * used to (every earlier `DB_VERSION` bump did, "fine for a personal, not-yet-relied-upon
+     * rules list" per this file's old reasoning), and the v5->v6 bump that added
+     * [COL_SOURCE_ACCOUNT_ID]/[COL_DESTINATION_ACCOUNT_ID] silently wiped the user's actual,
+     * hand-built rules - not test data anymore by that point, real work, gone with no backup.
+     * Each future schema change adds its own `if (oldVersion < N)` block with `ALTER TABLE ...
+     * ADD COLUMN` (or similar), same idea [MessageHistoryDb]/[CurrenciesDb] still need to switch
+     * to before *their* next schema change, not just this one.
+     */
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        db.execSQL("DROP TABLE IF EXISTS $TABLE")
-        onCreate(db)
+        if (oldVersion < 6) {
+            db.execSQL("ALTER TABLE $TABLE ADD COLUMN $COL_SOURCE_ACCOUNT_ID TEXT")
+            db.execSQL("ALTER TABLE $TABLE ADD COLUMN $COL_DESTINATION_ACCOUNT_ID TEXT")
+        }
     }
 
     fun loadAllOrdered(): List<ParseRule> {
