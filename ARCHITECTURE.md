@@ -340,7 +340,13 @@ Single `:app` module, packages under
     `parseAboutVersion` (pulls the version string out of
     `GET /api/v1/about`'s `{"data": {"version": ...}}` response, used
     to confirm Test Connection actually talked to a real Firefly
-    instance and not just got a 200 from something else on that URL).
+    instance and not just got a 200 from something else on that URL),
+    `transactionUrl` (the *web UI* page for a created transaction -
+    `{baseUrl}/transactions/show/{id}`, a different URL shape from
+    every other helper here, which all build `/api/v1/...` paths - the
+    route itself was checked against Firefly's current `routes/web.php`
+    on GitHub, not assumed; see `MessagesFragment`'s "Open Transaction"
+    button below).
   - `FireflyApiClient` - plain `HttpURLConnection` + `org.json`, not
     OkHttp/Retrofit - same "avoid a new dependency when the framework
     already covers it" reasoning as the planned rules export/import
@@ -528,9 +534,16 @@ Single `:app` module, packages under
     new needed here) and calls `FireflyApiClient.createTransaction` on
     `viewLifecycleOwner.lifecycleScope`; a success records a row in
     `CreatedTransactionsDb` (hash + the transaction's own date + the
-    returned Firefly id) and shows an OK dialog with that id, a failure
-    shows the real failure reason, same pattern every other
-    Firefly-call failure in this app already uses.
+    returned Firefly id) and shows an OK dialog with that id plus a
+    neutral "Open Transaction" button (`network.transactionUrl`,
+    `ACTION_VIEW`) linking straight to Firefly's own web UI page for it
+    - `{baseUrl}/transactions/show/{id}`, confirmed against Firefly's
+    current `routes/web.php` on GitHub rather than guessed (its `id`
+    parameter is the transaction *group* id, exactly what
+    `createTransaction`'s returned `data.id` already is - see
+    `FireflyJson.parseCreatedTransactionId`). A failure shows the real
+    failure reason, same pattern every other Firefly-call failure in
+    this app already uses.
   - `SettingsActivity` - everything else, as a stack of fragments
     pushed via plain `FragmentManager` back-stack transactions (no
     Navigation Component - the flow is small and linear enough not to

@@ -1,7 +1,9 @@
 package io.github.maximus5.ffnotifyimporter.ui
 
 import android.content.Context
+import android.content.Intent
 import android.graphics.Typeface
+import android.net.Uri
 import android.os.Bundle
 import android.text.SpannableStringBuilder
 import android.text.Spanned
@@ -21,6 +23,7 @@ import io.github.maximus5.ffnotifyimporter.databinding.FragmentMessagesBinding
 import io.github.maximus5.ffnotifyimporter.network.ExchangeRateClient
 import io.github.maximus5.ffnotifyimporter.network.FireflyApiClient
 import io.github.maximus5.ffnotifyimporter.network.FireflyTransactionRequest
+import io.github.maximus5.ffnotifyimporter.network.transactionUrl
 import io.github.maximus5.ffnotifyimporter.prefs.FireflyPrefs
 import io.github.maximus5.ffnotifyimporter.rules.CreatedTransactionsDb
 import io.github.maximus5.ffnotifyimporter.rules.CurrenciesDb
@@ -199,13 +202,24 @@ class MessagesFragment : Fragment() {
             when (val result = client.createTransaction(request)) {
                 is FireflyApiClient.Result.Success -> {
                     CreatedTransactionsDb.getInstance(context).recordCreated(hash, draft.date.toEpochMilli(), result.value)
-                    showResultDialog(context, R.string.create_success_title, getString(R.string.create_success_message, result.value))
+                    showCreateSuccessDialog(context, prefs.getBaseUrl(), result.value)
                 }
                 is FireflyApiClient.Result.Failure -> {
                     showResultDialog(context, R.string.create_failed_title, result.message)
                 }
             }
         }
+    }
+
+    private fun showCreateSuccessDialog(context: Context, baseUrl: String, transactionId: String) {
+        AlertDialog.Builder(context)
+            .setTitle(R.string.create_success_title)
+            .setMessage(getString(R.string.create_success_message, transactionId))
+            .setPositiveButton(android.R.string.ok, null)
+            .setNeutralButton(R.string.create_open_transaction) { _, _ ->
+                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(transactionUrl(baseUrl, transactionId))))
+            }
+            .show()
     }
 
     private fun showResultDialog(context: Context, titleRes: Int, message: String) {

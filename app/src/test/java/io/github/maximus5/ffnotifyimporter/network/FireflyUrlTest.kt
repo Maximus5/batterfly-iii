@@ -51,4 +51,14 @@ class FireflyUrlTest {
         assertNull(parseAboutVersion("not json at all"))
         assertNull(parseAboutVersion("""{"nope":true}"""))
     }
+
+    @Test
+    fun `transactionUrl builds the web UI show page, not an API path`() {
+        assertEquals("https://firefly.example.com/transactions/show/42", transactionUrl("https://firefly.example.com", "42"))
+    }
+
+    @Test
+    fun `transactionUrl normalizes a trailing slash on the base URL`() {
+        assertEquals("https://firefly.example.com/transactions/show/42", transactionUrl("https://firefly.example.com/", "42"))
+    }
 }

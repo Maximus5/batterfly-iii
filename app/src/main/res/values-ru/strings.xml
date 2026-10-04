@@ -121,6 +121,7 @@
     <string name="create_duplicate_confirm_button">Всё равно создать</string>
     <string name="create_success_title">Создано</string>
     <string name="create_success_message">Транзакция Firefly №%1$s.</string>
+    <string name="create_open_transaction">Открыть транзакцию</string>
     <string name="create_failed_title">Не удалось создать</string>
 
     <string name="settings_currencies_title">Валюты</string>

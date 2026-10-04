@@ -32,3 +32,10 @@ fun parseAboutVersion(body: String): String? = try {
 } catch (e: JSONException) {
     null
 }
+
+/** The web UI page for one created transaction (not an API path) - `transactions/show/{id}`,
+ * confirmed against Firefly's own current `routes/web.php`
+ * (`Route::get('show/{transactionGroup?}', ...)` under the `transactions` prefix), not assumed.
+ * [id] is `POST /v1/transactions`'s returned `data.id` - the transaction *group* id, which is
+ * exactly what `{transactionGroup}` expects. */
+fun transactionUrl(baseUrl: String, id: String): String = "${normalizeBaseUrl(baseUrl)}/transactions/show/$id"
