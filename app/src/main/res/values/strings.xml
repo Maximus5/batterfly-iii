@@ -160,7 +160,7 @@
     <string name="currency_code_required">Code can\'t be empty.</string>
     <string name="currency_delete_confirm_title">Delete %1$s?</string>
 
-    <string name="settings_firefly_title">Firefly III connection</string>
+    <string name="settings_firefly_title">Firefly III settings</string>
     <string name="settings_firefly_subtitle_not_configured">Not configured</string>
     <string name="settings_firefly_subtitle_configured">Connected to %1$s</string>
     <string name="firefly_field_url">Base URL</string>

@@ -160,7 +160,7 @@
     <string name="currency_code_required">Код не может быть пустым.</string>
     <string name="currency_delete_confirm_title">Удалить %1$s?</string>
 
-    <string name="settings_firefly_title">Подключение к Firefly III</string>
+    <string name="settings_firefly_title">Настройки Firefly III</string>
     <string name="settings_firefly_subtitle_not_configured">Не настроено</string>
     <string name="settings_firefly_subtitle_configured">Подключено к %1$s</string>
     <string name="firefly_field_url">Base URL</string>

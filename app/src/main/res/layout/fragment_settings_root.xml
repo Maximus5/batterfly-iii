@@ -261,6 +261,14 @@
             android:text="@string/settings_about_title"
             android:textSize="16sp" />
 
+        <TextView
+            android:id="@+id/rowAboutSubtitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:textColor="#888888"
+            android:textSize="13sp" />
+
     </LinearLayout>
 
     <View

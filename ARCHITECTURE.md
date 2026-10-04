@@ -1105,15 +1105,25 @@ Single `:app` module, packages under
     activity can plausibly need it (so far: `RuleEditFragment`'s
     unsaved-changes confirm, see its own entry below). `null` restores
     the default. `SettingsRootFragment` is the menu (Firefly III
-    connection, monitored apps, currencies, rules, message history, add
+    settings, monitored apps, currencies, rules, message history, add
     test message, backup & restore, about, added one row
-    at a time as each is built - Firefly connection sits first since
+    at a time as each is built - Firefly settings sits first since
     it's the gateway to actually doing anything with a rule match now
     that posting is underway; currencies sits above rules since rules
     depend on it, same reasoning as monitored apps coming first; about
     sits last, after backup & restore - nothing to configure, just name/
-    version/GitHub link, so it belongs at the very bottom of the list),
-    linking to:
+    version/GitHub link, so it belongs at the very bottom of the list).
+    **Renamed from "Firefly III connection", the user's own call**: the
+    screen covers far more than the connection itself (approx-conversion
+    tag, auto-create, all three dedup settings) - "Firefly III settings"
+    doesn't imply it's only URL/token. The row's own subtitle (below)
+    still only reflects the connection half, unchanged.
+    `rowAboutSubtitle` now shows "Version x.yy" right on this list
+    (`updateAboutSubtitle`, same `PackageManager.getPackageInfo`
+    `versionName` lookup `AboutFragment` already did, reusing its
+    `about_version` string) - the user's own request, so the running
+    build's version is visible without opening About first.
+    Linking to:
     - `FireflySettingsFragment` (see the `prefs`/`network` package
       notes above for `FireflyPrefs`/`FireflyApiClient`) - one form,
       one explicit Save button, not autosave-per-field like

@@ -83,6 +83,21 @@ class SettingsRootFragment : Fragment() {
         (activity as? SettingsActivity)?.setScreenTitle(R.string.action_settings)
         updateMessageHistorySubtitle()
         updateFireflySubtitle()
+        updateAboutSubtitle()
+    }
+
+    /** Same `PackageInfo.versionName` lookup `AboutFragment` itself does, reusing its own
+     * `about_version` ("Version %1$s") string - the user's own request: "Version x.yy" visible
+     * right on the Settings list, not only after opening the About screen. */
+    private fun updateAboutSubtitle() {
+        val binding = binding ?: return
+        val context = requireContext()
+        val versionName = try {
+            context.packageManager.getPackageInfo(context.packageName, 0).versionName
+        } catch (e: Exception) {
+            null
+        }
+        binding.rowAboutSubtitle.text = getString(R.string.about_version, versionName ?: "?")
     }
 
     private fun updateFireflySubtitle() {
