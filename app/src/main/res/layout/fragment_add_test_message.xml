@@ -37,6 +37,22 @@
             android:layout_height="wrap_content"
             android:layout_marginBottom="16dp" />
 
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/add_test_message_datetime_label"
+            android:textSize="13sp" />
+
+        <Button
+            android:id="@+id/dateTimeButton"
+            style="?attr/borderlessButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:minWidth="0dp"
+            android:paddingStart="0dp"
+            android:textAllCaps="false" />
+
         <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

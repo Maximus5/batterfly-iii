@@ -1161,6 +1161,17 @@ Single `:app` module, packages under
       `BankNotificationListenerService` would for a real notification
       (same dedup, same persistence-if-enabled) - lets rule processing
       be tested without waiting for a real bank notification.
+      `dateTimeButton` (defaults to "now" when the screen opens, chained
+      `DatePickerDialog`+`TimePickerDialog` to edit) lets the injected
+      message carry a chosen timestamp instead of always being "just
+      now" - the user's own request, for reproducing a rule bug tied to
+      a specific real notification's time. `MessageStore.add` gained an
+      optional `timestampMillis` parameter (defaults to `clock()`, every
+      other call site unaffected) for this; its dedup-window comparison
+      switched from `now - existing.timestampMillis` to
+      `Math.abs(...)` of the same, since a deliberately backdated
+      timestamp can now be *older* than an existing entry, which the
+      original always-monotonic "now" assumption never had to handle.
     - `AboutFragment` - app name, `versionName` (read from
       `PackageManager.getPackageInfo`, not hardcoded, so it can't drift
       from `app/build.gradle.kts`), and a GitHub link

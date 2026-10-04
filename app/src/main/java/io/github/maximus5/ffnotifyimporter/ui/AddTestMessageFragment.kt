@@ -1,6 +1,9 @@
 package io.github.maximus5.ffnotifyimporter.ui
 
+import android.app.DatePickerDialog
+import android.app.TimePickerDialog
 import android.os.Bundle
+import android.text.format.DateFormat
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -12,6 +15,8 @@ import io.github.maximus5.ffnotifyimporter.data.MessageStore
 import io.github.maximus5.ffnotifyimporter.databinding.FragmentAddTestMessageBinding
 import io.github.maximus5.ffnotifyimporter.notifications.AppLabelResolver
 import io.github.maximus5.ffnotifyimporter.prefs.MonitoredAppsPrefs
+import java.util.Calendar
+import java.util.Date
 
 /**
  * Debug tool: manually inject a message into [MessageStore], exactly like a real notification
@@ -22,6 +27,11 @@ class AddTestMessageFragment : Fragment() {
 
     private var binding: FragmentAddTestMessageBinding? = null
     private var appOptions: List<AppOption> = emptyList()
+
+    /** Defaults to "now" at the moment the screen opens, same as a real captured notification
+     * would get - editable via [dateTimeButton] so a test message can reproduce a rule bug tied
+     * to a specific real notification's timestamp instead of only ever being "just now". */
+    private var selectedTimestampMillis: Long = System.currentTimeMillis()
 
     private data class AppOption(val packageName: String, val label: String) {
         override fun toString() = label
@@ -56,7 +66,46 @@ class AddTestMessageFragment : Fragment() {
             appOptions,
         )
 
+        updateDateTimeButtonText()
+        binding.dateTimeButton.setOnClickListener { showDateTimePicker() }
+
         binding.addButton.setOnClickListener { addTestMessage() }
+    }
+
+    private fun updateDateTimeButtonText() {
+        val binding = binding ?: return
+        val context = requireContext()
+        val date = Date(selectedTimestampMillis)
+        binding.dateTimeButton.text = "${DateFormat.getDateFormat(context).format(date)} ${DateFormat.getTimeFormat(context).format(date)}"
+    }
+
+    /** Date picker, then time picker, chained - the standard two-step Android pattern for picking
+     * a single date-time with only platform dialogs, no extra library. */
+    private fun showDateTimePicker() {
+        val context = requireContext()
+        val calendar = Calendar.getInstance().apply { timeInMillis = selectedTimestampMillis }
+        DatePickerDialog(
+            context,
+            { _, year, month, dayOfMonth ->
+                calendar.set(year, month, dayOfMonth)
+                TimePickerDialog(
+                    context,
+                    { _, hourOfDay, minute ->
+                        calendar.set(Calendar.HOUR_OF_DAY, hourOfDay)
+                        calendar.set(Calendar.MINUTE, minute)
+                        calendar.set(Calendar.SECOND, 0)
+                        selectedTimestampMillis = calendar.timeInMillis
+                        updateDateTimeButtonText()
+                    },
+                    calendar.get(Calendar.HOUR_OF_DAY),
+                    calendar.get(Calendar.MINUTE),
+                    DateFormat.is24HourFormat(context),
+                ).show()
+            },
+            calendar.get(Calendar.YEAR),
+            calendar.get(Calendar.MONTH),
+            calendar.get(Calendar.DAY_OF_MONTH),
+        ).show()
     }
 
     private fun addTestMessage() {
@@ -70,7 +119,7 @@ class AddTestMessageFragment : Fragment() {
             return
         }
 
-        val added = MessageStore.shared.add(selected.packageName, selected.label, title, text)
+        val added = MessageStore.shared.add(selected.packageName, selected.label, title, text, selectedTimestampMillis)
         val resultMessage = if (added) {
             R.string.add_test_message_added
         } else {
@@ -81,6 +130,8 @@ class AddTestMessageFragment : Fragment() {
         if (added) {
             binding.titleInput.text?.clear()
             binding.textInput.text?.clear()
+            selectedTimestampMillis = System.currentTimeMillis()
+            updateDateTimeButtonText()
         }
     }
 

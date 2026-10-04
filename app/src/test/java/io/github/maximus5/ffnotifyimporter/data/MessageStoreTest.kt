@@ -32,6 +32,27 @@ class MessageStoreTest {
     }
 
     @Test
+    fun `add stores the given timestampMillis instead of clock() when supplied`() {
+        val store = MessageStore(dedupWindowMillis = 1000, clock = { 999_999L })
+
+        store.add("bank.a", "Bank A", "Payment", "text", timestampMillis = 42L)
+
+        assertEquals(42L, store.snapshot().single().timestampMillis)
+    }
+
+    @Test
+    fun `add's dedup window compares against the given timestampMillis, not clock()`() {
+        val store = MessageStore(dedupWindowMillis = 1000, clock = { 0L })
+
+        assertTrue(store.add("bank.a", "Bank A", "Payment", "text", timestampMillis = 10_000L))
+        // Same content, a backdated timestamp just outside the window from the first one -
+        // clock() never changed, so this only works if the window compares against the supplied
+        // timestamps themselves, not against clock().
+        assertTrue(store.add("bank.a", "Bank A", "Payment", "text", timestampMillis = 8_999L))
+        assertEquals(2, store.snapshot().size)
+    }
+
+    @Test
     fun `different app, title or text is never a duplicate`() {
         val store = MessageStore(dedupWindowMillis = 1000, clock = { 0L })
 

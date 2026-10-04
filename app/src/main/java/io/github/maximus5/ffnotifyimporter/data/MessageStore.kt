@@ -32,9 +32,13 @@ class MessageStore(
      * row's `firefly_transaction_id` too. */
     var onMessageUpdated: ((CapturedMessage) -> Unit)? = null
 
-    /** Returns true if a new entry was recorded, false if it was dropped as a duplicate. */
-    fun add(packageName: String, appLabel: String, title: String, text: String): Boolean {
-        val now = clock()
+    /** Returns true if a new entry was recorded, false if it was dropped as a duplicate.
+     * [timestampMillis] defaults to "now" (every real notification-capture call site relies on
+     * this default) - `ui.AddTestMessageFragment` is the one caller that overrides it, so a test
+     * message can carry a chosen date/time instead of always being "just now", useful for
+     * reproducing a rule bug tied to a specific real notification's timestamp. */
+    fun add(packageName: String, appLabel: String, title: String, text: String, timestampMillis: Long = clock()): Boolean {
+        val now = timestampMillis
         val recorded: CapturedMessage
         val snapshot: List<CapturedMessage>
         synchronized(lock) {
@@ -42,7 +46,7 @@ class MessageStore(
                 existing.packageName == packageName &&
                     existing.title == title &&
                     existing.text == text &&
-                    now - existing.timestampMillis <= dedupWindowMillis
+                    Math.abs(now - existing.timestampMillis) <= dedupWindowMillis
             }
             if (isDuplicate) return false
             recorded = CapturedMessage(packageName, appLabel, title, text, now)
