@@ -473,6 +473,7 @@ class RuleEditFragment : Fragment() {
         val examples = listOf(
             EXAMPLE_PATTERN to getString(R.string.rule_pattern_example_label),
             EXAMPLE_PATTERN_TITLE_ANCHORED to getString(R.string.rule_pattern_example_label_title_anchored),
+            EXAMPLE_PATTERN_DATE_OVERRIDE to getString(R.string.rule_pattern_example_label_date_override),
         )
         val regexes = (saved + examples).distinctBy { it.first }
         // Full regex shown right here in the list, label above it - not truncated to one line,
@@ -599,6 +600,13 @@ class RuleEditFragment : Fragment() {
         // closing verb along with the merchant name.
         private const val EXAMPLE_PATTERN_TITLE_ANCHORED =
             """Zahlung erfolgreich[^\d]*(?<amount>[\d.,]+)\s*(?<currency>[A-Z]{1,3}\$|[A-Z]{3}|[€£$¥]).*?(?:an)\s+(?<counterparty>.+?)\s*(?:gezahlt)?\.?$"""
+
+        // Third example - captures `date` too, for the real case that prompted ParseRule.dateFormat:
+        // a bank (Bank DE) announcing a *future* charge date in the body, separately from when the
+        // notification itself arrived ("Die Abbuchung über €99,99 für 00000 findet am 01.02.30
+        // statt."). Paired with a "dd.MM.yy" dateFormat, this is the pattern that actually uses it.
+        private const val EXAMPLE_PATTERN_DATE_OVERRIDE =
+            """Die Abbuchung über\s*(?<currency>[A-Z]{1,3}\$|[A-Z]{3}|[€£$¥])(?<amount>[\d.,]+).*?(?:findet am)\s+(?<date>\d{2}\.\d{2}\.\d{2})\s*(?:statt)"""
 
         fun newInstance(ruleId: String?): RuleEditFragment = RuleEditFragment().apply {
             arguments = Bundle().apply { putString(ARG_RULE_ID, ruleId) }

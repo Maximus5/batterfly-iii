@@ -89,6 +89,19 @@ class NamedGroupMatcherTest {
     }
 
     @Test
+    fun `RuleEditFragment EXAMPLE_PATTERN_DATE_OVERRIDE, verbatim - captures currency, amount, and a future charge date`() {
+        val pattern =
+            """Die Abbuchung über\s*(?<currency>[A-Z]{1,3}\$|[A-Z]{3}|[€£$¥])(?<amount>[\d.,]+).*?(?:findet am)\s+(?<date>\d{2}\.\d{2}\.\d{2})\s*(?:statt)"""
+        val combined = "Bank DE\nDie Abbuchung über €99,99 für 00000 findet am 01.02.30 statt."
+
+        val groups = extractGroups(pattern, combined)
+
+        assertEquals("€", groups?.get("currency"))
+        assertEquals("99,99", groups?.get("amount"))
+        assertEquals("01.02.30", groups?.get("date"))
+    }
+
+    @Test
     fun `omits a declared group that matched but captured nothing`() {
         val pattern = """(?<amount>\d+)(?<currency>EUR)?"""
         val groups = extractGroups(pattern, "42")
