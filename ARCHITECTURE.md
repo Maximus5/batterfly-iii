@@ -1247,7 +1247,18 @@ Single `:app` module, packages under
       transaction" dialog first, every time, regardless of dedup
       settings - `startCreate` only runs after that's accepted, keeping
       its own `checkForDuplicate` call as an additional (not a
-      replacement) safety net.
+      replacement) safety net. **Fixed a second real gap, the user's
+      own catch, same day**: `startCreate` used to post straight to
+      Firefly from the draft exactly as originally matched, with no
+      review/edit step at all - the user's explicit rule is that
+      bypassing the review screen is only ever allowed for
+      `posting.AutoCreateWorker`'s background auto-create-by-notification
+      path, never for a manual action. `startCreate` now opens
+      `CreateTransactionActivity` on a clean/failed duplicate check
+      instead of posting (see that class's own entry below); a found
+      duplicate still shows `showDuplicateConfirmDialog` first, whose
+      own "Create anyway" (below) also opens that same screen rather
+      than posting from here.
     - Nothing linked yet (and Firefly configured): this dialog shows up
       as its *found* variant (`showDuplicateConfirmDialog`, same as
       every other create path's duplicate hit) if the preemptive check
@@ -1328,38 +1339,38 @@ Single `:app` module, packages under
     Created - `network.transactionUrl` on the found id, same helper the
     success dialog uses - deliberately does *not* dismiss the dialog,
     since opening Firefly to go check is "let me verify first", not a
-    decision yet), "Create anyway" (posts a new transaction regardless),
-    and "Cancel" - always last, by explicit request, regardless of
-    which of the other three ends up next to it as this evolves.
-    (An eventual auto-create path would instead skip-and-notify on a
-    likely duplicate rather than asking anything, see TODO.md - not
-    built yet.) `postTransaction` builds a `FireflyTransactionRequest`
-    straight from the draft
-    (`sourceAccountId ?: sourceName` preference already lives in
-    `FireflyJson.buildTransactionRequestBody`, nothing new needed here)
-    and calls `FireflyApiClient.createTransaction` on
-    `viewLifecycleOwner.lifecycleScope`; a success records a row in
-    `CreatedTransactionsDb` (both hash variants, computed fresh from the
-    draft at record time rather than threaded through from `startCreate`
-    - the dialog's "create anyway" no longer needs to carry a `hash`
-    parameter around at all + the transaction's own date + the returned
-    Firefly id), links that id to the message
-    (`MessageStore.setTransactionId` - re-creating from a message that
-    already had one just overwrites it, "latest wins", same reasoning
-    as `findWithinWindow`'s own most-recent-match ordering), and shows
-    an OK dialog with that id plus a neutral "Open Transaction" button
-    linking straight to Firefly's own web UI page for it -
-    `{baseUrl}/transactions/show/{id}`, confirmed against Firefly's
-    current `routes/web.php` on GitHub rather than guessed (its `id`
-    parameter is the transaction *group* id, exactly what
-    `createTransaction`'s returned `data.id` already is - see
-    `FireflyJson.parseCreatedTransactionId`). A failure shows the real
-    failure reason, same pattern every other Firefly-call failure in
-    this app already uses.
+    decision yet), "Create anyway", and "Cancel" - always last, by
+    explicit request, regardless of which of the other three ends up
+    next to it as this evolves.
+    (Auto-create, see the `posting` package section above, does
+    skip-and-notify on a likely duplicate instead of asking anything -
+    there's no human in the loop there to ask.) **Fixed a real "create
+    anyway bypasses review" gap, the user's own catch**: "Create anyway"
+    used to call a private `postTransaction` straight from here, posting
+    the draft exactly as matched/found with no review/edit step -
+    `postTransaction` is gone now (along with the `FireflyTransactionRequest`/
+    `CreatedTransactionsDb`/`transactionDedupHash` imports it alone
+    needed), and "Create anyway" instead opens `CreateTransactionActivity`
+    (see its own entry below) for the user to review before it actually
+    posts, same as every other manual create path - the user's explicit
+    rule is that bypassing this screen is only ever allowed for
+    `posting.AutoCreateWorker`'s background path, never for a manual tap,
+    even on an already-confirmed duplicate. `showDuplicateConfirmDialog`
+    itself no longer takes a `draft` parameter at all as a result -
+    nothing left in it needs one.
   - `CreateTransactionActivity`/`CreateTransactionFragment` - the
-    pre-create review/edit screen (TODO.md's dedup history), opened by
-    `MessagesFragment.showTestMatch` instead of the old test-match
-    dialog for a fresh match (nothing linked yet, Firefly configured).
+    pre-create review/edit screen (TODO.md's dedup history). Originally
+    opened only by `MessagesFragment.showTestMatch`/
+    `checkThenOpenCreateOrShowFound` for a fresh match (nothing linked
+    yet, Firefly configured); now also the destination of "Create
+    Again" (`startCreate`) and "Create anyway" (`showDuplicateConfirmDialog`)
+    - every manual create path ends up here, per the user's explicit
+    rule that only `posting.AutoCreateWorker`'s background path is
+    allowed to post without review. `CreateTransactionFragment` doesn't
+    treat an already-linked `message` (a "Create Again"/"Create anyway"
+    re-launch) specially - it just re-matches and posts, overwriting the
+    previous link, same "latest wins" reasoning used everywhere else a
+    message gets re-created.
     A single-fragment-host `Activity` (its own class, not reusing
     `SettingsActivity` despite the identical shape - that class is
     named/documented as the settings area specifically, and this screen

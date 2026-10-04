@@ -25,7 +25,6 @@ import io.github.maximus5.ffnotifyimporter.databinding.FragmentMessagesBinding
 import io.github.maximus5.ffnotifyimporter.network.ExchangeRateClient
 import io.github.maximus5.ffnotifyimporter.network.FireflyApiClient
 import io.github.maximus5.ffnotifyimporter.network.FireflyTransactionCandidate
-import io.github.maximus5.ffnotifyimporter.network.FireflyTransactionRequest
 import io.github.maximus5.ffnotifyimporter.network.dedupSearchQuery
 import io.github.maximus5.ffnotifyimporter.network.searchUrl
 import io.github.maximus5.ffnotifyimporter.network.transactionUrl
@@ -34,7 +33,6 @@ import io.github.maximus5.ffnotifyimporter.posting.checkForDuplicate
 import io.github.maximus5.ffnotifyimporter.posting.findDuplicate
 import io.github.maximus5.ffnotifyimporter.posting.toRemoteCandidate
 import io.github.maximus5.ffnotifyimporter.prefs.FireflyPrefs
-import io.github.maximus5.ffnotifyimporter.rules.CreatedTransactionsDb
 import io.github.maximus5.ffnotifyimporter.rules.CurrenciesDb
 import io.github.maximus5.ffnotifyimporter.rules.DraftIssue
 import io.github.maximus5.ffnotifyimporter.rules.NoMatchReason
@@ -44,7 +42,6 @@ import io.github.maximus5.ffnotifyimporter.rules.RuleEngine
 import io.github.maximus5.ffnotifyimporter.rules.RulesDb
 import io.github.maximus5.ffnotifyimporter.rules.TransactionDraft
 import io.github.maximus5.ffnotifyimporter.rules.applyApproxConversion
-import io.github.maximus5.ffnotifyimporter.rules.transactionDedupHash
 import java.math.RoundingMode
 import java.time.Instant
 import java.util.Date
@@ -99,7 +96,10 @@ class MessagesFragment : Fragment() {
      * if created" separately finding it), but tapping the message just opened a blank review
      * screen instead of surfacing that first. Found -> the usual duplicate-confirm dialog; not
      * found (or the remote check failed/was skipped) -> [CreateTransactionActivity] opens as
-     * before. The already-linked case (Open/Create Again) and the no-match/not-configured cases
+     * before. The already-linked case (Open/Create Again) still shows the plain info dialog first
+     * - that's just a read-only summary of what's already linked, nothing to check/review/edit in
+     * it - but "Create Again" itself now also leads into [CreateTransactionActivity] (see
+     * [startCreate]), same as every other manual create path. The no-match/not-configured cases
      * still show the plain dialog directly - there's nothing to check or review/edit in either. */
     private fun showTestMatch(message: CapturedMessage) {
         val rules = RulesDb.getInstance(requireContext()).loadAllOrdered()
@@ -146,10 +146,10 @@ class MessagesFragment : Fragment() {
                 is DuplicateCheckResult.None, is DuplicateCheckResult.SearchFailed ->
                     startActivity(CreateTransactionActivity.intent(context, message))
                 is DuplicateCheckResult.Found ->
-                    showDuplicateConfirmDialog(context, result.id, draft, message, knownCandidate = result.candidate)
+                    showDuplicateConfirmDialog(context, result.id, message, knownCandidate = result.candidate)
                 is DuplicateCheckResult.FoundMultiple -> {
                     Toast.makeText(context, getString(R.string.create_remote_duplicates_found, result.count), Toast.LENGTH_LONG).show()
-                    showDuplicateConfirmDialog(context, result.mostRecentId, draft, message, knownCandidate = result.candidate)
+                    showDuplicateConfirmDialog(context, result.mostRecentId, message, knownCandidate = result.candidate)
                 }
             }
         }
@@ -174,12 +174,14 @@ class MessagesFragment : Fragment() {
     }
 
     /** Confirms before "Create Again" actually runs - the user's own call, after noticing the tap
-     * had no confirmation at all. [startCreate] below does still run its own [checkForDuplicate]
-     * afterward, but that's a best-effort safety net (silently skipped entirely when
-     * `FireflyPrefs.isDedupEnabled()` is off, or when the dedup window has since lapsed) - this
-     * dialog is the one guaranteed "are you sure", shown every time regardless of dedup settings,
-     * since [existingTransactionId] already proves a transaction exists for this message. Cancel
-     * always rightmost/last (house convention, AGENTS.md). */
+     * had no confirmation at all. [startCreate] below still runs its own preemptive
+     * [checkForDuplicate] (same reasoning as [checkThenOpenCreateOrShowFound]: surface a found
+     * duplicate's info before the user even gets to the editor, rather than only at the very end),
+     * but no longer *posts* on a clean result - every path out of [startCreate] now lands in
+     * [CreateTransactionActivity] for review first, posting is never implicit. This dialog is the
+     * one guaranteed "are you sure", shown every time regardless of dedup settings, since
+     * [existingTransactionId] already proves a transaction exists for this message. Cancel always
+     * rightmost/last (house convention, AGENTS.md). */
     private fun confirmCreateAgain(context: Context, draft: TransactionDraft, message: CapturedMessage, existingTransactionId: String) {
         AlertDialog.Builder(context)
             .setTitle(R.string.create_again_confirm_title)
@@ -189,10 +191,11 @@ class MessagesFragment : Fragment() {
             .show()
     }
 
-    /** Entry point for "Create Again" only now - the fresh-create path runs [checkForDuplicate]
-     * preemptively instead (see [showTestMatch]). Kept instant/click-first per the user's own
-     * original call; now gated behind [confirmCreateAgain] above instead, per a later, separate
-     * request. */
+    /** Entry point for "Create Again" - gated behind [confirmCreateAgain] above. Never posts
+     * directly (see that function's own KDoc for why this changed): a clean/failed duplicate
+     * check opens [CreateTransactionActivity] for review, same as [checkThenOpenCreateOrShowFound]
+     * does for a fresh match; a found duplicate shows the usual duplicate-confirm dialog instead,
+     * whose own "Create anyway" also opens that same review screen rather than posting from here. */
     private fun startCreate(draft: TransactionDraft, message: CapturedMessage) {
         val context = requireContext()
         if (draft.amount == null) {
@@ -205,15 +208,16 @@ class MessagesFragment : Fragment() {
             // mechanism, so it shouldn't block creation. See checkIfCreated for where that
             // distinction actually matters.
             when (val result = checkForDuplicate(context, draft)) {
-                is DuplicateCheckResult.None, is DuplicateCheckResult.SearchFailed -> postTransaction(draft, message)
-                is DuplicateCheckResult.Found -> showDuplicateConfirmDialog(context, result.id, draft, message, knownCandidate = result.candidate)
+                is DuplicateCheckResult.None, is DuplicateCheckResult.SearchFailed ->
+                    startActivity(CreateTransactionActivity.intent(context, message))
+                is DuplicateCheckResult.Found -> showDuplicateConfirmDialog(context, result.id, message, knownCandidate = result.candidate)
                 is DuplicateCheckResult.FoundMultiple -> {
                     Toast.makeText(
                         context,
                         getString(R.string.create_remote_duplicates_found, result.count),
                         Toast.LENGTH_LONG,
                     ).show()
-                    showDuplicateConfirmDialog(context, result.mostRecentId, draft, message, knownCandidate = result.candidate)
+                    showDuplicateConfirmDialog(context, result.mostRecentId, message, knownCandidate = result.candidate)
                 }
             }
         }
@@ -228,6 +232,11 @@ class MessagesFragment : Fragment() {
      * to act on once the user comes back from Firefly. "Use Created" links the *found*
      * transaction's id to [message] instead of posting a new one - the dedup check already did the
      * work of finding it, no reason to make the user go dig it up by hand in Firefly.
+     * "Create anyway" opens [CreateTransactionActivity] for review rather than posting [draft]
+     * straight to Firefly - automatic creation bypassing the review screen is only ever allowed
+     * for `posting.AutoCreateWorker`'s background auto-create-by-notification path (the user's own
+     * explicit rule), never for a manual tap like this one, even when a likely duplicate has
+     * already been confirmed by hand.
      *
      * [showCreateAnyway] drops to three actions - `dialog_duplicate_confirm_3.xml`, one row
      * instead of a grid - for [checkIfCreated]: that flow is an explicit "just tell me" search,
@@ -247,7 +256,6 @@ class MessagesFragment : Fragment() {
     private suspend fun showDuplicateConfirmDialog(
         context: Context,
         foundId: String,
-        draft: TransactionDraft,
         message: CapturedMessage,
         showCreateAnyway: Boolean = true,
         knownCandidate: RemoteTransactionCandidate? = null,
@@ -277,7 +285,7 @@ class MessagesFragment : Fragment() {
         view.findViewById<View>(R.id.openDuplicateButton).setOnClickListener { openTransaction(context, foundId) }
         if (showCreateAnyway) {
             view.findViewById<View>(R.id.createAnywayButton).setOnClickListener {
-                postTransaction(draft, message)
+                startActivity(CreateTransactionActivity.intent(context, message))
                 dialog.dismiss()
             }
         }
@@ -322,62 +330,6 @@ class MessagesFragment : Fragment() {
         candidate.sourceName?.let { lines += "${getString(R.string.test_match_label_source)} $it" }
         candidate.destinationName?.let { lines += "${getString(R.string.test_match_label_destination)} $it" }
         return "\n\n" + lines.joinToString("\n")
-    }
-
-    /** Records both dedup hash variants on success - see `CreatedTransactionsDb`'s KDoc for why
-     * (always both, not just whichever `FireflyPrefs.isDedupIncludeDescription()` says right now,
-     * so toggling that setting later never breaks matching against this row). */
-    private fun postTransaction(draft: TransactionDraft, message: CapturedMessage) {
-        val amount = draft.amount ?: return
-        val context = requireContext()
-        val prefs = FireflyPrefs(context)
-        val request = FireflyTransactionRequest(
-            type = draft.kind.name.lowercase(),
-            dateIso = draft.date.toString(),
-            amount = amount.toPlainString(),
-            description = draft.description,
-            currencyCode = draft.currencyCode,
-            sourceId = draft.sourceAccountId,
-            sourceName = draft.sourceName,
-            destinationId = draft.destinationAccountId,
-            destinationName = draft.destinationName,
-            categoryName = draft.category,
-            tags = draft.tags,
-            notes = draft.notes.takeIf { it.isNotBlank() },
-            foreignAmount = draft.foreignAmount?.toPlainString(),
-            foreignCurrencyCode = draft.foreignCurrencyCode,
-        )
-        viewLifecycleOwner.lifecycleScope.launch {
-            val client = FireflyApiClient(prefs.getBaseUrl(), prefs.getToken())
-            when (val result = client.createTransaction(request)) {
-                is FireflyApiClient.Result.Success -> {
-                    CreatedTransactionsDb.getInstance(context).recordCreated(
-                        hashWithDescription = transactionDedupHash(draft, true),
-                        hashWithoutDescription = transactionDedupHash(draft, false),
-                        transactionDateMillis = draft.date.toEpochMilli(),
-                        fireflyTransactionId = result.value,
-                    )
-                    // Re-created from a message that already had an id (via "Create Again") just
-                    // overwrites it with the new one - this message's transaction is whatever was
-                    // created most recently, same "latest wins" reasoning as the dedup lookup
-                    // itself (ORDER BY date DESC).
-                    MessageStore.shared.setTransactionId(message, result.value)
-                    showCreateSuccessDialog(context, result.value)
-                }
-                is FireflyApiClient.Result.Failure -> {
-                    showResultDialog(context, R.string.create_failed_title, result.message)
-                }
-            }
-        }
-    }
-
-    private fun showCreateSuccessDialog(context: Context, transactionId: String) {
-        AlertDialog.Builder(context)
-            .setTitle(R.string.create_success_title)
-            .setMessage(getString(R.string.create_success_message, transactionId))
-            .setPositiveButton(android.R.string.ok, null)
-            .setNeutralButton(R.string.create_open_transaction) { _, _ -> openTransaction(context, transactionId) }
-            .show()
     }
 
     private fun openTransaction(context: Context, transactionId: String) {
@@ -586,7 +538,7 @@ class MessagesFragment : Fragment() {
                 }
                 is DuplicateCheckResult.Found ->
                     showDuplicateConfirmDialog(
-                        context, r.id, resolved, message,
+                        context, r.id, message,
                         showCreateAnyway = false, knownCandidate = r.candidate, descriptionMismatch = matchedWithoutDescription,
                     )
                 is DuplicateCheckResult.FoundMultiple -> {
@@ -596,7 +548,7 @@ class MessagesFragment : Fragment() {
                         Toast.LENGTH_LONG,
                     ).show()
                     showDuplicateConfirmDialog(
-                        context, r.mostRecentId, resolved, message,
+                        context, r.mostRecentId, message,
                         showCreateAnyway = false, knownCandidate = r.candidate, descriptionMismatch = matchedWithoutDescription,
                     )
                 }

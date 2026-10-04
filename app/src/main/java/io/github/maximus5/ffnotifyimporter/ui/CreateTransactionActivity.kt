@@ -13,9 +13,13 @@ import io.github.maximus5.ffnotifyimporter.databinding.ActivityCreateTransaction
  * `SettingsActivity`, so this skips that class's `openScreen`/back-stack machinery and just shows
  * the one fragment directly. The pre-create review/edit screen the user asked for (see TODO.md's
  * dedup history) - replaces what used to be `MessagesFragment.showTestMatch`'s read-only
- * test-match dialog for a *fresh* match (nothing linked yet); the already-linked
- * (Open/Create Again) and no-match cases stay as that dialog, unchanged - there's nothing to
- * review/edit in either of those.
+ * test-match dialog for a *fresh* match. The no-match case stays as that dialog, unchanged -
+ * there's nothing to review/edit there. The already-linked case (Open/Create Again) still shows
+ * that dialog first too, as a read-only summary, but "Create Again" itself now opens this screen
+ * as well, same as every other manual create path - the user's own explicit rule: bypassing this
+ * review screen is only ever allowed for `posting.AutoCreateWorker`'s background
+ * auto-create-by-notification path, never for a manual action, including a manual "create anyway"
+ * on an already-confirmed duplicate.
  */
 class CreateTransactionActivity : AppCompatActivity() {
 
@@ -51,8 +55,10 @@ class CreateTransactionActivity : AppCompatActivity() {
          * `CapturedMessage` - [CreateTransactionFragment] re-parses it fresh via `RuleEngine.match`
          * the same way `posting.AutoCreateWorker` reconstructs one from `WorkManager.Data`, rather
          * than trying to carry a `TransactionDraft` (`BigDecimal`/`Instant`/`List<String>`) across
-         * process boundaries. Only ever launched for a message with no `fireflyTransactionId` yet -
-         * see this class's own KDoc. */
+         * process boundaries. [message] may already carry a `fireflyTransactionId` (a "Create
+         * Again"/"Create anyway" re-launch) - the fragment doesn't treat that specially, it just
+         * re-matches and posts, overwriting the link with whatever gets created this time, same
+         * "latest wins" reasoning `MessagesFragment` always used for that case. */
         fun intent(context: Context, message: CapturedMessage): Intent =
             Intent(context, CreateTransactionActivity::class.java)
                 .putExtra(EXTRA_PACKAGE_NAME, message.packageName)

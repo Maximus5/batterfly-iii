@@ -152,7 +152,6 @@
     <string name="create_duplicate_use_created">Use created</string>
     <string name="create_duplicate_open">Open</string>
     <string name="create_already_created_linked">Linked to Firefly transaction #%1$s.</string>
-    <string name="create_success_title">Created</string>
     <string name="create_success_message">Firefly transaction #%1$s.</string>
     <string name="create_open_transaction">Open transaction</string>
     <string name="create_again">Create again</string>

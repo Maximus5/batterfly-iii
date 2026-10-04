@@ -691,6 +691,20 @@ work.
   Create Again) and the no-match/not-configured cases are unchanged,
   still the original dialog - there's nothing to review/edit in
   either of those.
+- **Fixed a real bypass, the user's own catch**: "Create Again" and the
+  duplicate-confirm dialog's "Create anyway" both used to post straight
+  to Firefly from the matched/found draft with no review/edit step at
+  all (`MessagesFragment.startCreate`/`postTransaction`) - the only
+  manual paths left that didn't go through `CreateTransactionActivity`
+  once it existed. The user's explicit rule, stated directly: bypassing
+  the review screen is only ever allowed for `posting.AutoCreateWorker`'s
+  background auto-create-by-notification path, never for any manual
+  action. Both now open `CreateTransactionActivity` instead of posting
+  directly; `postTransaction` itself is gone. Audited the rest of the
+  codebase for other direct `FireflyApiClient.createTransaction` callers
+  while fixing this - only two remain: `CreateTransactionFragment.post`
+  (the review screen itself) and `posting.AutoCreateWorker` (the one
+  allowed exception).
 - **Done**: when `FireflyPrefs.isAutoCreateEnabled()` is *off*, a rule
   match now surfaces a system notification (`posting.
   ReviewNotifications`, its own `review_match` channel) with an
