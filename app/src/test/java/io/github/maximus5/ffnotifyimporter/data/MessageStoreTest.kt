@@ -89,6 +89,33 @@ class MessageStoreTest {
     }
 
     @Test
+    fun `a message captured later but timestamped earlier is inserted in sorted position, not at the front`() {
+        // A real on-device case: timestampMillis is sbn.postTime, not "now" - a notification
+        // still sitting unswiped in the shade gets replayed (and re-captured) when the listener
+        // service reconnects, well after a genuinely newer notification was already recorded.
+        val store = MessageStore(dedupWindowMillis = 1000, clock = { 0L })
+
+        store.add("bank.a", "Bank A", "Newest", "text 1", timestampMillis = 3000)
+        store.add("bank.a", "Bank A", "Middle", "text 2", timestampMillis = 2000)
+        // Captured last, but its own (replayed) postTime is the oldest of the three.
+        store.add("bank.a", "Bank A", "Oldest, captured last", "text 3", timestampMillis = 1000)
+
+        assertEquals(listOf("Newest", "Middle", "Oldest, captured last"), store.snapshot().map { it.title })
+    }
+
+    @Test
+    fun `an out-of-order insert lands between the correct neighbors, not just not-at-the-front`() {
+        val store = MessageStore(dedupWindowMillis = 1000, clock = { 0L })
+
+        store.add("bank.a", "Bank A", "A", "text 1", timestampMillis = 3000)
+        store.add("bank.a", "Bank A", "B", "text 2", timestampMillis = 1000)
+        // Belongs strictly between A (3000) and B (1000) despite being captured last.
+        store.add("bank.a", "Bank A", "C", "text 3", timestampMillis = 2000)
+
+        assertEquals(listOf("A", "C", "B"), store.snapshot().map { it.title })
+    }
+
+    @Test
     fun `listener receives the current snapshot immediately and on every change`() {
         val store = MessageStore(dedupWindowMillis = 1000, clock = { 0L })
         val received = mutableListOf<List<CapturedMessage>>()

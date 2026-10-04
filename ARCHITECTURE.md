@@ -139,7 +139,22 @@ Single `:app` module, packages under
     re-deriving "now" a second time at the call site could race against
     a second notification arriving in between and land on a different
     value than what was stored internally - returning the already-
-    computed message avoids that race entirely. `restore` bulk-seeds
+    computed message avoids that race entirely.
+    **Fixed a real ordering bug, caught directly by the user right
+    after the `postTime` fix above**: the list is kept sorted
+    newest-first, which `add` used to maintain simply by always
+    inserting at index 0 - safe only as long as every new
+    `timestampMillis` is guaranteed larger than every previous one,
+    true back when it was always `clock()` ("now", monotonic). Once
+    `timestampMillis` became `sbn.postTime` (see `notifications`
+    below), that guarantee broke: a notification replayed on listener
+    reconnect can be *captured* after a genuinely newer one but carry
+    an *older* `postTime`, and inserting it at the front put it above
+    entries it's actually older than. `add` now finds the correct
+    sorted position (`indexOfFirst { it.timestampMillis <= now }`) and
+    inserts there instead of unconditionally at the front - `restore`
+    (below) is unaffected, it already relied on its caller pre-sorting
+    `historical`, not on this. `restore` bulk-seeds
     already-deduplicated entries
     (loaded from disk at startup) without re-running the dedup check;
     `remove` deletes one entry (matched by value equality - there's no

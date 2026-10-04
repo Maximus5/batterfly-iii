@@ -57,7 +57,17 @@ class MessageStore(
             }
             if (isDuplicate) return null
             recorded = CapturedMessage(packageName, appLabel, title, text, now)
-            messages.add(0, recorded)
+            // Sorted insert, not always index 0: now that timestampMillis is the notification's
+            // own sbn.postTime (see notifications.BankNotificationListenerService) rather than
+            // "whenever this app happened to process it", a later *capture* can carry an earlier
+            // timestamp than what's already in the list - a replayed, previously-unswiped
+            // notification caught on a listener reconnect, say. Blindly inserting at the front
+            // (safe back when timestampMillis was always `clock()`, which only ever increases)
+            // would put that older entry above newer ones, caught directly by the user. messages
+            // stays sorted newest-first - find the first existing entry that isn't newer than
+            // `recorded` and insert right before it, same shape restore()'s own ordering relies on.
+            val insertIndex = messages.indexOfFirst { it.timestampMillis <= now }
+            if (insertIndex == -1) messages.add(recorded) else messages.add(insertIndex, recorded)
             snapshot = messages.toList()
         }
         listeners.forEach { it(snapshot) }
