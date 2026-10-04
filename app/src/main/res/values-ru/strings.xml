@@ -112,7 +112,8 @@
     <string name="test_match_label_notes">Заметки:</string>
     <string name="test_match_label_category">Категория:</string>
     <string name="test_match_label_tags">Теги:</string>
-    <string name="test_match_issue_local_amount_missing">⚠ Нет суммы в валюте счёта — автоконвертация пока не реализована, это правило не сможет создать транзакцию для этого сообщения.</string>
+    <string name="test_match_issue_local_amount_missing">⚠ Нет суммы в валюте счёта.</string>
+    <string name="test_match_rate_lookup_failed">⚠ Не удалось получить курс: %1$s — это правило не сможет создать транзакцию для этого сообщения.</string>
 
     <string name="settings_currencies_title">Валюты</string>
     <string name="settings_currencies_subtitle">Таблица код↔символ, напр. EUR↔€ — для чтения банковских уведомлений</string>

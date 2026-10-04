@@ -354,6 +354,29 @@ Single `:app` module, packages under
     in the UI when it's `http://`; the manifest's
     `android:networkSecurityConfig` is what actually lets that
     connection succeed instead of failing silently.
+  - `ExchangeRateClient`/`ExchangeRateUrl` - same split as
+    `FireflyApiClient`/`FireflyUrl` (real call vs. plain-Kotlin
+    unit-testable URL-building/response-parsing, `ExchangeRateUrlTest`),
+    talking to Frankfurter (`api.frankfurter.dev/v2`, a free, keyless,
+    ECB-based rate API - completely unrelated to Firefly's own HTTP API,
+    just living in the same `network` package since it's this app's
+    other outbound HTTP call) rather than Firefly's own built-in
+    exchange-rate table - see TODO.md's `LOCAL_AMOUNT_MISSING` entry for
+    why: Firefly silently falls back to a rate of 1.0 for a pair it has
+    no data for, with nothing in the response flagging that. `GET
+    /rate/{base}/{quote}?date=YYYY-MM-DD` (the notification's own date,
+    not "today"), response shape `{"date","base","quote","rate"}` -
+    verified against the live API, not assumed. No API key. `rate` is
+    read via `optString`+`BigDecimal(String)`, not `optDouble`, to avoid
+    a double round-trip on a value about to be multiplied against a
+    real money amount. The computation itself
+    (`rules.applyApproxConversion` - `amount = foreignAmount * rate`,
+    `HALF_UP` to 2 decimals, plus appending
+    `FireflyPrefs.getApproxConversionTag()` to the draft's tags) lives
+    in `rules`, not `network`, and takes a plain `BigDecimal` rate - so
+    `rules` still has no dependency on `network`, same direction as
+    `network` not depending on `rules`; the caller (currently only
+    `MessagesFragment`, see its entry below) is the one bridging both.
 - `backup` - export/import and full backup/restore, added directly in
   response to a real data-loss incident (see "Known bugs / gotchas"
   below) - the user asked for both in the same breath once it happened:
@@ -446,7 +469,19 @@ Single `:app` module, packages under
     `getString(R.string.x, value)` concatenation read as one
     same-weight wall of text; this needed splitting the old combined
     "Label: %1$s" string resources into label-only strings so code can
-    bold just the label span.
+    bold just the label span. When the draft has `LOCAL_AMOUNT_MISSING`
+    (foreign-currency message, no home-currency amount), the dialog
+    shows "no amount" immediately and, in the background
+    (`fetchApproxConversionIfNeeded`, `viewLifecycleOwner.lifecycleScope`),
+    fetches a real rate from `network.ExchangeRateClient` for the
+    message's own date and swaps the already-shown dialog's message in
+    place (`AlertDialog.setMessage`, works after `.show()`) once it
+    resolves - a computed amount + the approx tag on success
+    (`rules.applyApproxConversion`), or the original body plus an
+    explicit "lookup failed: <reason>" line on failure. This is a
+    preview-only convenience - nothing is posted to Firefly from this
+    dialog, see TODO.md for the still-missing "Создать" button/posting
+    pipeline this would feed into.
   - `SettingsActivity` - everything else, as a stack of fragments
     pushed via plain `FragmentManager` back-stack transactions (no
     Navigation Component - the flow is small and linear enough not to

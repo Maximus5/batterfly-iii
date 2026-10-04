@@ -10,11 +10,14 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import io.github.maximus5.ffnotifyimporter.R
 import io.github.maximus5.ffnotifyimporter.data.CapturedMessage
 import io.github.maximus5.ffnotifyimporter.data.MessageStore
 import io.github.maximus5.ffnotifyimporter.databinding.FragmentMessagesBinding
+import io.github.maximus5.ffnotifyimporter.network.ExchangeRateClient
+import io.github.maximus5.ffnotifyimporter.prefs.FireflyPrefs
 import io.github.maximus5.ffnotifyimporter.rules.CurrenciesDb
 import io.github.maximus5.ffnotifyimporter.rules.DraftIssue
 import io.github.maximus5.ffnotifyimporter.rules.NoMatchReason
@@ -22,6 +25,8 @@ import io.github.maximus5.ffnotifyimporter.rules.ParseOutcome
 import io.github.maximus5.ffnotifyimporter.rules.RuleEngine
 import io.github.maximus5.ffnotifyimporter.rules.RulesDb
 import io.github.maximus5.ffnotifyimporter.rules.TransactionDraft
+import io.github.maximus5.ffnotifyimporter.rules.applyApproxConversion
+import kotlinx.coroutines.launch
 
 class MessagesFragment : Fragment() {
 
@@ -83,11 +88,40 @@ class MessagesFragment : Fragment() {
             }
         }
 
-        AlertDialog.Builder(requireContext())
+        val dialog = AlertDialog.Builder(requireContext())
             .setTitle(title)
             .setMessage(body)
             .setPositiveButton(android.R.string.ok, null)
             .show()
+
+        if (outcome is ParseOutcome.Matched) {
+            fetchApproxConversionIfNeeded(outcome.draft, dialog)
+        }
+    }
+
+    /** When a draft is missing its home-currency amount (foreign currency only), fetches a real
+     * exchange rate for the message's own date and swaps the already-shown dialog's body in place
+     * once it resolves. Preview-only convenience - no Firefly posting exists yet (see TODO.md) -
+     * so a failed lookup just appends why, it doesn't block or retry anything. */
+    private fun fetchApproxConversionIfNeeded(draft: TransactionDraft, dialog: AlertDialog) {
+        if (DraftIssue.LOCAL_AMOUNT_MISSING !in draft.issues) return
+        val foreignCurrency = draft.foreignCurrencyCode ?: return
+        val context = requireContext()
+        viewLifecycleOwner.lifecycleScope.launch {
+            when (val result = ExchangeRateClient().fetchRate(foreignCurrency, draft.currencyCode, draft.date)) {
+                is ExchangeRateClient.Result.Success -> {
+                    val approxTag = FireflyPrefs(context).getApproxConversionTag()
+                    val updated = applyApproxConversion(draft, result.rate, approxTag)
+                    dialog.setMessage(buildMatchedBody(updated))
+                }
+                is ExchangeRateClient.Result.Failure -> {
+                    val updatedBody = SpannableStringBuilder(buildMatchedBody(draft))
+                        .append("\n")
+                        .append(getString(R.string.test_match_rate_lookup_failed, result.message))
+                    dialog.setMessage(updatedBody)
+                }
+            }
+        }
     }
 
     /** Bolds each field's label ("Source:", "Amount:", ...) so a multi-field dialog reads as a

@@ -83,12 +83,12 @@ work.
     - `LOCAL_AMOUNT_MISSING` (currency captured by the pattern differs
       from the rule's `homeCurrency`, no explicit `foreignAmount`/
       `foreignCurrency` groups to tell us the converted amount - e.g. a
-      CHF card tap on a EUR account) currently has no resolution story
-      beyond "flag it, don't guess" (see the cross-currency chat this
-      came out of). Revisited: looking up a real exchange rate and
-      computing an *approximate* `amount` is better than refusing to
-      post at all, verified against Firefly's own API/docs before
-      deciding this:
+      CHF card tap on a EUR account). Looking up a real exchange rate
+      and computing an *approximate* `amount` is better than refusing
+      to post at all - verified against Firefly's own API/docs before
+      deciding this (see "What *is* safe" below for why this app
+      computes the amount itself rather than trusting Firefly's own
+      exchange-rate table).
         - Firefly III has its own Currency Exchange Rates API
           (`GET /v1/exchange-rates/{from}/{to}/{date}`, plus `POST`
           endpoints to store rates) - confirmed from its OpenAPI spec
@@ -108,28 +108,37 @@ work.
           explicitly-supplied `foreign_amount` as authoritative over
           anything it would calculate itself ("if you set a foreign
           amount in your primary currency, that amount will be used
-          instead of any calculated amount"). Decided: fetch a rate
-          from an independent, free external source *we* control - a
-          free, keyless, ECB-based API like Frankfurter is the obvious
-          starting candidate, not investigated in depth yet - compute
-          `amount` ourselves, and post both `amount` (our computed
-          guess) and `foreign_amount`/`foreign_currency_code` (the
-          real captured values) explicitly, rather than leaning on
-          Firefly's own exchange-rate table at all. Optionally also
-          `POST` the fetched rate back into Firefly's table as a
-          side-effect (harmless, and it means Firefly's own future
-          reports/calculations benefit too) - a nice-to-have, not a
-          dependency of the main flow.
-        - Decided and **done**: mark a computed/approximated
-          transaction with a tag (not a note or a Firefly-side flag) -
-          the tag's *name* is user-configurable
-          (`FireflyPrefs.getApproxConversionTag`/`FireflySettingsFragment`),
-          so it's a plain, visible Firefly tag the user picks
-          themselves rather than something baked into this app's
-          wording. Still not done: actually applying it - on top of
-          whatever the rule's own `tagsTemplate` already produces, not
-          instead of it - which needs the exchange-rate lookup +
-          computed-`amount` flow above to exist first.
+          instead of any calculated amount").
+        - **Done**: `network.ExchangeRateClient`/`ExchangeRateUrl` -
+          fetches a rate from Frankfurter (`api.frankfurter.dev/v2`), a
+          free, keyless, ECB-based API, independent of Firefly's own
+          table - `GET /rate/{base}/{quote}?date=YYYY-MM-DD`, verified
+          directly against the live API (not assumed): response shape
+          `{"date","base","quote","rate"}`, no API key, no quota, and a
+          real HTTP 422 for an unsupported currency code (unlike
+          Firefly's silent 1.0 fallback above) - the date is the
+          notification's own date, not "today", and a weekend/holiday
+          date doesn't error (confirmed live). `rules.
+          applyApproxConversion` (pure, no `network` dependency -
+          `rules` still doesn't depend on `network`, same layering as
+          the reverse) computes `amount = foreignAmount * rate`
+          (`HALF_UP`, 2 decimals) and appends the approx-conversion tag
+          (`FireflyPrefs.getApproxConversionTag`) to the draft's
+          existing tags, skipped if blank or already present. Wired
+          into the Messages screen's "test match" dialog only so far
+          (`MessagesFragment.fetchApproxConversionIfNeeded`) - the
+          dialog shows "no amount" immediately, same as before, then
+          swaps in the computed amount (or an explicit "lookup failed:
+          <reason>" line) once the async fetch resolves; this is a
+          preview-only convenience, not a posting path - no Firefly
+          call happens here.
+        - Still not done: posting `amount`/`foreign_amount`/
+          `foreign_currency_code` together to Firefly for real (needs
+          the "Создать" button / full posting pipeline below to exist
+          first - this item doesn't create that pipeline, it just makes
+          the preview dialog show a real number instead of "missing").
+          Also still not done, nice-to-have: `POST`ing the fetched rate
+          back into Firefly's own exchange-rate table as a side effect.
   - A way to reorder rules other than one-step-at-a-time up/down
     buttons (fine for a handful of rules; revisit - e.g. drag handles
     - if the list grows long enough to make that tedious).
