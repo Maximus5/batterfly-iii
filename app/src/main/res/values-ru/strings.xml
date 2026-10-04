@@ -157,4 +157,8 @@
     <string name="backup_restore_success">Восстановлено.</string>
     <string name="backup_restore_failed">Ошибка восстановления: %1$s</string>
     <string name="backup_invalid_file">Это не похоже на файл бэкапа.</string>
+
+    <string name="settings_about_title">О программе</string>
+    <string name="about_version">Версия %1$s</string>
+    <string name="about_github_url">https://github.com/Maximus5</string>
 </resources>

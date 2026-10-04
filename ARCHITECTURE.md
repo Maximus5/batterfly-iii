@@ -452,13 +452,13 @@ Single `:app` module, packages under
     Navigation Component - the flow is small and linear enough not to
     need it). `SettingsRootFragment` is the menu (Firefly III
     connection, monitored apps, currencies, rules, message history, add
-    test message, backup & restore, and later appearance, added one row
+    test message, backup & restore, about, added one row
     at a time as each is built - Firefly connection sits first since
     it's the gateway to actually doing anything with a rule match now
     that posting is underway; currencies sits above rules since rules
-    depend on it, same reasoning as monitored apps coming first; backup
-    & restore sits last, a maintenance tool rather than something
-    touched day to day, same spot "add test message" already had),
+    depend on it, same reasoning as monitored apps coming first; about
+    sits last, after backup & restore - nothing to configure, just name/
+    version/GitHub link, so it belongs at the very bottom of the list),
     linking to:
     - `FireflySettingsFragment` (see the `prefs`/`network` package
       notes above for `FireflyPrefs`/`FireflyApiClient`) - one form,
@@ -489,6 +489,11 @@ Single `:app` module, packages under
       `BankNotificationListenerService` would for a real notification
       (same dedup, same persistence-if-enabled) - lets rule processing
       be tested without waiting for a real bank notification.
+    - `AboutFragment` - app name, `versionName` (read from
+      `PackageManager.getPackageInfo`, not hardcoded, so it can't drift
+      from `app/build.gradle.kts`), and a GitHub link
+      (`about_github_url`, opened via `ACTION_VIEW`) - static, no
+      prefs/db involved.
     - `RulesListFragment` - the ordered rule list (`RulesAdapter`);
       tap opens `RuleEditFragment` to edit, the overflow (⋮) menu per
       row has move up/down, duplicate, delete - all straight

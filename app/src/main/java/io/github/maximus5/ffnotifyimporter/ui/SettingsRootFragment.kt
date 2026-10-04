@@ -70,6 +70,12 @@ class SettingsRootFragment : Fragment() {
                 R.string.settings_backup_title,
             )
         }
+        binding.rowAbout.setOnClickListener {
+            (activity as? SettingsActivity)?.openScreen(
+                AboutFragment(),
+                R.string.settings_about_title,
+            )
+        }
     }
 
     override fun onResume() {

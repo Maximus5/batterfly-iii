@@ -157,4 +157,8 @@
     <string name="backup_restore_success">Restored.</string>
     <string name="backup_restore_failed">Restore failed: %1$s</string>
     <string name="backup_invalid_file">This doesn\'t look like a backup file.</string>
+
+    <string name="settings_about_title">About</string>
+    <string name="about_version">Version %1$s</string>
+    <string name="about_github_url">https://github.com/Maximus5</string>
 </resources>
