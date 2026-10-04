@@ -21,6 +21,10 @@ import io.github.maximus5.ffnotifyimporter.ui.MainActivity
  * heads-up popup warranted for a background bookkeeping result), not `_LOW` either (a
  * skipped-duplicate or a failure is worth more attention than a silent badge).
  *
+ * [notifySuccess]/[notifySkippedDuplicate] add an explicit "Open transaction" action button
+ * (same destination the whole-notification tap already has) - the user's own request, so jumping
+ * straight to Firefly's page for it doesn't need expanding the notification first.
+ *
  * Every call is a no-op if [android.Manifest.permission.POST_NOTIFICATIONS] was never granted
  * (API 33+, requested from `FireflySettingsFragment` when the user turns "Auto-create" on) -
  * [NotificationManagerCompat.notify] throws [SecurityException] in that case rather than silently
@@ -32,23 +36,29 @@ object AutoCreateNotifications {
     private const val CHANNEL_ID = "auto_create"
 
     fun notifySuccess(context: Context, baseUrl: String, message: CapturedMessage, transactionId: String) {
-        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(transactionUrl(baseUrl, transactionId)))
+        val openTransaction = transactionIntent(context, baseUrl, transactionId)
         show(
             context,
             id = message.hashCode(),
             title = context.getString(R.string.auto_create_success_title),
             text = context.getString(R.string.auto_create_success_text, message.appLabel, transactionId),
-            pendingIntent = PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_IMMUTABLE),
+            pendingIntent = openTransaction,
+            action = openTransaction,
         )
     }
 
-    fun notifySkippedDuplicate(context: Context, message: CapturedMessage, existingTransactionId: String) {
+    /** [existingTransactionId] is the transaction the skip was *against* - both the tap target and
+     * the action button jump straight to it (not `MainActivity`), since confirming whether it's
+     * really the same payment means looking at that transaction, not the app's own message list. */
+    fun notifySkippedDuplicate(context: Context, baseUrl: String, message: CapturedMessage, existingTransactionId: String) {
+        val openTransaction = transactionIntent(context, baseUrl, existingTransactionId)
         show(
             context,
             id = message.hashCode(),
             title = context.getString(R.string.auto_create_skipped_title),
             text = context.getString(R.string.auto_create_skipped_text, message.appLabel, existingTransactionId),
-            pendingIntent = mainActivityIntent(context),
+            pendingIntent = openTransaction,
+            action = openTransaction,
         )
     }
 
@@ -59,7 +69,13 @@ object AutoCreateNotifications {
             title = context.getString(R.string.auto_create_failed_title),
             text = context.getString(R.string.auto_create_failed_text, message.appLabel, reason),
             pendingIntent = mainActivityIntent(context),
+            action = null,
         )
+    }
+
+    private fun transactionIntent(context: Context, baseUrl: String, transactionId: String): PendingIntent {
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(transactionUrl(baseUrl, transactionId)))
+        return PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_IMMUTABLE)
     }
 
     private fun mainActivityIntent(context: Context): PendingIntent {
@@ -69,18 +85,25 @@ object AutoCreateNotifications {
         return PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_IMMUTABLE)
     }
 
-    private fun show(context: Context, id: Int, title: String, text: String, pendingIntent: PendingIntent) {
+    /** [action] - when non-null, an explicit "Open transaction" button in the shade (collapsed or
+     * expanded, no tap-and-wait needed) alongside the usual whole-notification tap target
+     * ([pendingIntent], same destination when both are set) - the user's own request: tapping the
+     * body alone meant expanding/finding the notification first, a visible action button is one
+     * tap from the shade directly. */
+    private fun show(context: Context, id: Int, title: String, text: String, pendingIntent: PendingIntent, action: PendingIntent?) {
         ensureChannel(context)
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+        val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification_sync)
             .setContentTitle(title)
             .setContentText(text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
-            .build()
+        if (action != null) {
+            builder.addAction(R.drawable.ic_notification_sync, context.getString(R.string.create_open_transaction), action)
+        }
         try {
-            NotificationManagerCompat.from(context).notify(id, notification)
+            NotificationManagerCompat.from(context).notify(id, builder.build())
         } catch (e: SecurityException) {
             // POST_NOTIFICATIONS not granted - the outcome still happened (recorded in
             // CreatedTransactionsDb/MessageStore either way), the user just won't be told about it

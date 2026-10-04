@@ -76,11 +76,11 @@ class AutoCreateWorker(context: Context, params: WorkerParameters) : CoroutineWo
         return when (val result = checkForDuplicate(applicationContext, resolved)) {
             is DuplicateCheckResult.None, is DuplicateCheckResult.SearchFailed -> post(resolved, message, prefs)
             is DuplicateCheckResult.Found -> {
-                AutoCreateNotifications.notifySkippedDuplicate(applicationContext, message, result.id)
+                AutoCreateNotifications.notifySkippedDuplicate(applicationContext, prefs.getBaseUrl(), message, result.id)
                 Result.success()
             }
             is DuplicateCheckResult.FoundMultiple -> {
-                AutoCreateNotifications.notifySkippedDuplicate(applicationContext, message, result.mostRecentId)
+                AutoCreateNotifications.notifySkippedDuplicate(applicationContext, prefs.getBaseUrl(), message, result.mostRecentId)
                 Result.success()
             }
         }
