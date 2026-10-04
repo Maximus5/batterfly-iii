@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.PopupMenu
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
@@ -34,7 +35,7 @@ class CurrenciesFragment : Fragment() {
         val binding = binding ?: return
         currenciesDb = CurrenciesDb.getInstance(requireContext())
 
-        adapter = CurrenciesAdapter(onClick = ::showEditDialog, onDeleteClick = ::confirmDelete)
+        adapter = CurrenciesAdapter(onClick = ::showEditDialog, onOverflowClick = ::showOverflowMenu)
         binding.currenciesRecyclerView.layoutManager = LinearLayoutManager(requireContext())
         binding.currenciesRecyclerView.adapter = adapter
 
@@ -75,6 +76,23 @@ class CurrenciesFragment : Fragment() {
             .show()
     }
 
+    /** Same overflow-menu interaction as `RulesListFragment`'s row menu, for visual/interaction
+     * consistency across every list in the app - only "Delete" is needed here (no reorder/
+     * duplicate the way rules have), but the menu itself is the same shape rather than a bespoke
+     * standalone delete icon. */
+    private fun showOverflowMenu(entry: CurrencyEntry, anchor: View) {
+        val popup = PopupMenu(requireContext(), anchor)
+        popup.menu.add(0, ID_DELETE, 0, R.string.action_delete)
+        popup.setOnMenuItemClickListener { item ->
+            when (item.itemId) {
+                ID_DELETE -> confirmDelete(entry)
+                else -> return@setOnMenuItemClickListener false
+            }
+            true
+        }
+        popup.show()
+    }
+
     private fun confirmDelete(entry: CurrencyEntry) {
         AlertDialog.Builder(requireContext())
             .setTitle(getString(R.string.currency_delete_confirm_title, entry.code))
@@ -89,5 +107,9 @@ class CurrenciesFragment : Fragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         binding = null
+    }
+
+    private companion object {
+        const val ID_DELETE = 1
     }
 }

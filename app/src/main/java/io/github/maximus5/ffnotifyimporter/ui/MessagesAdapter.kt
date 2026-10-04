@@ -15,14 +15,24 @@ import java.util.Locale
 class MessagesAdapter(
     private val onClick: (CapturedMessage) -> Unit,
     private val onLongClick: (CapturedMessage) -> Boolean,
+    private val onOverflowClick: (CapturedMessage, View) -> Unit,
 ) : RecyclerView.Adapter<MessagesAdapter.ViewHolder>() {
 
     private var items: List<CapturedMessage> = emptyList()
     private val selected = mutableSetOf<CapturedMessage>()
+    private var selectionMode = false
 
     fun submitList(newItems: List<CapturedMessage>) {
         items = newItems
         selected.retainAll(newItems.toSet())
+        notifyDataSetChanged()
+    }
+
+    /** The per-row overflow menu (`onOverflowClick`) is hidden while a multi-select is in
+     * progress (`handleLongClick`'s own flow in `MessagesFragment`) - the two interaction modes
+     * would otherwise compete for the same tap. */
+    fun setSelectionMode(enabled: Boolean) {
+        selectionMode = enabled
         notifyDataSetChanged()
     }
 
@@ -81,8 +91,10 @@ class MessagesAdapter(
             binding.root.setBackgroundColor(
                 if (message in selected) SELECTED_BACKGROUND else Color.TRANSPARENT,
             )
-            binding.root.setOnClickListener { onClick(message) }
-            binding.root.setOnLongClickListener { onLongClick(message) }
+            binding.messageRowContent.setOnClickListener { onClick(message) }
+            binding.messageRowContent.setOnLongClickListener { onLongClick(message) }
+            binding.messageOverflowButton.visibility = if (selectionMode) View.GONE else View.VISIBLE
+            binding.messageOverflowButton.setOnClickListener { onOverflowClick(message, it) }
         }
     }
 

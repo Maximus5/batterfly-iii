@@ -1,6 +1,7 @@
 package io.github.maximus5.ffnotifyimporter.ui
 
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import io.github.maximus5.ffnotifyimporter.databinding.ItemCurrencyBinding
@@ -8,7 +9,7 @@ import io.github.maximus5.ffnotifyimporter.rules.CurrencyEntry
 
 class CurrenciesAdapter(
     private val onClick: (CurrencyEntry) -> Unit,
-    private val onDeleteClick: (CurrencyEntry) -> Unit,
+    private val onOverflowClick: (CurrencyEntry, View) -> Unit,
 ) : RecyclerView.Adapter<CurrenciesAdapter.ViewHolder>() {
 
     private var items: List<CurrencyEntry> = emptyList()
@@ -36,7 +37,7 @@ class CurrenciesAdapter(
             binding.currencyCode.text = entry.code
             binding.currencySymbol.text = entry.symbol
             binding.currencyRowContent.setOnClickListener { onClick(entry) }
-            binding.currencyDeleteButton.setOnClickListener { onDeleteClick(entry) }
+            binding.currencyOverflowButton.setOnClickListener { onOverflowClick(entry, it) }
         }
     }
 }

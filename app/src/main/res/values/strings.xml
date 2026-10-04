@@ -42,6 +42,13 @@
     <string name="messages_selected_count">%1$d selected</string>
     <string name="delete_messages_confirm_title">Delete message(s)?</string>
     <string name="delete_messages_confirm_message">This can\'t be undone. If local history is enabled, they\'re removed there too.</string>
+    <string name="messages_check_if_created">Check if created</string>
+    <string name="messages_check_no_rule_matched">No rule matched this message.</string>
+    <string name="check_found_title">Found in Firefly</string>
+    <string name="check_found_message">Transaction #%1$s matches.</string>
+    <string name="check_not_found_title">Not found in Firefly</string>
+    <string name="check_not_found_message">No matching transaction found for:\n\n%1$s</string>
+    <string name="check_open_search_in_firefly">Open search in Firefly</string>
 
     <string name="settings_rules_title">Rules</string>
     <string name="settings_rules_subtitle">Match notifications to Firefly III transactions</string>

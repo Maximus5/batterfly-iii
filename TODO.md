@@ -186,6 +186,29 @@ work.
       connection) falls through to posting normally rather than
       blocking - it's an extra safety net on top of the local log, not
       the primary mechanism.
+      **Known fragility, still open** - `OperatorQuerySearch::
+      searchAccount` (backing `source_account_is`/`destination_account_is`)
+      first resolves the given value against a *real* Firefly account by
+      that exact name, and if it finds none, calls the collector's
+      `findNothing()` - forcing the *entire* query to return zero
+      results, not just "this term matched nothing". Since
+      `sourceName`/`destinationName` are often free-typed text (never
+      validated against Firefly's own account list), a wording mismatch
+      can silently zero out an otherwise-correct search - caught
+      directly by the user testing against a real rule and message.
+      Two fixes were proposed and both rejected: (1) drop the account
+      terms from the server query entirely, rely on
+      `rules.remoteCandidateMatches`'s already-correct client-side
+      account check instead - rejected as "полная пурга", loses
+      precision (too broad a server-side selection, could return many
+      unrelated transactions before client-side filtering narrows it
+      back down); (2) resolve the name to a real account id via
+      `FireflyApiClient.listAssetAccounts` first, then query by id (the
+      account-id-scoped endpoint this search used before) - rejected as
+      unnecessary complexity with "никакого контроля что прошло не так"
+      (no visibility into what specifically went wrong if it still
+      doesn't match). No approved fix yet - `dedupSearchQuery` still
+      searches by name as-is, carrying this risk.
       **Done, prompted directly by the user after hitting a real
       unwanted duplicate**: the fresh-create "Создать" button used to
       run the whole check above only *after* being tapped, so the same

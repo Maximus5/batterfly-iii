@@ -42,6 +42,13 @@
     <string name="messages_selected_count">Выбрано: %1$d</string>
     <string name="delete_messages_confirm_title">Удалить сообщения?</string>
     <string name="delete_messages_confirm_message">Отменить нельзя. Если включена локальная история, они будут удалены и оттуда.</string>
+    <string name="messages_check_if_created">Проверить в Firefly</string>
+    <string name="messages_check_no_rule_matched">Ни одно правило не подошло к этому сообщению.</string>
+    <string name="check_found_title">Найдено в Firefly</string>
+    <string name="check_found_message">Совпадает транзакция #%1$s.</string>
+    <string name="check_not_found_title">Не найдено в Firefly</string>
+    <string name="check_not_found_message">Подходящая транзакция не найдена для:\n\n%1$s</string>
+    <string name="check_open_search_in_firefly">Открыть поиск в Firefly</string>
 
     <string name="settings_rules_title">Правила</string>
     <string name="settings_rules_subtitle">Сопоставление уведомлений с транзакциями Firefly III</string>

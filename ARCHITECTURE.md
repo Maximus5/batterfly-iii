@@ -692,7 +692,37 @@ Single `:app` module, packages under
     `colorPrimary`) next to the received time once a row's
     `fireflyTransactionId` is set, `View.GONE` otherwise - the one
     place in the UI that surfaces the link without having to reopen the
-    test-match dialog. Long-press starts
+    test-match dialog. Each row also has an overflow (⋮) `PopupMenu`
+    now, same shape as `RulesListFragment`'s (see its own notes below
+    for why that's the reference pattern) - "Check if created" and
+    "Delete", the latter asking for confirmation (same strings/dialog
+    shape as the multi-select delete below, just one message instead of
+    a selected set). Hidden (`MessagesAdapter.setSelectionMode`) while a
+    multi-select is in progress, since the two interaction modes would
+    otherwise compete for the same tap.
+    - "Check if created" (`MessagesFragment.checkIfCreated`) - an
+      explicit, user-initiated search, distinct from the preemptive
+      check `showTestMatch`/`startCreate` already run before posting:
+      re-parses the message fresh (`RuleEngine.match`, same as
+      `showTestMatch`) and calls `findDuplicate` directly - the same
+      local-then-remote logic `checkForDuplicate` uses, but *not*
+      gated by `FireflyPrefs.isDedupEnabled()`, since that toggle is
+      about whether *creating* pauses for a dedup check, a different
+      question from whether this separate "just tell me" action should
+      run at all. Not found: `showSearchNotFoundDialog` shows the exact
+      query string that was searched (`network.dedupSearchQuery` -
+      useful for debugging on its own, prompted by a real session where
+      the search's actual behavior needed to be inspected by hand) and
+      offers to open the same search, pre-filled, in Firefly's own web
+      UI (`network.searchUrl`, confirmed against `routes/web.php`'s
+      `search.index`/`SearchController::index` reading a `search` GET
+      parameter, not assumed). Found: the same
+      `showDuplicateConfirmDialog` the create flow uses, with
+      `showCreateAnyway = false` - drops the "Create anyway" row
+      entirely (`dialog_duplicate_confirm.xml`'s button just
+      `View.GONE`) and swaps in check-specific title/message strings,
+      since "post one anyway" isn't a meaningful option for a pure
+      lookup. Long-press starts
     multi-select (tap toggles more items in or out); its delete action
     calls `MessageStore.shared.remove` for each selected message after
     a confirmation dialog. Multi-select is a hand-rolled toggle of
@@ -939,7 +969,16 @@ Single `:app` module, packages under
     - `RulesListFragment` - the ordered rule list (`RulesAdapter`);
       tap opens `RuleEditFragment` to edit, the overflow (⋮) menu per
       row has move up/down, duplicate, delete - all straight
-      `RulesDb` calls followed by a reload. Add/Export/Import
+      `RulesDb` calls followed by a reload. **This row's overflow-menu
+      shape is the reference pattern for every list in the app** - the
+      user's own explicit call, prompted by `CurrenciesFragment` having
+      grown a bespoke standalone trash-icon button instead: same
+      `ic_more_vert` `ImageButton` (48dp, borderless, `onOverflowClick:
+      (T, View) -> Unit` from the adapter), same `PopupMenu` shown from
+      it, even where a list only ever needs one menu item
+      (`CurrenciesFragment`, below) - visual/interaction consistency
+      across lists matters more than how many items happen to be in the
+      menu. Add/Export/Import
       (`RulesJson`, see `backup` above) are three `menu_rules_list`
       action icons (`ic_add`/`ic_export`/`ic_import`) on the hosting
       `SettingsActivity`'s toolbar, wired via a `MenuProvider` added in
@@ -1180,7 +1219,13 @@ Single `:app` module, packages under
     - `CurrenciesFragment`/`CurrenciesAdapter` - list + add/edit (one
       `AlertDialog` with two fields: code, symbol) + delete over
       `CurrenciesDb`. No separate full-screen editor like
-      `RuleEditFragment` - two fields doesn't warrant one.
+      `RuleEditFragment` - two fields doesn't warrant one. Delete is
+      behind the same overflow (⋮) `PopupMenu` `RulesListFragment`
+      uses, not its own standalone trash-icon button (an earlier,
+      bespoke design) - a one-item menu is still the uniform pattern,
+      per the user's own call on list-interface consistency; delete
+      asks for confirmation the same way it always did
+      (`confirmDelete`, unchanged).
   - `SystemBarInsets.kt` - `useClassicSystemBars(root)`, the shared
     edge-to-edge-but-padded-back-to-classic logic both activities call
     (see Known bugs/gotchas below for why it's done this way). Also

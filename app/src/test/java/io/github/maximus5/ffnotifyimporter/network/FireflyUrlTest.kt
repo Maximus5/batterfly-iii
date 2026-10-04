@@ -65,6 +65,20 @@ class FireflyUrlTest {
     }
 
     @Test
+    fun `searchUrl builds the web search page with the query URL-encoded`() {
+        assertEquals(
+            "https://firefly.example.com/search?search=amount_is%3A12.50",
+            searchUrl("https://firefly.example.com", "amount_is:12.50"),
+        )
+    }
+
+    @Test
+    fun `searchUrl url-encodes spaces and quotes in the query`() {
+        val url = searchUrl("https://firefly.example.com", "description_is:\"Loyalty Program A\"")
+        assertEquals("https://firefly.example.com/search?search=description_is%3A%22Loyalty+Program+A%22", url)
+    }
+
+    @Test
     fun `dedupSearchDateRange covers a window that stays within one day`() {
         // 2026-03-01T12:00:00Z +/- 5 minutes never crosses midnight UTC.
         val (start, end) = dedupSearchDateRange(Instant.parse("2026-03-01T12:00:00Z"), 5)

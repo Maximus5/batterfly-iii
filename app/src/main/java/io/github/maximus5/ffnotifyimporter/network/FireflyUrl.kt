@@ -5,6 +5,7 @@ import org.json.JSONObject
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.net.URI
+import java.net.URLEncoder
 import java.time.Instant
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
@@ -67,6 +68,19 @@ fun dedupSearchDateRange(centerDate: Instant, windowMinutes: Int): Pair<String, 
  * on at all (no amount, or neither account name known) - the caller skips the remote check
  * entirely rather than searching unscoped (amount+date alone could coincidentally match an
  * unrelated transaction).
+ *
+ * **Known fragility, not yet resolved** - `OperatorQuerySearch::searchAccount` (backing
+ * `source_account_is`/`destination_account_is`) first resolves the given value against a *real*
+ * Firefly account by that exact name, and if it finds none, calls the collector's `findNothing()`
+ * - which forces the *entire* query to return zero results, not just "this term matched nothing".
+ * Since [sourceName]/[destinationName] are often free-typed text (never validated against
+ * Firefly's own account list), a wording mismatch here can silently zero out an otherwise-correct
+ * search. Caught directly by the user testing against a real rule; a fix was proposed (drop the
+ * account terms, rely on `rules.remoteCandidateMatches`'s already-correct client-side account
+ * check instead) and rejected ("это полная пурга" - loses precision, too broad a server-side
+ * selection) along with a second proposal (resolve the name to a real id via
+ * `FireflyApiClient.listAssetAccounts` first, then query by id) rejected too ("усложнение логики и
+ * никакого контроля что прошло не так"). Still open - see TODO.md.
  */
 fun dedupSearchQuery(
     amount: BigDecimal?,
@@ -98,6 +112,15 @@ fun dedupSearchQuery(
  * embedded `"` is escaped `\"`, the one case its own docs call out. */
 private fun quoteSearchValue(value: String): String =
     if (value.any { it.isWhitespace() }) "\"${value.replace("\"", "\\\"")}\"" else value
+
+/** The web UI search page pre-filled with [query] - `{baseUrl}/search?search=<encoded query>`,
+ * confirmed against Firefly's current `routes/web.php` (`search.index` ->
+ * `SearchController::index`, which reads the `search` GET parameter, not assumed) - the same
+ * operator-query syntax `dedupSearchQuery` builds for the API's own search endpoint. Lets
+ * `ui.MessagesFragment`'s "Check if created" hand the user a working, pre-filled search page
+ * instead of just showing the raw query text with nowhere to paste it. */
+fun searchUrl(baseUrl: String, query: String): String =
+    "${normalizeBaseUrl(baseUrl)}/search?search=${URLEncoder.encode(query, "UTF-8")}"
 
 /** The web UI page for one created transaction (not an API path) - `transactions/show/{id}`,
  * confirmed against Firefly's own current `routes/web.php`

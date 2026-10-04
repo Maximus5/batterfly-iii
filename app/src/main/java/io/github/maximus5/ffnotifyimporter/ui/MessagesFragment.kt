@@ -12,6 +12,7 @@ import android.text.style.StyleSpan
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.PopupMenu
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
@@ -25,6 +26,7 @@ import io.github.maximus5.ffnotifyimporter.network.ExchangeRateClient
 import io.github.maximus5.ffnotifyimporter.network.FireflyApiClient
 import io.github.maximus5.ffnotifyimporter.network.FireflyTransactionRequest
 import io.github.maximus5.ffnotifyimporter.network.dedupSearchQuery
+import io.github.maximus5.ffnotifyimporter.network.searchUrl
 import io.github.maximus5.ffnotifyimporter.network.transactionUrl
 import io.github.maximus5.ffnotifyimporter.prefs.FireflyPrefs
 import io.github.maximus5.ffnotifyimporter.rules.CreatedTransactionsDb
@@ -68,7 +70,7 @@ class MessagesFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        adapter = MessagesAdapter(onClick = ::handleClick, onLongClick = ::handleLongClick)
+        adapter = MessagesAdapter(onClick = ::handleClick, onLongClick = ::handleLongClick, onOverflowClick = ::showMessageOverflowMenu)
         binding?.messagesRecyclerView?.layoutManager = LinearLayoutManager(requireContext())
         binding?.messagesRecyclerView?.adapter = adapter
     }
@@ -220,15 +222,22 @@ class MessagesFragment : Fragment() {
         data class FoundMultiple(val mostRecentId: String, val count: Int) : DuplicateCheckResult
     }
 
-    /** Local dedup log first (`CreatedTransactionsDb`, this app's own log); only if *that* comes
-     * up empty does it also ask Firefly itself (`FireflyApiClient.searchTransactionsByQuery`) - a
-     * second device/app notifying about the same real payment wouldn't be in this app's own log
-     * at all, so a clean local lookup alone can't rule that out. Shared between the preemptive
-     * check above (fresh create) and [startCreate] below ("Create Again"). */
+    /** Gated by `FireflyPrefs.isDedupEnabled()` - the setting is about whether *creating* a
+     * transaction checks for a duplicate first, which is what this gates for (the preemptive
+     * check above and [startCreate]'s "Create Again" below). [checkIfCreated]'s explicit,
+     * user-initiated "just tell me" action calls [findDuplicate] directly instead, bypassing this
+     * toggle entirely - it's a separate question from whether creation should pause on one. */
     private suspend fun checkForDuplicate(context: Context, draft: TransactionDraft): DuplicateCheckResult {
         val prefs = FireflyPrefs(context)
         if (!prefs.isDedupEnabled()) return DuplicateCheckResult.None
+        return findDuplicate(context, draft, prefs)
+    }
 
+    /** Local dedup log first (`CreatedTransactionsDb`, this app's own log); only if *that* comes
+     * up empty does it also ask Firefly itself (`FireflyApiClient.searchTransactionsByQuery`) - a
+     * second device/app notifying about the same real payment wouldn't be in this app's own log
+     * at all, so a clean local lookup alone can't rule that out. */
+    private suspend fun findDuplicate(context: Context, draft: TransactionDraft, prefs: FireflyPrefs): DuplicateCheckResult {
         val includeDescription = prefs.isDedupIncludeDescription()
         val windowMinutes = prefs.getDedupWindowMinutes()
         val hash = transactionDedupHash(draft, includeDescription)
@@ -236,11 +245,10 @@ class MessagesFragment : Fragment() {
             .findWithinWindow(hash, includeDescription, draft.date.toEpochMilli(), windowMinutes)
         if (localFoundId != null) return DuplicateCheckResult.Found(localFoundId)
 
-        // A name, not a Firefly id - this app frequently only has a name for an account that was
-        // typed rather than picked from FireflyApiClient.listAssetAccounts, and posting by name
-        // alone is already fully supported, so dedup searching by name only is too (see
-        // dedupSearchQuery's KDoc - null here means neither side has a name at all, nothing to
-        // search on, so the remote check is skipped rather than searching unscoped).
+        // Known fragility - see dedupSearchQuery's KDoc: Firefly's account_is operators silently
+        // zero out the *entire* search if the given name doesn't exactly match a real account,
+        // which this app's often-free-typed account names can't guarantee. Not yet resolved (see
+        // TODO.md) - two fixes were proposed and rejected, so this still searches by name as-is.
         val query = dedupSearchQuery(
             amount = draft.amount,
             currencyCode = draft.currencyCode,
@@ -318,17 +326,29 @@ class MessagesFragment : Fragment() {
      * dismiss - it's "let me go check first", not a decision, so the dialog is still there to act
      * on once the user comes back from Firefly. "Use Created" links the *found* transaction's id
      * to [message] instead of posting a new one - the dedup check already did the work of finding
-     * it, no reason to make the user go dig it up by hand in Firefly. */
+     * it, no reason to make the user go dig it up by hand in Firefly.
+     *
+     * [showCreateAnyway] drops to three actions (no "Create anyway" row at all) for
+     * [checkIfCreated] - that flow is an explicit "just tell me" search, not a step on the way to
+     * posting a transaction, so "post one anyway" isn't a meaningful option there; title/message
+     * also switch to the check-specific wording in that case. */
     private fun showDuplicateConfirmDialog(
         context: Context,
         foundId: String,
         draft: TransactionDraft,
         message: CapturedMessage,
+        showCreateAnyway: Boolean = true,
     ) {
         val view = LayoutInflater.from(context).inflate(R.layout.dialog_duplicate_confirm, null, false)
         val dialog = AlertDialog.Builder(context)
-            .setTitle(R.string.create_duplicate_confirm_title)
-            .setMessage(getString(R.string.create_duplicate_confirm_message, foundId))
+            .setTitle(if (showCreateAnyway) R.string.create_duplicate_confirm_title else R.string.check_found_title)
+            .setMessage(
+                if (showCreateAnyway) {
+                    getString(R.string.create_duplicate_confirm_message, foundId)
+                } else {
+                    getString(R.string.check_found_message, foundId)
+                },
+            )
             .setView(view)
             .create()
 
@@ -338,9 +358,14 @@ class MessagesFragment : Fragment() {
             dialog.dismiss()
         }
         view.findViewById<View>(R.id.openDuplicateButton).setOnClickListener { openTransaction(context, foundId) }
-        view.findViewById<View>(R.id.createAnywayButton).setOnClickListener {
-            postTransaction(draft, message)
-            dialog.dismiss()
+        val createAnywayButton = view.findViewById<View>(R.id.createAnywayButton)
+        if (showCreateAnyway) {
+            createAnywayButton.setOnClickListener {
+                postTransaction(draft, message)
+                dialog.dismiss()
+            }
+        } else {
+            createAnywayButton.visibility = View.GONE
         }
         view.findViewById<View>(R.id.cancelDuplicateButton).setOnClickListener { dialog.dismiss() }
 
@@ -482,6 +507,7 @@ class MessagesFragment : Fragment() {
     private fun handleLongClick(message: CapturedMessage): Boolean {
         if (!inSelectionMode) {
             inSelectionMode = true
+            adapter.setSelectionMode(true)
             adapter.toggleSelection(message)
             (requireActivity() as MainActivity).enterSelectionMode(
                 count = adapter.selectedCount(),
@@ -501,8 +527,122 @@ class MessagesFragment : Fragment() {
 
     private fun clearSelectionAndExit() {
         adapter.clearSelection()
+        adapter.setSelectionMode(false)
         inSelectionMode = false
         (activity as? MainActivity)?.exitSelectionMode()
+    }
+
+    private fun showMessageOverflowMenu(message: CapturedMessage, anchor: View) {
+        val popup = PopupMenu(requireContext(), anchor)
+        popup.menu.add(0, ID_CHECK_IF_CREATED, 0, R.string.messages_check_if_created)
+        popup.menu.add(0, ID_DELETE_SINGLE, 1, R.string.action_delete)
+        popup.setOnMenuItemClickListener { item ->
+            when (item.itemId) {
+                ID_CHECK_IF_CREATED -> checkIfCreated(message)
+                ID_DELETE_SINGLE -> confirmDeleteSingle(message)
+                else -> return@setOnMenuItemClickListener false
+            }
+            true
+        }
+        popup.show()
+    }
+
+    private fun confirmDeleteSingle(message: CapturedMessage) {
+        AlertDialog.Builder(requireContext())
+            .setTitle(R.string.delete_messages_confirm_title)
+            .setMessage(R.string.delete_messages_confirm_message)
+            .setPositiveButton(R.string.action_delete) { _, _ -> MessageStore.shared.remove(message) }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    /** "Check if created" (the per-row overflow menu) - an explicit, deliberate search, unlike
+     * the preemptive check `showTestMatch`/`startCreate` run before posting: it always looks
+     * (local log, then Firefly), ignoring `FireflyPrefs.isDedupEnabled()` - that toggle is about
+     * whether *creating* gates on a dedup check, not whether this separate, user-initiated "just
+     * tell me" action should run at all. Re-parses the message fresh (same `RuleEngine.match` as
+     * `showTestMatch`) rather than requiring the message to already have a cached draft. */
+    private fun checkIfCreated(message: CapturedMessage) {
+        val context = requireContext()
+        if (!FireflyPrefs(context).isConfigured()) {
+            Toast.makeText(context, R.string.rule_firefly_not_configured, Toast.LENGTH_LONG).show()
+            return
+        }
+        val rules = RulesDb.getInstance(context).loadAllOrdered()
+        val currencySymbols = CurrenciesDb.getInstance(context).symbolToCodeMap()
+        val outcome = RuleEngine(rules, currencySymbols).match(message)
+        val draft = (outcome as? ParseOutcome.Matched)?.draft
+        if (draft == null) {
+            Toast.makeText(context, R.string.messages_check_no_rule_matched, Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            val resolved = resolveAmountQuietly(draft)
+            if (resolved.amount == null) {
+                Toast.makeText(context, R.string.create_amount_not_ready, Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+            val prefs = FireflyPrefs(context)
+            when (val result = findDuplicate(context, resolved, prefs)) {
+                DuplicateCheckResult.None -> {
+                    val query = dedupSearchQuery(
+                        amount = resolved.amount,
+                        currencyCode = resolved.currencyCode,
+                        centerDate = resolved.date,
+                        windowMinutes = prefs.getDedupWindowMinutes(),
+                        sourceName = resolved.sourceName,
+                        destinationName = resolved.destinationName,
+                        description = resolved.description,
+                        includeDescription = prefs.isDedupIncludeDescription(),
+                    ).orEmpty()
+                    showSearchNotFoundDialog(context, query)
+                }
+                is DuplicateCheckResult.Found ->
+                    showDuplicateConfirmDialog(context, result.id, resolved, message, showCreateAnyway = false)
+                is DuplicateCheckResult.FoundMultiple -> {
+                    Toast.makeText(
+                        context,
+                        getString(R.string.create_remote_duplicates_found, result.count),
+                        Toast.LENGTH_LONG,
+                    ).show()
+                    showDuplicateConfirmDialog(context, result.mostRecentId, resolved, message, showCreateAnyway = false)
+                }
+            }
+        }
+    }
+
+    /** Same exchange-rate resolution as [resolveApproxConversion], without an [AlertDialog] to
+     * update along the way - for [checkIfCreated], which doesn't show the matched-fields dialog
+     * at all. A failed lookup silently keeps the original (still-unresolved) draft, same as
+     * [resolveApproxConversion]'s own fallback. */
+    private suspend fun resolveAmountQuietly(draft: TransactionDraft): TransactionDraft {
+        if (DraftIssue.LOCAL_AMOUNT_MISSING !in draft.issues) return draft
+        val foreignCurrency = draft.foreignCurrencyCode ?: return draft
+        val context = requireContext()
+        return when (val result = ExchangeRateClient().fetchRate(foreignCurrency, draft.currencyCode, draft.date)) {
+            is ExchangeRateClient.Result.Success -> {
+                val approxTag = FireflyPrefs(context).getApproxConversionTag()
+                applyApproxConversion(draft, result.rate, approxTag)
+            }
+            is ExchangeRateClient.Result.Failure -> draft
+        }
+    }
+
+    /** No match in Firefly - shows the exact query string `checkIfCreated` searched with (so the
+     * user can see/debug what was actually looked for) and offers to open the same search,
+     * pre-filled, in Firefly's own web UI (`network.searchUrl`) rather than leaving them to
+     * retype it by hand. */
+    private fun showSearchNotFoundDialog(context: Context, query: String) {
+        AlertDialog.Builder(context)
+            .setTitle(R.string.check_not_found_title)
+            .setMessage(getString(R.string.check_not_found_message, query))
+            .setPositiveButton(R.string.check_open_search_in_firefly) { _, _ ->
+                val baseUrl = FireflyPrefs(context).getBaseUrl()
+                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(searchUrl(baseUrl, query))))
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
     }
 
     private fun confirmDeleteSelected() {
@@ -532,5 +672,10 @@ class MessagesFragment : Fragment() {
         super.onDestroyView()
         if (inSelectionMode) clearSelectionAndExit()
         binding = null
+    }
+
+    private companion object {
+        const val ID_CHECK_IF_CREATED = 1
+        const val ID_DELETE_SINGLE = 2
     }
 }
