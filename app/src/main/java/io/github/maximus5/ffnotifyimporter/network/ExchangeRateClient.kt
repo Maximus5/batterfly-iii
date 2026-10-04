@@ -26,21 +26,23 @@ class ExchangeRateClient {
 
     suspend fun fetchRate(base: String, quote: String, date: Instant): Result = withContext(Dispatchers.IO) {
         try {
-            val connection = URL(exchangeRateUrl(BASE_URL, base, quote, date)).openConnection() as HttpURLConnection
-            connection.requestMethod = "GET"
-            connection.connectTimeout = TIMEOUT_MILLIS
-            connection.readTimeout = TIMEOUT_MILLIS
-            val code = connection.responseCode
-            if (code in 200..299) {
-                val body = connection.inputStream.bufferedReader().use { it.readText() }
-                val rate = parseRate(body)
-                if (rate != null) Result.Success(rate) else Result.Failure("No rate in response: $body")
-            } else {
-                val errorBody = connection.errorStream?.bufferedReader()?.use { it.readText() }.orEmpty()
-                Result.Failure(
-                    "$code ${connection.responseMessage.orEmpty()}".trim() +
-                        errorBody.takeIf { it.isNotBlank() }?.let { ": $it" }.orEmpty(),
-                )
+            withNetworkRetry {
+                val connection = URL(exchangeRateUrl(BASE_URL, base, quote, date)).openConnection() as HttpURLConnection
+                connection.requestMethod = "GET"
+                connection.connectTimeout = TIMEOUT_MILLIS
+                connection.readTimeout = TIMEOUT_MILLIS
+                val code = connection.responseCode
+                if (code in 200..299) {
+                    val body = connection.inputStream.bufferedReader().use { it.readText() }
+                    val rate = parseRate(body)
+                    if (rate != null) Result.Success(rate) else Result.Failure("No rate in response: $body")
+                } else {
+                    val errorBody = connection.errorStream?.bufferedReader()?.use { it.readText() }.orEmpty()
+                    Result.Failure(
+                        "$code ${connection.responseMessage.orEmpty()}".trim() +
+                            errorBody.takeIf { it.isNotBlank() }?.let { ": $it" }.orEmpty(),
+                    )
+                }
             }
         } catch (e: IOException) {
             Result.Failure(e.message ?: e.javaClass.simpleName)

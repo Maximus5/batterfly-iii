@@ -30,8 +30,11 @@ import java.math.BigDecimal
  * notification - manual creation's own feedback is the in-app OK dialog, which makes no sense for
  * something that happened with the app not even open.
  *
- * [Result.retry] on a failed Firefly call, up to [MAX_ATTEMPTS] - this is the actual
- * "WorkManager for retrying failed API calls" use AGENTS.md's own stack note was written for.
+ * [Result.retry] on a failed Firefly call *or* a failed dedup-check verification
+ * ([DuplicateCheckResult.SearchFailed] - a local-cache hit that couldn't be confirmed against
+ * Firefly, see that type's own KDoc for why this is no longer treated as "assume no duplicate"),
+ * up to [MAX_ATTEMPTS] - this is the actual "WorkManager for retrying failed API calls" use
+ * AGENTS.md's own stack note was written for.
  * Capped rather than left to WorkManager's default indefinite retry: [AutoCreateScheduler]
  * enqueues every message into one single `ExistingWorkPolicy.APPEND` chain, so a stuck-retrying
  * item would otherwise block every later notification's auto-create attempt forever (a dead/
@@ -57,7 +60,19 @@ class AutoCreateWorker(context: Context, params: WorkerParameters) : CoroutineWo
         val amount = resolved.amount ?: return Result.success()
 
         return when (val result = checkForDuplicate(applicationContext, resolved)) {
-            is DuplicateCheckResult.None, is DuplicateCheckResult.SearchFailed -> post(resolved, amount, message, prefs)
+            is DuplicateCheckResult.None -> post(resolved, amount, message, prefs)
+            is DuplicateCheckResult.SearchFailed -> {
+                // Same retry/give-up shape as a failed createTransaction call below - a dedup
+                // check that couldn't be verified is no longer "assume no duplicate" (the user's
+                // own explicit call, see DuplicateCheckResult.SearchFailed's KDoc), so this gets
+                // the same chance to recover from a transient network blip before giving up.
+                if (runAttemptCount >= MAX_ATTEMPTS) {
+                    AutoCreateNotifications.notifyFailed(applicationContext, message, result.message)
+                    Result.failure()
+                } else {
+                    Result.retry()
+                }
+            }
             is DuplicateCheckResult.Found -> {
                 AutoCreateNotifications.notifySkippedDuplicate(
                     applicationContext, prefs.getBaseUrl(), message,

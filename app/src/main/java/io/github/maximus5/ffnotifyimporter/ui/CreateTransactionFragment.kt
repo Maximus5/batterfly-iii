@@ -324,7 +324,15 @@ class CreateTransactionFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             binding.createTransactionButton.isEnabled = false
             when (val result = checkForDuplicate(context, draft)) {
-                is DuplicateCheckResult.None, is DuplicateCheckResult.SearchFailed -> post(draft)
+                is DuplicateCheckResult.None -> post(draft)
+                is DuplicateCheckResult.SearchFailed -> {
+                    binding.createTransactionButton.isEnabled = true
+                    AlertDialog.Builder(context)
+                        .setTitle(R.string.check_search_failed_title)
+                        .setMessage(result.message)
+                        .setPositiveButton(android.R.string.ok, null)
+                        .show()
+                }
                 is DuplicateCheckResult.Found -> {
                     binding.createTransactionButton.isEnabled = true
                     confirmCreateAnyway(draft, result.id)

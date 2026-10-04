@@ -38,11 +38,15 @@ sealed interface DuplicateCheckResult {
     data class Found(val id: String, val candidate: RemoteTransactionCandidate? = null) : DuplicateCheckResult
     data class FoundMultiple(val mostRecentId: String, val count: Int, val candidate: RemoteTransactionCandidate? = null) : DuplicateCheckResult
 
-    /** The remote search's HTTP call itself failed (network error, non-2xx response) - kept
-     * distinct from [None] so a caller that cares (`MessagesFragment.checkIfCreated`) can show
-     * the *real* reason instead of silently reporting "not found" for what was actually an error.
-     * Every other caller (the create-flow's preemptive check, [AutoCreateWorker]) treats this the
-     * same as [None] - best-effort, falls through to posting normally rather than blocking on it. */
+    /** Either the remote search's HTTP call failed, or (since the user's own report of a stale
+     * cached id - see [findDuplicate]'s KDoc) the live existence check on a locally-cached id
+     * failed - network error or a non-2xx/non-404 response either way. Kept distinct from [None]
+     * so every caller can show the *real* reason instead of silently reporting "not found" for
+     * what was actually an error. **Every caller now treats this as blocking, the user's own
+     * explicit instruction**: a network failure here isn't "we don't know, so assume no
+     * duplicate" the way it used to be - a local-cache hit that failed to verify means a
+     * duplicate is *more* likely to be real, not less, so the safer default flipped to stop and
+     * surface the error rather than risk creating on top of an unconfirmed duplicate. */
     data class SearchFailed(val message: String) : DuplicateCheckResult
 }
 
@@ -62,13 +66,36 @@ suspend fun checkForDuplicate(context: Context, draft: TransactionDraft): Duplic
  * device/app notifying about the same real payment wouldn't be in this app's own log at all, so a
  * clean local lookup alone can't rule that out. [includeDescription] is an explicit parameter
  * rather than always reading `prefs.isDedupIncludeDescription()` so `MessagesFragment.
- * checkIfCreated` can call this twice with different values (see its own KDoc for why). */
+ * checkIfCreated` can call this twice with different values (see its own KDoc for why).
+ *
+ * **Fixed a real "desync" bug, the user's own catch/report**: a local-log hit used to be trusted
+ * blindly - returned as [DuplicateCheckResult.Found] with no check that the transaction Firefly's
+ * side still actually has it. If the user deletes a transaction by hand in Firefly (e.g. because
+ * it was wrong), this app's own log doesn't know that happened - every path that read that id
+ * (the "Check if created"/duplicate-confirm dialog showing "Transaction #X matches" with "Open",
+ * the preemptive check before creating) kept presenting a dead reference. A local hit now gets a
+ * live [FireflyApiClient.getTransaction] check before being trusted: still there -> `Found` (with
+ * real fields, for free - no separate fetch needed later); confirmed gone (404, [FireflyApiClient.
+ * getTransaction] maps that to a `null` success) -> the cached id is stale, don't trust it, fall
+ * through to the remote search below exactly as if the local log had found nothing; couldn't tell
+ * (network/server error) -> [DuplicateCheckResult.SearchFailed] immediately, see its own KDoc for
+ * why that's no longer treated as "assume no duplicate". */
 suspend fun findDuplicate(context: Context, draft: TransactionDraft, prefs: FireflyPrefs, includeDescription: Boolean): DuplicateCheckResult {
     val windowMinutes = prefs.getDedupWindowMinutes()
     val hash = transactionDedupHash(draft, includeDescription)
     val localFoundId = CreatedTransactionsDb.getInstance(context)
         .findWithinWindow(hash, includeDescription, draft.date.toEpochMilli(), windowMinutes)
-    if (localFoundId != null) return DuplicateCheckResult.Found(localFoundId)
+    if (localFoundId != null) {
+        val client = FireflyApiClient(prefs.getBaseUrl(), prefs.getToken())
+        when (val verify = client.getTransaction(localFoundId)) {
+            is FireflyApiClient.Result.Success -> {
+                val candidate = verify.value
+                if (candidate != null) return DuplicateCheckResult.Found(localFoundId, candidate.toRemoteCandidate())
+                // 404 - the cached id is stale, fall through to the remote search below.
+            }
+            is FireflyApiClient.Result.Failure -> return DuplicateCheckResult.SearchFailed(verify.message)
+        }
+    }
 
     // Known fragility - see dedupSearchQuery's KDoc: Firefly's account_is operators silently
     // zero out the *entire* search if the given name doesn't exactly match a real account, which

@@ -29,13 +29,15 @@ class FireflyApiClient(baseUrl: String, private val token: String) {
      */
     suspend fun testConnection(): Result<String> = withContext(Dispatchers.IO) {
         try {
-            val connection = openConnection("/api/v1/about", "GET")
-            val code = connection.responseCode
-            if (code in 200..299) {
-                val body = connection.inputStream.bufferedReader().use { it.readText() }
-                Result.Success(parseAboutVersion(body).orEmpty())
-            } else {
-                Result.Failure(errorMessage(connection, code))
+            withNetworkRetry {
+                val connection = openConnection("/api/v1/about", "GET")
+                val code = connection.responseCode
+                if (code in 200..299) {
+                    val body = connection.inputStream.bufferedReader().use { it.readText() }
+                    Result.Success(parseAboutVersion(body).orEmpty())
+                } else {
+                    Result.Failure(errorMessage(connection, code))
+                }
             }
         } catch (e: IOException) {
             Result.Failure(e.message ?: e.javaClass.simpleName)
@@ -55,10 +57,12 @@ class FireflyApiClient(baseUrl: String, private val token: String) {
             var page = 1
             var totalPagesSeen: Int
             do {
-                val connection = openConnection("/api/v1/accounts?type=asset&page=$page", "GET")
-                val code = connection.responseCode
-                if (code !in 200..299) return@withContext Result.Failure(errorMessage(connection, code))
-                val body = connection.inputStream.bufferedReader().use { it.readText() }
+                val body = withNetworkRetry {
+                    val connection = openConnection("/api/v1/accounts?type=asset&page=$page", "GET")
+                    val code = connection.responseCode
+                    if (code !in 200..299) return@withContext Result.Failure(errorMessage(connection, code))
+                    connection.inputStream.bufferedReader().use { it.readText() }
+                }
                 accounts += parseAccountList(body)
                 totalPagesSeen = totalPages(body)
                 page++
@@ -83,10 +87,12 @@ class FireflyApiClient(baseUrl: String, private val token: String) {
             var page = 1
             var totalPagesSeen: Int
             do {
-                val connection = openConnection("/api/v1/categories?page=$page", "GET")
-                val code = connection.responseCode
-                if (code !in 200..299) return@withContext Result.Failure(errorMessage(connection, code))
-                val body = connection.inputStream.bufferedReader().use { it.readText() }
+                val body = withNetworkRetry {
+                    val connection = openConnection("/api/v1/categories?page=$page", "GET")
+                    val code = connection.responseCode
+                    if (code !in 200..299) return@withContext Result.Failure(errorMessage(connection, code))
+                    connection.inputStream.bufferedReader().use { it.readText() }
+                }
                 categories += parseCategoryList(body)
                 totalPagesSeen = totalPages(body)
                 page++
@@ -98,7 +104,17 @@ class FireflyApiClient(baseUrl: String, private val token: String) {
     }
 
     /** `POST /v1/transactions` - returns the created transaction's ID on success, for this app's
-     * own "created transactions" log (dedup + "already created" state, see TODO.md). */
+     * own "created transactions" log (dedup + "already created" state, see TODO.md).
+     *
+     * Deliberately **not** wrapped in [withNetworkRetry], unlike every read-only call in this
+     * class - confirmed against Firefly's own `StoreController::store()` source: there's no
+     * `Idempotency-Key` mechanism, only a server-side content-based duplicate check
+     * (`DuplicateTransactionException`) that's a heuristic on Firefly's own terms, not a
+     * transport-level guarantee. The failure mode that matters is a timeout *after* the server
+     * already processed the write but before the response made it back here - retrying in that
+     * case would risk silently creating a second real transaction, exactly what this app's own
+     * dedup machinery exists to prevent. A failed create surfaces the error and stops; the caller
+     * decides whether to try again, same as before this file had any retry logic at all. */
     suspend fun createTransaction(request: FireflyTransactionRequest): Result<String> = withContext(Dispatchers.IO) {
         try {
             val connection = openConnection("/api/v1/transactions", "POST")
@@ -136,10 +152,12 @@ class FireflyApiClient(baseUrl: String, private val token: String) {
                 var page = 1
                 var totalPagesSeen: Int
                 do {
-                    val connection = openConnection("/api/v1/search/transactions?query=$encodedQuery&page=$page", "GET")
-                    val code = connection.responseCode
-                    if (code !in 200..299) return@withContext Result.Failure(errorMessage(connection, code))
-                    val body = connection.inputStream.bufferedReader().use { it.readText() }
+                    val body = withNetworkRetry {
+                        val connection = openConnection("/api/v1/search/transactions?query=$encodedQuery&page=$page", "GET")
+                        val code = connection.responseCode
+                        if (code !in 200..299) return@withContext Result.Failure(errorMessage(connection, code))
+                        connection.inputStream.bufferedReader().use { it.readText() }
+                    }
                     candidates += parseTransactionList(body)
                     totalPagesSeen = totalPages(body)
                     page++
@@ -156,18 +174,32 @@ class FireflyApiClient(baseUrl: String, private val token: String) {
      * [parseTransactionList]). Used to fetch real info for a *locally* found duplicate
      * (`CreatedTransactionsDb` only ever returns an id, no fields) so the duplicate-confirm
      * dialog can always show what the found transaction actually looks like, the same way it
-     * already can for a remote match. Null on success with no usable data (malformed/empty
-     * response) rather than a failure - same "missing data isn't the same as a failed call"
-     * distinction `searchTransactionsByQuery` draws via `DuplicateCheckResult`. */
+     * already can for a remote match - and, per the user's own request, as a live existence check
+     * for a cached id before trusting it (`posting.findDuplicate`): [id] can go stale if the
+     * transaction was deleted by hand in Firefly after this app's own log recorded it.
+     *
+     * A 404 is treated as [Result.Success] with a `null` value, same as "malformed/empty
+     * response" already was - confirmed against `ShowController::show()`'s current source: Laravel
+     * route-model-binding on a nonexistent id never reaches the method body at all (404 via
+     * `ModelNotFoundException`), and an existing-but-inaccessible one hits an explicit
+     * `throw new NotFoundHttpException()` - both are a clean, unambiguous "there is definitely no
+     * such transaction", not a failure worth retrying or reporting as an error. Any other non-2xx
+     * (auth, server error) stays a real [Result.Failure] - that's "couldn't find out", not "found
+     * out it doesn't exist", and callers need to tell those apart (see `DuplicateCheckResult.
+     * SearchFailed`'s KDoc). */
     suspend fun getTransaction(id: String): Result<FireflyTransactionCandidate?> = withContext(Dispatchers.IO) {
         try {
-            val connection = openConnection("/api/v1/transactions/$id", "GET")
-            val code = connection.responseCode
-            if (code in 200..299) {
-                val body = connection.inputStream.bufferedReader().use { it.readText() }
-                Result.Success(parseSingleTransaction(body))
-            } else {
-                Result.Failure(errorMessage(connection, code))
+            withNetworkRetry {
+                val connection = openConnection("/api/v1/transactions/$id", "GET")
+                val code = connection.responseCode
+                when {
+                    code in 200..299 -> {
+                        val body = connection.inputStream.bufferedReader().use { it.readText() }
+                        Result.Success(parseSingleTransaction(body))
+                    }
+                    code == 404 -> Result.Success(null)
+                    else -> Result.Failure(errorMessage(connection, code))
+                }
             }
         } catch (e: IOException) {
             Result.Failure(e.message ?: e.javaClass.simpleName)

@@ -676,7 +676,39 @@ Single `:app` module, packages under
     which path found the match. `null` on success with no usable data
     (malformed/empty response), same "missing data isn't a failed call"
     distinction `searchTransactionsByQuery` already draws via
-    `DuplicateCheckResult`.
+    `DuplicateCheckResult`. **Fixed a real "stale cache" bug, the user's
+    own catch**: a `404` is now also mapped to this same `null`-on-success
+    shape, confirmed against `ShowController::show()`'s current source
+    (Laravel route-model-binding on a nonexistent id never reaches the
+    method body - `ModelNotFoundException` -> 404 - and an
+    existing-but-inaccessible one hits an explicit
+    `throw new NotFoundHttpException()`, both unambiguous "definitely
+    doesn't exist"). This is what lets `posting.findDuplicate` (below)
+    tell a confirmed-gone cached id apart from a real error.
+  - `withNetworkRetry` (`network/NetworkRetry.kt`) - up to 3 attempts,
+    exponential backoff (500ms/1000ms), retrying only on `IOException`
+    (a genuine network-level failure - no connection, timeout, DNS) and
+    never on an HTTP error response (4xx/5xx reached the server and got
+    an answer, retrying blindly won't change that). `internal suspend
+    inline fun` - has to be `inline` so a `return@withContext` inside the
+    retried block (the existing "bail out of the whole paginated fetch on
+    a non-2xx page" pattern already used throughout this file) still
+    compiles; `internal` because a public inline function can't access a
+    non-public top-level property (`RETRY_BASE_DELAY_MILLIS`), and there
+    was no reason for either to be public anyway. Wraps every read-only
+    call in this class (`testConnection`/`listAssetAccounts`/
+    `listCategories`/`searchTransactionsByQuery`/`getTransaction`) and
+    `ExchangeRateClient.fetchRate` - a repeated `GET` is always safe.
+    **Deliberately does not wrap `createTransaction`** - confirmed against
+    Firefly's `StoreController::store()` source: there's no
+    `Idempotency-Key` mechanism, only a server-side content-based
+    duplicate check (`DuplicateTransactionException`) that's a heuristic
+    on Firefly's own terms, not a transport-level guarantee. The failure
+    mode that matters is a timeout *after* the server already processed
+    the write - retrying that risks silently creating a second real
+    transaction, exactly what this app's dedup machinery exists to
+    prevent. The user's own explicit call after asking "is this
+    idempotent?" rather than assuming either way.
     `listCategories()` - `GET /v1/categories` (`ShowController@index`,
     confirmed against Firefly's current `routes/api.php`, not assumed),
     same paginated shape and `FireflyJson.parseCategoryList` parsing as
@@ -819,6 +851,37 @@ Single `:app` module, packages under
     same comparison a second way and risking the two paths drifting
     apart over time. Pure extraction, no behavior change -
     `MessagesFragment` now imports these as top-level functions.
+    **Fixed a real "desync" bug, the user's own catch and report**: a
+    local-log (`CreatedTransactionsDb`) hit used to be trusted blindly -
+    returned as `Found` straight from the cached id, with nothing ever
+    confirming Firefly's side still actually has it. Deleting a
+    transaction by hand in Firefly (e.g. because it was wrong) left this
+    app's own log none the wiser - "Check if created"/the preemptive
+    create-flow check kept presenting a dead reference ("Transaction #X
+    matches", with "Open" pointing nowhere). `findDuplicate` now runs a
+    live `FireflyApiClient.getTransaction(localFoundId)` before trusting
+    a local hit: still there -> `Found` (with real fields from that same
+    call, skipping the separate fetch `MessagesFragment` used to need);
+    confirmed gone (`getTransaction`'s `404` -> `null`-success mapping,
+    see the `network` section above) -> the cached id is stale, falls
+    through to the remote search exactly as if the local log had found
+    nothing; couldn't tell (network/server error) -> `SearchFailed`
+    immediately.
+    `DuplicateCheckResult.SearchFailed` changed meaning for *every*
+    caller, not just `checkIfCreated` - the user's own explicit
+    instruction: it used to be treated the same as `None` everywhere
+    else ("we don't know, so assume no duplicate and proceed"), but now
+    that a `SearchFailed` can mean "a local hit exists but couldn't be
+    verified", that's backwards - a duplicate is *more* likely to be
+    real, not less, so every caller now blocks and surfaces the error
+    instead: `MessagesFragment.checkThenOpenCreateOrShowFound`/
+    `startCreate` show the existing `check_search_failed_title` dialog
+    instead of opening the review screen; `CreateTransactionFragment.
+    onCreateClicked` shows the same dialog and re-enables "Create
+    transaction" instead of posting; `AutoCreateWorker` reuses its
+    existing `Result.retry()`/`MAX_ATTEMPTS`/`notifyFailed` machinery
+    (already built for a failed `createTransaction` call) rather than
+    silently posting on an unverified dedup check.
   - `AutoCreateScheduler`/`AutoCreateWorker`/`AutoCreateNotifications` -
     automatic transaction creation, gated by `FireflyPrefs.
     isAutoCreateEnabled()` (a long-standing setting that previously had
@@ -1094,8 +1157,9 @@ Single `:app` module, packages under
       itself wasn't the problem. A new `SearchFailed(message)` case
       carries the real HTTP failure reason - `checkIfCreated` shows that
       verbatim (`check_search_failed_title`) instead of presenting it as
-      a non-match; the two create-flow callers still treat `SearchFailed`
-      exactly like `None` (same best-effort fallback as before).
+      a non-match; the create-flow callers originally treated `SearchFailed`
+      exactly like `None` (same best-effort fallback) - since changed,
+      see `DuplicateChecker.kt`'s entry above for why.
       Follow-up test showed it wasn't actually `SearchFailed` though -
       the search succeeded and returned exactly one raw candidate, which
       `remoteCandidateMatches` then rejected. So `DuplicateCheckResult.

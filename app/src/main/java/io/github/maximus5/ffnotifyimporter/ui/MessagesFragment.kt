@@ -143,8 +143,10 @@ class MessagesFragment : Fragment() {
                 return@launch
             }
             when (val result = checkForDuplicate(context, draft)) {
-                is DuplicateCheckResult.None, is DuplicateCheckResult.SearchFailed ->
+                is DuplicateCheckResult.None ->
                     startActivity(CreateTransactionActivity.intent(context, message))
+                is DuplicateCheckResult.SearchFailed ->
+                    showResultDialog(context, R.string.check_search_failed_title, result.message)
                 is DuplicateCheckResult.Found ->
                     showDuplicateConfirmDialog(context, result.id, message, knownCandidate = result.candidate)
                 is DuplicateCheckResult.FoundMultiple -> {
@@ -203,13 +205,11 @@ class MessagesFragment : Fragment() {
             return
         }
         viewLifecycleOwner.lifecycleScope.launch {
-            // A failed remote check (SearchFailed) is treated the same as a clean miss (None)
-            // here - it's an extra safety net on top of the local dedup log, not the primary
-            // mechanism, so it shouldn't block creation. See checkIfCreated for where that
-            // distinction actually matters.
             when (val result = checkForDuplicate(context, draft)) {
-                is DuplicateCheckResult.None, is DuplicateCheckResult.SearchFailed ->
+                is DuplicateCheckResult.None ->
                     startActivity(CreateTransactionActivity.intent(context, message))
+                is DuplicateCheckResult.SearchFailed ->
+                    showResultDialog(context, R.string.check_search_failed_title, result.message)
                 is DuplicateCheckResult.Found -> showDuplicateConfirmDialog(context, result.id, message, knownCandidate = result.candidate)
                 is DuplicateCheckResult.FoundMultiple -> {
                     Toast.makeText(

@@ -732,3 +732,40 @@ work.
   unique `APPEND` work chain - it never posts to Firefly or writes the
   dedup log, so there's no shared mutable state for two in-flight
   instances to race over.
+- **Fixed a real "desync" bug, the user's own catch and report**
+  (screenshot: "Check if created" showing "Transaction #X matches" with
+  a dead "Open" button): `posting.findDuplicate`'s local-log hit used to
+  be trusted blindly - returned as `Found` straight from the cached id,
+  with nothing ever confirming Firefly's side still has it. Deleting a
+  transaction by hand in Firefly (wrong amount, duplicate, whatever)
+  left this app's log none the wiser. A local hit now runs a live
+  `FireflyApiClient.getTransaction(id)` first: still there -> `Found`
+  (with real fields from that same call, for free); a confirmed `404`
+  -> the cached id is stale, falls through to the remote search exactly
+  as if the local log had found nothing (`getTransaction`'s `404` is a
+  clean, unambiguous "doesn't exist", confirmed against
+  `ShowController::show()`'s current source, not guessed); a genuine
+  network/server error -> `DuplicateCheckResult.SearchFailed`.
+  `SearchFailed`'s meaning changed for *every* caller, the user's own
+  explicit instruction: it used to be treated the same as `None`
+  everywhere except `checkIfCreated` ("we don't know, so assume no
+  duplicate and proceed") - now that it can mean "a local hit exists
+  but couldn't be verified", that assumption is backwards, so every
+  caller blocks and surfaces the error instead of guessing.
+  Also added, same request: `network.withNetworkRetry` (3 attempts,
+  exponential backoff, `IOException` only - never on an HTTP error
+  response) wraps every read-only Firefly/Frankfurter call
+  (`testConnection`/`listAssetAccounts`/`listCategories`/
+  `searchTransactionsByQuery`/`getTransaction`/`ExchangeRateClient.
+  fetchRate`). Deliberately **not** wrapped around `createTransaction` -
+  asked directly rather than assumed: confirmed against Firefly's
+  `StoreController::store()` source that there's no `Idempotency-Key`
+  mechanism, only a server-side content-based duplicate check that's a
+  heuristic on Firefly's own terms, not a transport guarantee - a
+  retried POST after a lost response risks silently creating a second
+  real transaction, exactly what this app's own dedup exists to
+  prevent.
+  **Needs real-device verification** (not yet done): deleting a
+  just-created transaction by hand in Firefly, then tapping "Check if
+  created" on its message, to confirm the stale-id path actually falls
+  through to a fresh search instead of showing the dead match again.
