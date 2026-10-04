@@ -81,3 +81,14 @@ Read both before making non-trivial changes, once they exist.
 - If a signing keystore or `local.properties`-style file is ever needed
   for release builds, it stays gitignored and out of this tree's
   history - same rule as any other secret.
+- Never save or commit real transaction data anywhere in the repo -
+  not in source, docs (`ARCHITECTURE.md`/`TODO.md`), commit messages,
+  or test fixtures. This covers real amounts, card numbers (even just
+  the last few digits), real transaction dates, and real counterparty/
+  merchant names pulled from an actual notification or Firefly
+  transaction. Anonymize instead, using obviously fake placeholders in
+  the same shape as the real thing, e.g. counterparty `"Shop1234"`,
+  card `"0000"`, date `"01.01.2026"`, amount `"123.45"`. Bank/wallet
+  *app names* (Google Wallet, a specific bank's app) are fine to
+  mention - they're not transaction data - but anything parsed out of
+  one of their notifications is.
