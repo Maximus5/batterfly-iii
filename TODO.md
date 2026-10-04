@@ -812,3 +812,39 @@ work.
     "Create anyway". Reworded to "...Create it anyway?" (EN only - the
     Russian string already said the equivalent, "Всё равно создать
     эту?").
+- **Fixed three more real bugs on the second real-device round, the
+  user's own catch/report (screenshotted)**:
+  - `checkIfCreated` ran a full content search even when `message`
+    already had a linked id, which can genuinely disagree with the
+    known-good one (editing description/notes by hand in Firefly can
+    stop it matching this app's own hash/query) - it would then offer a
+    *different* transaction as "found", ignoring the id it already knew
+    was right. Now checks the linked id first and, if still there, shows
+    it directly with no search at all.
+  - The tap-path's already-linked dialog (`showMatchedDialog`) showed
+    fields re-parsed from the rule instead of the transaction's real
+    current data, and never showed the transaction id at all. Fixed
+    with `buildCandidateBody`, built from the now live-verified
+    candidate - which required adding `notes`/`category`/`tags` to
+    `FireflyTransactionCandidate`/`RemoteTransactionCandidate` (parsed
+    from Firefly's own fields, confirmed against
+    `TransactionGroupTransformer`'s current source), since they weren't
+    captured before at all.
+  - **The user's own explicit instruction, same report**: "the same
+    operation (verifying an id is valid) is implemented in two
+    different places that don't even behave the same - make it one
+    method." There were actually three: `findDuplicate`'s own inline
+    check, `verifyLinkedThenShow`'s separate inline check, and a
+    `staleLinkedIdOrNull` helper that threw away a found candidate's
+    fields even after fetching them. Consolidated into one
+    `posting.verifyLinkedTransaction(prefs, id)` (`LinkedTransactionCheck`
+    - `Found(candidate)`/`Gone`/`CheckFailed`), used by all of
+    `findDuplicate`, `verifyLinkedThenShow`, the new linked-id-first
+    check in `checkIfCreated`, and `fetchCandidateInfo`.
+  **Needs real-device verification** (not yet done): tap an
+  already-linked message where the transaction is still genuinely there
+  (expect the real id/amount/date/description/notes/category/tags, not
+  rule-derived guesses) and run "Check if created" on a message whose
+  linked transaction had its description/notes edited by hand in
+  Firefly (expect it reported as still found via the linked id, no
+  search, no "different id" suggestion).

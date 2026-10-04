@@ -685,6 +685,17 @@ Single `:app` module, packages under
     `throw new NotFoundHttpException()`, both unambiguous "definitely
     doesn't exist"). This is what lets `posting.findDuplicate` (below)
     tell a confirmed-gone cached id apart from a real error.
+    `FireflyTransactionCandidate`/`RemoteTransactionCandidate` also now
+    carry `notes`/`category`/`tags` (parsed from the split's own
+    `notes`/`category_name`/`tags` fields, confirmed against
+    `TransactionGroupTransformer`'s current source, not assumed) -
+    previously missing entirely, so any dialog built from a verified
+    candidate could only ever show a subset of what `buildMatchedBody`
+    (the rule-derived version) showed, forcing a choice between "real
+    data, incomplete" and "complete, possibly wrong". The user's own
+    catch: a transaction's description/notes/category/tags can be
+    edited by hand directly in Firefly after this app posted it, and the
+    rule-derived draft has no way to know that happened.
   - `withNetworkRetry` (`network/NetworkRetry.kt`) - up to 3 attempts,
     exponential backoff (500ms/1000ms), retrying only on `IOException`
     (a genuine network-level failure - no connection, timeout, DNS) and
@@ -859,14 +870,30 @@ Single `:app` module, packages under
     app's own log none the wiser - "Check if created"/the preemptive
     create-flow check kept presenting a dead reference ("Transaction #X
     matches", with "Open" pointing nowhere). `findDuplicate` now runs a
-    live `FireflyApiClient.getTransaction(localFoundId)` before trusting
-    a local hit: still there -> `Found` (with real fields from that same
-    call, skipping the separate fetch `MessagesFragment` used to need);
-    confirmed gone (`getTransaction`'s `404` -> `null`-success mapping,
-    see the `network` section above) -> the cached id is stale, falls
-    through to the remote search exactly as if the local log had found
-    nothing; couldn't tell (network/server error) -> `SearchFailed`
-    immediately.
+    live check before trusting a local hit: still there -> `Found` (with
+    real fields from that same call, skipping the separate fetch
+    `MessagesFragment` used to need); confirmed gone -> the cached id is
+    stale, falls through to the remote search exactly as if the local
+    log had found nothing; couldn't tell (network/server error) ->
+    `SearchFailed` immediately.
+    `LinkedTransactionCheck`/`verifyLinkedTransaction(prefs, id)` - **the
+    one shared method the user explicitly asked for** after catching
+    this same "does a known id still exist" check implemented three
+    separate times that didn't even agree with each other
+    (`findDuplicate`'s own inline version above, plus two independent
+    copies in `ui.MessagesFragment` - `verifyLinkedThenShow`'s inline
+    check and a `staleLinkedIdOrNull` helper, the latter of which threw
+    away a found candidate's fields entirely even though it had just
+    fetched them). `findDuplicate`'s local-hit check above,
+    `MessagesFragment.verifyLinkedThenShow` (tapping an already-linked
+    message), `MessagesFragment.checkIfCreated` (checking a known linked
+    id before ever searching), and `MessagesFragment.fetchCandidateInfo`
+    (fetching a known id's fields for the duplicate-confirm dialog) all
+    go through this one function now - a 404 means the same thing, a
+    found candidate carries the same fields, everywhere. Returns
+    `Found(candidate)`/`Gone`/`CheckFailed(message)` - `Gone` is only
+    ever a confirmed `404` (verified against `ShowController::show()`'s
+    source, not guessed), never collapsed into a generic failure.
     `DuplicateCheckResult.SearchFailed` changed meaning for *every*
     caller, not just `checkIfCreated` - the user's own explicit
     instruction: it used to be treated the same as `None` everywhere
@@ -1100,14 +1127,29 @@ Single `:app` module, packages under
     otherwise compete for the same tap.
     - "Check if created" (`MessagesFragment.checkIfCreated`) - an
       explicit, user-initiated search, distinct from the preemptive
-      check `showTestMatch`/`startCreate` already run before posting:
-      re-parses the message fresh (`RuleEngine.match`, same as
-      `showTestMatch`) and calls `findDuplicate` directly - the same
-      local-then-remote logic `checkForDuplicate` uses, but *not*
-      gated by `FireflyPrefs.isDedupEnabled()`, since that toggle is
-      about whether *creating* pauses for a dedup check, a different
-      question from whether this separate "just tell me" action should
-      run at all. Not found: `showSearchNotFoundDialog` shows the exact
+      check `showTestMatch`/`startCreate` already run before posting.
+      **Fixed a real "ignores what it already knows" bug, the user's own
+      catch/report**: when `message` already has a linked id, that's a
+      direct answer on its own - the old code searched by content
+      anyway, which can genuinely disagree with the known-good id (the
+      user's own example: editing a transaction's description/notes by
+      hand in Firefly can make it stop matching this app's own
+      hash/query), so it would find and offer a *different* transaction
+      instead, ignoring the one it already knew was right. Now checks
+      the linked id first via `posting.verifyLinkedTransaction` (see the
+      `posting` section above): still there -> shown directly, no search
+      at all; confirmed gone -> falls through to the search below,
+      carrying the gone id so a replacement match says so explicitly
+      (same `staleLinkedId` warning `verifyLinkedThenShow` uses); a
+      check failure stops and shows the error immediately. Only once
+      there's no linked id (or it's confirmed gone) does this re-parse
+      the message fresh (`RuleEngine.match`, same as `showTestMatch`)
+      and call `findDuplicate` directly - the same local-then-remote
+      logic `checkForDuplicate` uses, but *not* gated by `FireflyPrefs.
+      isDedupEnabled()`, since that toggle is about whether *creating*
+      pauses for a dedup check, a different question from whether this
+      separate "just tell me" action should run at all. Not found:
+      `showSearchNotFoundDialog` shows the exact
       query string that was searched (`network.dedupSearchQuery` -
       useful for debugging on its own, prompted by a real session where
       the search's actual behavior needed to be inspected by hand) and
@@ -1297,35 +1339,59 @@ Single `:app` module, packages under
       zero verification, so a transaction deleted by hand in Firefly
       left "Open Transaction" pointing at a dead link with nothing on
       screen explaining why. `showTestMatch` now routes the already-
-      linked case through `verifyLinkedThenShow` first: a live
-      `FireflyApiClient.getTransaction(id)` check: still there -> this
-      dialog, unchanged; confirmed gone (`404`) -> control falls through
-      to `checkThenOpenCreateOrShowFound` (the same fresh-match
-      search-then-show/create flow below), now carrying a
-      `staleLinkedId` parameter so a replacement match (if search finds
-      one) shows `check_linked_transaction_gone_warning` ("⚠ Linked
-      transaction #X no longer exists in Firefly") instead of presenting
-      the new match as if nothing had ever been linked; nothing found
-      falls through to `CreateTransactionActivity`, same as any other
-      fresh match. **Fixed a real "changes state before the user agreed
-      to anything" bug, the user's own catch, same day**: the stale link
-      used to be cleared (`MessageStore.setTransactionId(message, null)`)
-      the instant the `404` was confirmed, before any dialog even
-      showed - a plain Cancel on whatever came next would've silently
-      unlinked the message with no action behind it. Nothing clears it
-      proactively now; the link only ever changes as a side effect of
-      the user's own choice - "Use Created" overwrites it with the newly
-      found id, a successful create (fresh or "Create anyway") overwrites
-      it with the new transaction's id, and a Cancel leaves the stale id
-      exactly as it was, re-verified the same way next time rather than
-      silently forgotten. A verification failure (network/server
-      error, *not* confirmed gone) shows the error and stops - same
-      "don't guess" rule every dedup check in this file follows since
-      the stale-cache fix below. `MessagesFragment.checkIfCreated` got
-      the equivalent fix too, via a shared `staleLinkedIdOrNull` helper -
-      its own "Found"/"Found Multiple" dialogs now carry the same
-      warning whenever the message had a *different* linked id that's
-      confirmed gone, not just a content-match that happens to differ.
+      linked case through `verifyLinkedThenShow` first, which checks via
+      the one shared `posting.verifyLinkedTransaction` (`LinkedTransactionCheck`
+      - `Found(candidate)`/`Gone`/`CheckFailed`, see the `posting` section
+      below): still there -> this dialog, now built from the live
+      `candidate`'s own real fields via `buildCandidateBody` (see its own
+      note just below) instead of the rule-re-parsed draft; confirmed
+      gone -> control falls through to `checkThenOpenCreateOrShowFound`
+      (the same fresh-match search-then-show/create flow below), now
+      carrying a `staleLinkedId` parameter so a replacement match (if
+      search finds one) shows `check_linked_transaction_gone_warning`
+      ("⚠ Linked transaction #X no longer exists in Firefly") instead of
+      presenting the new match as if nothing had ever been linked;
+      nothing found falls through to `CreateTransactionActivity`, same
+      as any other fresh match. **Fixed a real "changes state before the
+      user agreed to anything" bug, the user's own catch, same day**: the
+      stale link used to be cleared (`MessageStore.
+      setTransactionId(message, null)`) the instant the `404` was
+      confirmed, before any dialog even showed - a plain Cancel on
+      whatever came next would've silently unlinked the message with no
+      action behind it. Nothing clears it proactively now; the link only
+      ever changes as a side effect of the user's own choice - "Use
+      Created" overwrites it with the newly found id, a successful
+      create (fresh or "Create anyway") overwrites it with the new
+      transaction's id, and a Cancel leaves the stale id exactly as it
+      was, re-verified the same way next time rather than silently
+      forgotten. A verification failure (network/server error, *not*
+      confirmed gone) shows the error and stops - same "don't guess"
+      rule every dedup check in this file follows.
+      **Fixed two more real bugs, the same catch/report**: the dialog's
+      body used to show `buildMatchedBody(draft)` - fields freshly
+      re-parsed from the rule - even once a live candidate was on hand,
+      which can disagree with reality if the transaction was edited by
+      hand in Firefly since this app posted it (the user's own example:
+      changed description/notes), and never showed the transaction id at
+      all. `buildCandidateBody` fixes both - built from the verified
+      `candidate`'s own current fields, id included, same bold-label
+      style as `buildMatchedBody`, now with `notes`/`category`/`tags`
+      also available on `RemoteTransactionCandidate`/
+      `FireflyTransactionCandidate` (parsed from Firefly's own
+      `notes`/`tags`/`category_name` response fields, confirmed against
+      `TransactionGroupTransformer`'s current source) where they weren't
+      before. `MessagesFragment.checkIfCreated` got the equivalent fix
+      too - and a further one, the user's own catch: it used to always
+      run a full content search regardless of whether `message` already
+      had a linked id, so an edited transaction whose content no longer
+      hashed/queried the same could make it report a *different* id as
+      the match, ignoring the known-good one entirely. It now checks the
+      linked id first via the same `verifyLinkedTransaction`, same as
+      `verifyLinkedThenShow`: still there -> shown directly
+      (`showDuplicateConfirmDialog` with the live candidate), the search
+      below skipped entirely; confirmed gone -> falls through to the
+      search, now carrying the gone id as `staleLinkedId` so a
+      replacement match says so explicitly, same warning as above.
       Neutral = "Open Transaction" (same
       `network.transactionUrl`/`ACTION_VIEW` as the success dialog's own
       button, factored into one `openTransaction(context, id)` helper

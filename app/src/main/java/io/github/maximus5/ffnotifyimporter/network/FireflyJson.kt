@@ -107,11 +107,13 @@ fun parseCreatedTransactionId(body: String): String? = try {
 /** `GET /v1/accounts/{id}/transactions`'s body is `{"data": [{"id": "<group id>", "attributes":
  * {"transactions": [{"date", "amount", "currency_code", "foreign_amount",
  * "foreign_currency_code", "description", "source_id", "source_name", "destination_id",
- * "destination_name", ...}, ...]}}, ...], "meta": {...}}` - exact field names confirmed against
- * `TransactionGroupTransformer`'s current source, not assumed. Flattens every group's splits into
- * one list (each keeping its own group's id - this app's own transactions never split, but
- * Firefly/a manual entry might), skipping anything missing a field this app actually needs
- * (malformed entry, not the whole list). */
+ * "destination_name", "notes", "tags", "category_name", ...}, ...]}}, ...], "meta": {...}}` -
+ * exact field names confirmed against `TransactionGroupTransformer`'s current source, not assumed
+ * (`notes`/`tags`/`category_name` specifically: the user's own request, to show an already-linked
+ * transaction's real current fields rather than this app's own rule-derived guess). Flattens every
+ * group's splits into one list (each keeping its own group's id - this app's own transactions
+ * never split, but Firefly/a manual entry might), skipping anything missing a field this app
+ * actually needs (malformed entry, not the whole list). */
 fun parseTransactionList(body: String): List<FireflyTransactionCandidate> = try {
     val data = JSONObject(body).optJSONArray("data")
     if (data == null) {
@@ -161,6 +163,9 @@ private fun parseTransactionSplit(groupId: String, split: JSONObject?): FireflyT
     }
     val amount = split.optString("amount").toBigDecimalOrNull() ?: return null
     val currencyCode = split.optString("currency_code").takeIf { it.isNotBlank() } ?: return null
+    val tags = split.optJSONArray("tags")?.let { array ->
+        (0 until array.length()).mapNotNull { i -> array.optString(i).takeIf { it.isNotBlank() } }
+    }.orEmpty()
     return FireflyTransactionCandidate(
         groupId = groupId,
         date = date,
@@ -173,6 +178,9 @@ private fun parseTransactionSplit(groupId: String, split: JSONObject?): FireflyT
         sourceName = split.optString("source_name").takeIf { it.isNotBlank() },
         destinationId = split.optString("destination_id").takeIf { it.isNotBlank() && it != "0" },
         destinationName = split.optString("destination_name").takeIf { it.isNotBlank() },
+        notes = split.optString("notes").takeIf { it.isNotBlank() },
+        category = split.optString("category_name").takeIf { it.isNotBlank() },
+        tags = tags,
     )
 }
 

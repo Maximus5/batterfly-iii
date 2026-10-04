@@ -148,6 +148,9 @@ class TransactionDedupTest {
         sourceName = sourceName,
         destinationId = destinationId,
         destinationName = destinationName,
+        notes = null,
+        category = null,
+        tags = emptyList(),
     )
 
     @Test

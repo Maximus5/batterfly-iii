@@ -50,6 +50,39 @@ sealed interface DuplicateCheckResult {
     data class SearchFailed(val message: String) : DuplicateCheckResult
 }
 
+/** Outcome of [verifyLinkedTransaction] - whether some *already-known* transaction id still
+ * genuinely exists in Firefly. */
+sealed interface LinkedTransactionCheck {
+    /** Still there - [candidate] carries its real, current fields (fetched by this same call, no
+     * separate round trip needed). */
+    data class Found(val candidate: RemoteTransactionCandidate) : LinkedTransactionCheck
+
+    /** Confirmed gone - `FireflyApiClient.getTransaction`'s `404` -> `null`-success mapping,
+     * verified against Firefly's `ShowController::show()` source, not guessed. */
+    data object Gone : LinkedTransactionCheck
+
+    /** Couldn't tell - network/server error, not a confirmed `404`. */
+    data class CheckFailed(val message: String) : LinkedTransactionCheck
+}
+
+/** The one place that checks whether an *already-known* transaction id still genuinely exists -
+ * the user's own catch/report: this used to be two separately-written copies (one inline in
+ * `MessagesFragment.verifyLinkedThenShow`, one as `staleLinkedIdOrNull`) that didn't even agree on
+ * what to do with a found candidate's fields, on top of [findDuplicate]'s own third copy for its
+ * local-log hit below - three places asking Firefly the same question, with no guarantee they'd
+ * keep agreeing on the answer. Every caller that already has a known id (not a fresh search) now
+ * goes through this one function instead. */
+suspend fun verifyLinkedTransaction(prefs: FireflyPrefs, id: String): LinkedTransactionCheck {
+    val client = FireflyApiClient(prefs.getBaseUrl(), prefs.getToken())
+    return when (val result = client.getTransaction(id)) {
+        is FireflyApiClient.Result.Success -> {
+            val candidate = result.value
+            if (candidate != null) LinkedTransactionCheck.Found(candidate.toRemoteCandidate()) else LinkedTransactionCheck.Gone
+        }
+        is FireflyApiClient.Result.Failure -> LinkedTransactionCheck.CheckFailed(result.message)
+    }
+}
+
 /** Gated by [FireflyPrefs.isDedupEnabled] - the setting is about whether *creating* a transaction
  * checks for a duplicate first, which is what this gates for (every caller except
  * `MessagesFragment.checkIfCreated`'s explicit, user-initiated "just tell me" action, which calls
@@ -74,11 +107,10 @@ suspend fun checkForDuplicate(context: Context, draft: TransactionDraft): Duplic
  * it was wrong), this app's own log doesn't know that happened - every path that read that id
  * (the "Check if created"/duplicate-confirm dialog showing "Transaction #X matches" with "Open",
  * the preemptive check before creating) kept presenting a dead reference. A local hit now gets a
- * live [FireflyApiClient.getTransaction] check before being trusted: still there -> `Found` (with
- * real fields, for free - no separate fetch needed later); confirmed gone (404, [FireflyApiClient.
- * getTransaction] maps that to a `null` success) -> the cached id is stale, don't trust it, fall
- * through to the remote search below exactly as if the local log had found nothing; couldn't tell
- * (network/server error) -> [DuplicateCheckResult.SearchFailed] immediately, see its own KDoc for
+ * live [verifyLinkedTransaction] check before being trusted: still there -> `Found` (with real
+ * fields, for free - no separate fetch needed later); confirmed gone -> the cached id is stale,
+ * don't trust it, fall through to the remote search below exactly as if the local log had found
+ * nothing; couldn't tell -> [DuplicateCheckResult.SearchFailed] immediately, see its own KDoc for
  * why that's no longer treated as "assume no duplicate". */
 suspend fun findDuplicate(context: Context, draft: TransactionDraft, prefs: FireflyPrefs, includeDescription: Boolean): DuplicateCheckResult {
     val windowMinutes = prefs.getDedupWindowMinutes()
@@ -86,14 +118,10 @@ suspend fun findDuplicate(context: Context, draft: TransactionDraft, prefs: Fire
     val localFoundId = CreatedTransactionsDb.getInstance(context)
         .findWithinWindow(hash, includeDescription, draft.date.toEpochMilli(), windowMinutes)
     if (localFoundId != null) {
-        val client = FireflyApiClient(prefs.getBaseUrl(), prefs.getToken())
-        when (val verify = client.getTransaction(localFoundId)) {
-            is FireflyApiClient.Result.Success -> {
-                val candidate = verify.value
-                if (candidate != null) return DuplicateCheckResult.Found(localFoundId, candidate.toRemoteCandidate())
-                // 404 - the cached id is stale, fall through to the remote search below.
-            }
-            is FireflyApiClient.Result.Failure -> return DuplicateCheckResult.SearchFailed(verify.message)
+        when (val verify = verifyLinkedTransaction(prefs, localFoundId)) {
+            is LinkedTransactionCheck.Found -> return DuplicateCheckResult.Found(localFoundId, verify.candidate)
+            is LinkedTransactionCheck.Gone -> Unit // the cached id is stale, fall through to the remote search below.
+            is LinkedTransactionCheck.CheckFailed -> return DuplicateCheckResult.SearchFailed(verify.message)
         }
     }
 
@@ -143,4 +171,7 @@ fun FireflyTransactionCandidate.toRemoteCandidate() = RemoteTransactionCandidate
     sourceName = sourceName,
     destinationId = destinationId,
     destinationName = destinationName,
+    notes = notes,
+    category = category,
+    tags = tags,
 )

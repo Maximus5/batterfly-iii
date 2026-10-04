@@ -130,6 +130,7 @@
     <string name="no_match_reason_no_rules_for_app">No rules for this app.</string>
     <string name="no_match_reason_no_pattern_matched">No regex matched.</string>
     <string name="no_match_reason_amount_unparsable">Amount unparsable.</string>
+    <string name="test_match_label_transaction_id">Transaction id:</string>
     <string name="test_match_label_source">Source account:</string>
     <string name="test_match_label_destination">Destination account:</string>
     <string name="test_match_label_amount">Amount:</string>

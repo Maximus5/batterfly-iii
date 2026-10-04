@@ -13,7 +13,9 @@ import java.time.Instant
  * for how that mismatch gets reconciled when matching). Used by `MessagesFragment`'s remote
  * duplicate check (see TODO.md's dedup history) - a group can have more than one split, each
  * becomes its own candidate here since this app's own transactions never split but a real one in
- * Firefly might. */
+ * Firefly might. [notes]/[category]/[tags] - the user's own request: showing an already-linked
+ * transaction's real current fields (it may have been edited by hand in Firefly since this app
+ * posted it) rather than this app's own re-parsed-from-the-rule guess, which can disagree. */
 data class FireflyTransactionCandidate(
     val groupId: String,
     val date: Instant,
@@ -26,4 +28,7 @@ data class FireflyTransactionCandidate(
     val sourceName: String?,
     val destinationId: String?,
     val destinationName: String?,
+    val notes: String?,
+    val category: String?,
+    val tags: List<String>,
 )

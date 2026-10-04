@@ -86,6 +86,9 @@ data class RemoteTransactionCandidate(
     val sourceName: String?,
     val destinationId: String?,
     val destinationName: String?,
+    val notes: String?,
+    val category: String?,
+    val tags: List<String>,
 )
 
 /**

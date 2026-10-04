@@ -23,15 +23,14 @@ import io.github.maximus5.ffnotifyimporter.data.CapturedMessage
 import io.github.maximus5.ffnotifyimporter.data.MessageStore
 import io.github.maximus5.ffnotifyimporter.databinding.FragmentMessagesBinding
 import io.github.maximus5.ffnotifyimporter.network.ExchangeRateClient
-import io.github.maximus5.ffnotifyimporter.network.FireflyApiClient
-import io.github.maximus5.ffnotifyimporter.network.FireflyTransactionCandidate
 import io.github.maximus5.ffnotifyimporter.network.dedupSearchQuery
 import io.github.maximus5.ffnotifyimporter.network.searchUrl
 import io.github.maximus5.ffnotifyimporter.network.transactionUrl
 import io.github.maximus5.ffnotifyimporter.posting.DuplicateCheckResult
+import io.github.maximus5.ffnotifyimporter.posting.LinkedTransactionCheck
 import io.github.maximus5.ffnotifyimporter.posting.checkForDuplicate
 import io.github.maximus5.ffnotifyimporter.posting.findDuplicate
-import io.github.maximus5.ffnotifyimporter.posting.toRemoteCandidate
+import io.github.maximus5.ffnotifyimporter.posting.verifyLinkedTransaction
 import io.github.maximus5.ffnotifyimporter.prefs.FireflyPrefs
 import io.github.maximus5.ffnotifyimporter.rules.CurrenciesDb
 import io.github.maximus5.ffnotifyimporter.rules.DraftIssue
@@ -127,43 +126,39 @@ class MessagesFragment : Fragment() {
         }
     }
 
-    /** Verifies [existingId] still exists before trusting it - **fixed a real "pretends everything
-     * is fine" bug, the user's own catch/report (screenshotted)**: tapping an already-linked
-     * message used to go straight to [showMatchedDialog] with zero verification, so a transaction
-     * deleted by hand in Firefly left "Open transaction" pointing at a dead link with nothing on
-     * screen explaining why. Still there -> [showMatchedDialog] exactly as before. Confirmed gone
-     * (`404`) -> falls through to the exact same search-then-show/create flow
-     * [checkThenOpenCreateOrShowFound] already runs for a fresh match - a replacement match, if
-     * search finds one, is shown with [showDuplicateConfirmDialog]'s `staleLinkedId` warning rather
-     * than presenting it as if nothing had ever been linked; nothing found falls through to
-     * [CreateTransactionActivity] same as any other fresh match. The stale link itself is left
-     * alone here, deliberately - see the inline comment at the call site for why (the user's own
-     * catch: don't change state before the user's actually chosen something). A verification
-     * failure (network/server error, *not* confirmed
-     * gone) shows the error and stops - same "don't guess" rule every dedup check in this file now
-     * follows (see `DuplicateCheckResult.SearchFailed`'s KDoc). */
+    /** Verifies [existingId] still exists before trusting it, via the one shared
+     * `posting.verifyLinkedTransaction` - **fixed a real "pretends everything is fine" bug, the
+     * user's own catch/report (screenshotted)**: tapping an already-linked message used to go
+     * straight to [showMatchedDialog] with zero verification, so a transaction deleted by hand in
+     * Firefly left "Open transaction" pointing at a dead link with nothing on screen explaining
+     * why. Still there -> [showMatchedDialog], now carrying the live-fetched candidate (see its
+     * own KDoc for why that matters). Confirmed gone -> falls through to the exact same
+     * search-then-show/create flow [checkThenOpenCreateOrShowFound] already runs for a fresh
+     * match - a replacement match, if search finds one, is shown with [showDuplicateConfirmDialog]'s
+     * `staleLinkedId` warning rather than presenting it as if nothing had ever been linked; nothing
+     * found falls through to [CreateTransactionActivity] same as any other fresh match. The stale
+     * link itself is left alone here, deliberately - see the inline comment at the call site for
+     * why (the user's own catch: don't change state before the user's actually chosen something).
+     * A verification failure (network/server error, *not* confirmed gone) shows the error and
+     * stops - same "don't guess" rule every dedup check in this file now follows (see
+     * `DuplicateCheckResult.SearchFailed`'s KDoc). */
     private fun verifyLinkedThenShow(context: Context, outcome: ParseOutcome.Matched, message: CapturedMessage, existingId: String) {
         viewLifecycleOwner.lifecycleScope.launch {
-            val prefs = FireflyPrefs(context)
-            val client = FireflyApiClient(prefs.getBaseUrl(), prefs.getToken())
-            when (val result = client.getTransaction(existingId)) {
-                is FireflyApiClient.Result.Success -> {
-                    if (result.value != null) {
-                        showMatchedDialog(context, outcome, message, existingId)
-                    } else {
-                        // Deliberately not cleared here - the user's own catch: wiping the stale
-                        // link the instant it's confirmed gone, before any dialog is even shown,
-                        // changes state with no user action behind it at all (a plain Cancel on
-                        // whatever shows next would've silently unlinked the message). The link
-                        // only actually changes as a side effect of the user's own choice: "Use
-                        // Created" overwrites it with the newly found id, a successful create
-                        // (fresh or "Create anyway") overwrites it with the new transaction's id.
-                        // A Cancel leaves the stale id exactly as it was - re-verified the same
-                        // way next time, not silently forgotten.
-                        checkThenOpenCreateOrShowFound(context, outcome.draft, message, staleLinkedId = existingId)
-                    }
-                }
-                is FireflyApiClient.Result.Failure ->
+            when (val result = verifyLinkedTransaction(FireflyPrefs(context), existingId)) {
+                is LinkedTransactionCheck.Found ->
+                    showMatchedDialog(context, outcome, message, existingId, result.candidate)
+                is LinkedTransactionCheck.Gone ->
+                    // Deliberately not cleared here - the user's own catch: wiping the stale
+                    // link the instant it's confirmed gone, before any dialog is even shown,
+                    // changes state with no user action behind it at all (a plain Cancel on
+                    // whatever shows next would've silently unlinked the message). The link
+                    // only actually changes as a side effect of the user's own choice: "Use
+                    // Created" overwrites it with the newly found id, a successful create
+                    // (fresh or "Create anyway") overwrites it with the new transaction's id.
+                    // A Cancel leaves the stale id exactly as it was - re-verified the same
+                    // way next time, not silently forgotten.
+                    checkThenOpenCreateOrShowFound(context, outcome.draft, message, staleLinkedId = existingId)
+                is LinkedTransactionCheck.CheckFailed ->
                     showResultDialog(context, R.string.check_search_failed_title, result.message)
             }
         }
@@ -209,12 +204,31 @@ class MessagesFragment : Fragment() {
      * re-create to - "Open" sits in the neutral slot, "Create Again" in negative, same reasoning
      * as before this screen existed: the single most relevant secondary action gets the neutral
      * slot. [existingTransactionId] is only ever non-null here (see [showTestMatch]) - a fresh,
-     * not-yet-linked, configured match never reaches this dialog at all anymore. */
-    private fun showMatchedDialog(context: Context, outcome: ParseOutcome.Matched, message: CapturedMessage, existingTransactionId: String?) {
+     * not-yet-linked, configured match never reaches this dialog at all anymore.
+     *
+     * [candidate] (the user's own catch/report): when [existingTransactionId] is set, it's always
+     * been live-verified by now ([verifyLinkedThenShow]), so its real current fields are already
+     * on hand - [buildCandidateBody] shows *those*, including the transaction id itself (missing
+     * entirely before), instead of [buildMatchedBody]'s rule-re-parsed guess, which can disagree
+     * with reality if the transaction was edited by hand in Firefly since this app posted it.
+     * [candidate] is null only for the not-configured fallback (no id to look anything up with),
+     * where the rule-derived body is the only thing there is to show. */
+    private fun showMatchedDialog(
+        context: Context,
+        outcome: ParseOutcome.Matched,
+        message: CapturedMessage,
+        existingTransactionId: String?,
+        candidate: RemoteTransactionCandidate? = null,
+    ) {
         val draft = outcome.draft
+        val body = if (existingTransactionId != null && candidate != null) {
+            buildCandidateBody(existingTransactionId, candidate)
+        } else {
+            buildMatchedBody(draft)
+        }
         val builder = AlertDialog.Builder(context)
             .setTitle(outcome.rule.label)
-            .setMessage(buildMatchedBody(draft))
+            .setMessage(body)
             .setPositiveButton(android.R.string.ok, null)
         if (existingTransactionId != null) {
             builder.setNeutralButton(R.string.create_open_transaction) { _, _ -> openTransaction(context, existingTransactionId) }
@@ -352,35 +366,8 @@ class MessagesFragment : Fragment() {
      * for a local-log hit, which only ever has the id. Null on any failure (network, malformed
      * response, or a genuinely missing transaction) - the dialog just shows the bare id in that
      * case, same as before this existed, rather than failing to show anything at all. */
-    private suspend fun fetchCandidateInfo(context: Context, id: String): RemoteTransactionCandidate? {
-        val prefs = FireflyPrefs(context)
-        val client = FireflyApiClient(prefs.getBaseUrl(), prefs.getToken())
-        return when (val result = client.getTransaction(id)) {
-            is FireflyApiClient.Result.Success -> result.value?.toRemoteCandidate()
-            is FireflyApiClient.Result.Failure -> null
-        }
-    }
-
-    /** [message]'s own linked id (`CapturedMessage.fireflyTransactionId`), live-verified -
-     * independent of `posting.findDuplicate`'s own local-log verification (`CreatedTransactionsDb`'s
-     * hash log and a message's own linked id are tracked separately and can diverge: "Use Created"
-     * links a message to an id with no local-log row at all, and the reverse is possible too).
-     * The user's own catch/report: tapping an already-linked message used to go straight to
-     * [showMatchedDialog] with zero verification, so a transaction deleted by hand in Firefly left
-     * "Open transaction" pointing at a dead link with nothing on screen explaining why.
-     * Returns the id only when it's *confirmed* gone (`getTransaction`'s `404` -> `null`-success
-     * mapping, see the `network` section's KDoc) - null for "nothing linked", "still there", and a
-     * failed check alike, since this is a secondary cross-check feeding a warning message, not
-     * something worth blocking the caller's own primary flow over. */
-    private suspend fun staleLinkedIdOrNull(context: Context, message: CapturedMessage): String? {
-        val existingId = message.fireflyTransactionId ?: return null
-        val prefs = FireflyPrefs(context)
-        val client = FireflyApiClient(prefs.getBaseUrl(), prefs.getToken())
-        return when (val result = client.getTransaction(existingId)) {
-            is FireflyApiClient.Result.Success -> existingId.takeIf { result.value == null }
-            is FireflyApiClient.Result.Failure -> null
-        }
-    }
+    private suspend fun fetchCandidateInfo(context: Context, id: String): RemoteTransactionCandidate? =
+        (verifyLinkedTransaction(FireflyPrefs(context), id) as? LinkedTransactionCheck.Found)?.candidate
 
     /** Labeled field summary appended to the duplicate-confirm dialog's message - reuses
      * `showTestMatch`'s own field labels (`test_match_label_*`) so this reads the same way as the
@@ -404,6 +391,9 @@ class MessagesFragment : Fragment() {
         )
         candidate.sourceName?.let { lines += "${getString(R.string.test_match_label_source)} $it" }
         candidate.destinationName?.let { lines += "${getString(R.string.test_match_label_destination)} $it" }
+        candidate.notes?.takeIf { it.isNotBlank() }?.let { lines += "${getString(R.string.test_match_label_notes)} $it" }
+        candidate.category?.let { lines += "${getString(R.string.test_match_label_category)} $it" }
+        if (candidate.tags.isNotEmpty()) lines += "${getString(R.string.test_match_label_tags)} ${candidate.tags.joinToString(", ")}"
         return "\n\n" + lines.joinToString("\n")
     }
 
@@ -461,6 +451,38 @@ class MessagesFragment : Fragment() {
                 },
             )
         }
+        return text
+    }
+
+    /** Real-data counterpart to [buildMatchedBody] - same bold-label field-summary style, but
+     * built from a live-verified [RemoteTransactionCandidate] instead of a freshly re-parsed
+     * [TransactionDraft]. The user's own catch/report: the rule-derived draft can disagree with
+     * what's actually in Firefly if the transaction was edited by hand there since this app
+     * posted it, so showing the draft's own fields next to a dialog about an already-*existing*
+     * transaction was actively misleading. Leads with the transaction id itself - previously
+     * missing from this dialog entirely. */
+    private fun buildCandidateBody(transactionId: String, candidate: RemoteTransactionCandidate): CharSequence {
+        val text = SpannableStringBuilder()
+        fun field(label: String, value: String) {
+            if (text.isNotEmpty()) text.append("\n")
+            val labelStart = text.length
+            text.append(label)
+            text.setSpan(StyleSpan(Typeface.BOLD), labelStart, text.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            text.append(" ").append(value)
+        }
+
+        field(getString(R.string.test_match_label_transaction_id), "#$transactionId")
+        candidate.sourceName?.let { field(getString(R.string.test_match_label_source), it) }
+        candidate.destinationName?.let { field(getString(R.string.test_match_label_destination), it) }
+        field(getString(R.string.test_match_label_amount), "${candidate.amount.toPlainString()} ${candidate.currencyCode}")
+        if (candidate.foreignAmount != null && candidate.foreignCurrencyCode != null) {
+            field(getString(R.string.test_match_label_foreign), "${candidate.foreignAmount.toPlainString()} ${candidate.foreignCurrencyCode}")
+        }
+        field(getString(R.string.test_match_label_date), formatDraftDate(candidate.date))
+        field(getString(R.string.test_match_label_description), candidate.description)
+        candidate.notes?.takeIf { it.isNotBlank() }?.let { field(getString(R.string.test_match_label_notes), it) }
+        candidate.category?.let { field(getString(R.string.test_match_label_category), it) }
+        if (candidate.tags.isNotEmpty()) field(getString(R.string.test_match_label_tags), candidate.tags.joinToString(", "))
         return text
     }
 
@@ -543,6 +565,18 @@ class MessagesFragment : Fragment() {
      * tell me" action should run at all. Re-parses the message fresh (same `RuleEngine.match` as
      * `showTestMatch`) rather than requiring the message to already have a cached draft.
      *
+     * **Fixed a real "ignores what it already knows" bug, the user's own catch/report**: if
+     * [message] already has a linked id, that's a direct answer to "was this created?" on its
+     * own - no content search needed, and a content search can genuinely disagree (the user's own
+     * example: editing a transaction's description/notes in Firefly by hand can make it stop
+     * matching this app's own hash/query, so the old code searched anyway, found a *different*
+     * transaction, and offered to link to that instead - confusing and simply wrong when the
+     * known id was never in question). Now checks the linked id first, via the one shared
+     * `posting.verifyLinkedTransaction`: still there -> shown directly, search skipped entirely;
+     * confirmed gone -> falls through to the search below same as before, now carrying the gone
+     * id as `staleLinkedId` so a replacement match (if any) says so explicitly; a check failure
+     * stops and shows the error, same "don't guess" rule every dedup check in this file follows.
+     *
      * Manual-only retry, the user's own call: if `isDedupIncludeDescription()` is on and the
      * first attempt finds nothing, tries again with description excluded entirely (a second
      * `findDuplicate` call - local log included, since a without-description hash might be
@@ -558,23 +592,38 @@ class MessagesFragment : Fragment() {
             Toast.makeText(context, R.string.rule_firefly_not_configured, Toast.LENGTH_LONG).show()
             return
         }
-        val rules = RulesDb.getInstance(context).loadAllOrdered()
-        val currencySymbols = CurrenciesDb.getInstance(context).symbolToCodeMap()
-        val outcome = RuleEngine(rules, currencySymbols).match(message)
-        val draft = (outcome as? ParseOutcome.Matched)?.draft
-        if (draft == null) {
-            Toast.makeText(context, R.string.messages_check_no_rule_matched, Toast.LENGTH_SHORT).show()
-            return
-        }
 
         viewLifecycleOwner.lifecycleScope.launch {
+            val prefs = FireflyPrefs(context)
+            val existingId = message.fireflyTransactionId
+            var staleLinkedId: String? = null
+            if (existingId != null) {
+                when (val linked = verifyLinkedTransaction(prefs, existingId)) {
+                    is LinkedTransactionCheck.Found -> {
+                        showDuplicateConfirmDialog(context, existingId, message, showCreateAnyway = false, knownCandidate = linked.candidate)
+                        return@launch
+                    }
+                    is LinkedTransactionCheck.CheckFailed -> {
+                        showResultDialog(context, R.string.check_search_failed_title, linked.message)
+                        return@launch
+                    }
+                    is LinkedTransactionCheck.Gone -> staleLinkedId = existingId
+                }
+            }
+
+            val rules = RulesDb.getInstance(context).loadAllOrdered()
+            val currencySymbols = CurrenciesDb.getInstance(context).symbolToCodeMap()
+            val outcome = RuleEngine(rules, currencySymbols).match(message)
+            val draft = (outcome as? ParseOutcome.Matched)?.draft
+            if (draft == null) {
+                Toast.makeText(context, R.string.messages_check_no_rule_matched, Toast.LENGTH_SHORT).show()
+                return@launch
+            }
             val resolved = resolveAmountQuietly(draft)
             if (resolved.amount == null) {
                 Toast.makeText(context, R.string.create_amount_not_ready, Toast.LENGTH_SHORT).show()
                 return@launch
             }
-            val prefs = FireflyPrefs(context)
-            val staleLinkedId = staleLinkedIdOrNull(context, message)
             val includeDescription = prefs.isDedupIncludeDescription()
             var result = findDuplicate(context, resolved, prefs, includeDescription)
             var effectiveIncludeDescription = includeDescription
