@@ -168,7 +168,7 @@
 
     <string name="settings_backup_title">Backup &amp; restore</string>
     <string name="settings_backup_subtitle">Save or restore everything except the Firefly connection</string>
-    <string name="backup_explanation">Includes monitored apps, currencies, rules, and message history. Does not include the Firefly III connection (base URL/token) - re-enter that after a restore.</string>
+    <string name="backup_explanation">Includes monitored apps, currencies, rules, and message history.\n\nBackup does not include the Firefly III connection parameters (base URL/token)! Re-enter them after a restore.</string>
     <string name="backup_export_button">Create backup…</string>
     <string name="backup_restore_button">Restore backup…</string>
     <string name="backup_export_rules_button">Export rules…</string>
