@@ -149,6 +149,8 @@
     <string name="create_success_message">Транзакция Firefly №%1$s.</string>
     <string name="create_open_transaction">Открыть транзакцию</string>
     <string name="create_again">Создать заново</string>
+    <string name="create_again_confirm_title">Создать ещё раз?</string>
+    <string name="create_again_confirm_message">Это сообщение уже связано с транзакцией #%1$s. Создание ещё одной добавит вторую транзакцию в Firefly.</string>
     <string name="create_failed_title">Не удалось создать</string>
 
     <string name="settings_currencies_title">Валюты</string>

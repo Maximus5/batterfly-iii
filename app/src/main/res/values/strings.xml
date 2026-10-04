@@ -149,6 +149,8 @@
     <string name="create_success_message">Firefly transaction #%1$s.</string>
     <string name="create_open_transaction">Open transaction</string>
     <string name="create_again">Create again</string>
+    <string name="create_again_confirm_title">Create again?</string>
+    <string name="create_again_confirm_message">This message is already linked to transaction #%1$s. Creating another one will post a second transaction in Firefly.</string>
     <string name="create_failed_title">Create failed</string>
 
     <string name="settings_currencies_title">Currencies</string>

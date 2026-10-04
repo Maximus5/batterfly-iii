@@ -137,7 +137,9 @@ class MessagesFragment : Fragment() {
                 builder.setNeutralButton(R.string.create_open_transaction) { _, _ ->
                     openTransaction(context, existingTransactionId)
                 }
-                builder.setNegativeButton(R.string.create_again) { _, _ -> draft?.let { startCreate(it, message) } }
+                builder.setNegativeButton(R.string.create_again) { _, _ ->
+                    draft?.let { confirmCreateAgain(context, it, message, existingTransactionId) }
+                }
             } else {
                 builder.setNeutralButton(R.string.create_checking, null)
             }
@@ -317,10 +319,26 @@ class MessagesFragment : Fragment() {
         destinationName = destinationName,
     )
 
+    /** Confirms before "Create Again" actually runs - the user's own call, after noticing the tap
+     * had no confirmation at all. [startCreate] below does still run its own [checkForDuplicate]
+     * afterward, but that's a best-effort safety net (silently skipped entirely when
+     * `FireflyPrefs.isDedupEnabled()` is off, or when the dedup window has since lapsed) - this
+     * dialog is the one guaranteed "are you sure", shown every time regardless of dedup settings,
+     * since [existingTransactionId] already proves a transaction exists for this message. Cancel
+     * always rightmost/last (house convention, AGENTS.md). */
+    private fun confirmCreateAgain(context: Context, draft: TransactionDraft, message: CapturedMessage, existingTransactionId: String) {
+        AlertDialog.Builder(context)
+            .setTitle(R.string.create_again_confirm_title)
+            .setMessage(getString(R.string.create_again_confirm_message, existingTransactionId))
+            .setNegativeButton(R.string.create_again) { _, _ -> startCreate(draft, message) }
+            .setPositiveButton(android.R.string.cancel, null)
+            .show()
+    }
+
     /** Entry point for "Create Again" only now - the fresh-create path runs [checkForDuplicate]
      * preemptively instead (see [showTestMatch]). Kept instant/click-first per the user's own
-     * call: re-creating from a message that's already linked is already an explicit "yes, another
-     * one anyway" decision, nothing ambiguous to resolve before the tap. */
+     * original call; now gated behind [confirmCreateAgain] above instead, per a later, separate
+     * request. */
     private fun startCreate(draft: TransactionDraft, message: CapturedMessage) {
         val context = requireContext()
         if (draft.amount == null) {

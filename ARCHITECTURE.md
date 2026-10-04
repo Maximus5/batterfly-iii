@@ -964,12 +964,20 @@ Single `:app` module, packages under
       "Create Again" - kept out of the neutral slot on purpose, so the
       single most relevant secondary action always sits there (create
       when nothing's linked, open when something is) and "do it again"
-      stays a deliberate second choice, not the default. "Create Again"
-      stays click-first/instant (`startCreate`, below) - a deliberate
-      exception to the preemptive check described next, per the user's
-      own call: re-creating from an already-linked message is already
-      an explicit "yes, another one anyway" decision, nothing ambiguous
-      left to resolve before the tap.
+      stays a deliberate second choice, not the default. **Fixed a real
+      "no confirmation at all" gap, the user's own catch**: "Create
+      Again" used to jump straight to `startCreate` on tap, reasoning
+      that re-creating from an already-linked message was already an
+      explicit "yes, another one anyway" decision - but `startCreate`'s
+      own `checkForDuplicate` safety net is best-effort only (silently
+      skipped entirely when `FireflyPrefs.isDedupEnabled()` is off, or
+      when the dedup window has since lapsed), so in practice the tap
+      itself had no guaranteed confirmation at all. `confirmCreateAgain`
+      now shows an explicit "Create again? This will post a second
+      transaction" dialog first, every time, regardless of dedup
+      settings - `startCreate` only runs after that's accepted, keeping
+      its own `checkForDuplicate` call as an additional (not a
+      replacement) safety net.
     - Nothing linked yet: neutral = "Создать" (`test_match_create`),
       but **not tappable yet** - it's added disabled, showing
       "Checking…" (`create_checking`), until the dedup check below
