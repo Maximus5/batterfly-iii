@@ -665,3 +665,25 @@ work.
   editable here too, or category stays the one addition), and whether
   it replaces the existing test-match dialog outright or is a second
   step opened from it.
+- When `FireflyPrefs.isAutoCreateEnabled()` is *off*, a rule match
+  currently surfaces nowhere outside the app itself - the user has to
+  open Messages and tap in to notice/act on it. Raised by the user: a
+  system notification for a rule match even with auto-create disabled
+  (app/amount/account/description summary, same spirit as `posting.
+  AutoCreateNotifications`' own outcome notifications but for "here's
+  something to review," not "here's what happened"), with a "Create
+  transaction" action button that opens the app straight into the
+  pre-create review/edit screen above (not this one's deep-link target
+  until that screen exists) - picking a category right from the
+  notification's own flow is the explicit point, not just a bare
+  "open the app and find it yourself" prompt.
+  Not yet scoped: whether this runs the same rule-match pipeline
+  `posting.AutoCreateWorker` already has (parse + resolve amount) but
+  skips the actual post, or needs its own smaller worker; whether it
+  should also run the duplicate check first and suppress the
+  notification entirely for a likely duplicate (suggesting "create" for
+  something that would just get flagged as a duplicate seems worse than
+  not suggesting it at all) or leave that judgment to the user once
+  they open the review screen; and how the deep link actually carries
+  the matched draft across process boundaries (the review screen
+  doesn't exist yet to decide this against).
