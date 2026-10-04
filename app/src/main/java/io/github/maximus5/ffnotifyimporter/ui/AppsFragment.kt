@@ -4,7 +4,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
-import android.provider.Settings
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -12,6 +11,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
+import io.github.maximus5.ffnotifyimporter.R
 import io.github.maximus5.ffnotifyimporter.databinding.FragmentAppsBinding
 import io.github.maximus5.ffnotifyimporter.prefs.MonitoredAppsPrefs
 import kotlinx.coroutines.Dispatchers
@@ -45,8 +45,14 @@ class AppsFragment : Fragment() {
         binding.appsRecyclerView.layoutManager = LinearLayoutManager(requireContext())
         binding.appsRecyclerView.adapter = adapter
 
+        // Google Play review requirement for an app requesting notification-listener access: an
+        // explicit in-app disclosure of what the app does with notification content, shown
+        // *before* the system grant screen - not a direct jump to it (which this used to be).
         binding.notificationAccessButton.setOnClickListener {
-            startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+            (activity as? SettingsActivity)?.openScreen(
+                NotificationAccessConsentFragment(),
+                R.string.notification_access_consent_title,
+            )
         }
     }
 

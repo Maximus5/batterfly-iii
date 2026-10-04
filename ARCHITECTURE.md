@@ -1431,7 +1431,23 @@ Single `:app` module, packages under
       on `ACTION_MAIN`/`CATEGORY_LAUNCHER`, which needs the
       `<queries>` entry in the manifest to see apps on API 30+; loads
       on a background dispatcher, only once the screen is actually
-      opened, not eagerly).
+      opened, not eagerly). Its "grant access" banner button (shown
+      when `NotificationManagerCompat.getEnabledListenerPackages`
+      doesn't include this app) opens `NotificationAccessConsentFragment`
+      instead of jumping straight to `Settings.
+      ACTION_NOTIFICATION_LISTENER_SETTINGS` the way it used to - a
+      Google Play review requirement for any app requesting notification-
+      listener access: an explicit in-app disclosure of what the app
+      does with notification content (receives from every installed
+      app, analyzes only the monitored ones, extracts amount/currency/
+      date/description on-device, never sends raw notification text
+      off-device, sends only the recognized transaction to the user's
+      own configured Firefly instance) shown *before* the system grant
+      screen, not left to that screen's own generic permission wording.
+      Declining (`consentNotNowButton`) just pops back to the same
+      banner via `parentFragmentManager.popBackStack()` - `AppsFragment`
+      is still right behind it on `SettingsActivity`'s back stack,
+      nothing lost.
     - `MessageHistoryFragment` (the retention radio group, writes to
       `RetentionPrefs` and calls `RetentionController
       .applyOnSettingChanged`).
