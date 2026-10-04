@@ -4,21 +4,13 @@ import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.Data
 import androidx.work.WorkerParameters
-import androidx.work.workDataOf
 import io.github.maximus5.ffnotifyimporter.data.CapturedMessage
 import io.github.maximus5.ffnotifyimporter.data.MessageStore
-import io.github.maximus5.ffnotifyimporter.network.ExchangeRateClient
 import io.github.maximus5.ffnotifyimporter.network.FireflyApiClient
 import io.github.maximus5.ffnotifyimporter.network.FireflyTransactionRequest
 import io.github.maximus5.ffnotifyimporter.prefs.FireflyPrefs
 import io.github.maximus5.ffnotifyimporter.rules.CreatedTransactionsDb
-import io.github.maximus5.ffnotifyimporter.rules.CurrenciesDb
-import io.github.maximus5.ffnotifyimporter.rules.DraftIssue
-import io.github.maximus5.ffnotifyimporter.rules.ParseOutcome
-import io.github.maximus5.ffnotifyimporter.rules.RuleEngine
-import io.github.maximus5.ffnotifyimporter.rules.RulesDb
 import io.github.maximus5.ffnotifyimporter.rules.TransactionDraft
-import io.github.maximus5.ffnotifyimporter.rules.applyApproxConversion
 import io.github.maximus5.ffnotifyimporter.rules.transactionDedupHash
 import java.math.BigDecimal
 
@@ -55,20 +47,10 @@ class AutoCreateWorker(context: Context, params: WorkerParameters) : CoroutineWo
         // connection itself, may have changed while this sat in the queue behind an earlier item.
         if (!prefs.isAutoCreateEnabled() || !prefs.isConfigured()) return Result.success()
 
-        val message = CapturedMessage(
-            packageName = inputData.getString(KEY_PACKAGE_NAME).orEmpty(),
-            appLabel = inputData.getString(KEY_APP_LABEL).orEmpty(),
-            title = inputData.getString(KEY_TITLE).orEmpty(),
-            text = inputData.getString(KEY_TEXT).orEmpty(),
-            timestampMillis = inputData.getLong(KEY_TIMESTAMP_MILLIS, 0L),
-        )
+        val message = capturedMessageFrom(inputData)
+        val draft = matchRule(applicationContext, message) ?: return Result.success()
 
-        val rules = RulesDb.getInstance(applicationContext).loadAllOrdered()
-        val currencySymbols = CurrenciesDb.getInstance(applicationContext).symbolToCodeMap()
-        val outcome = RuleEngine(rules, currencySymbols).match(message)
-        val draft = (outcome as? ParseOutcome.Matched)?.draft ?: return Result.success()
-
-        val resolved = resolveAmount(draft, prefs)
+        val resolved = resolveAmountQuietly(draft, prefs)
         // Can't auto-post without a resolved amount - same "flag it, don't guess" precedent as
         // everywhere else LOCAL_AMOUNT_MISSING shows up, not a failure worth retrying or notifying
         // about (the message is still sitting in the Messages list for the user to handle by hand).
@@ -90,17 +72,6 @@ class AutoCreateWorker(context: Context, params: WorkerParameters) : CoroutineWo
                 )
                 Result.success()
             }
-        }
-    }
-
-    /** Same exchange-rate resolution `MessagesFragment.resolveAmountQuietly` does - no dialog to
-     * update along the way, nothing to show until an outcome notification fires at the end. */
-    private suspend fun resolveAmount(draft: TransactionDraft, prefs: FireflyPrefs): TransactionDraft {
-        if (DraftIssue.LOCAL_AMOUNT_MISSING !in draft.issues) return draft
-        val foreignCurrency = draft.foreignCurrencyCode ?: return draft
-        return when (val result = ExchangeRateClient().fetchRate(foreignCurrency, draft.currencyCode, draft.date)) {
-            is ExchangeRateClient.Result.Success -> applyApproxConversion(draft, result.rate, prefs.getApproxConversionTag())
-            is ExchangeRateClient.Result.Failure -> draft
         }
     }
 
@@ -151,18 +122,6 @@ class AutoCreateWorker(context: Context, params: WorkerParameters) : CoroutineWo
     companion object {
         private const val MAX_ATTEMPTS = 5
 
-        private const val KEY_PACKAGE_NAME = "package_name"
-        private const val KEY_APP_LABEL = "app_label"
-        private const val KEY_TITLE = "title"
-        private const val KEY_TEXT = "text"
-        private const val KEY_TIMESTAMP_MILLIS = "timestamp_millis"
-
-        fun inputData(message: CapturedMessage): Data = workDataOf(
-            KEY_PACKAGE_NAME to message.packageName,
-            KEY_APP_LABEL to message.appLabel,
-            KEY_TITLE to message.title,
-            KEY_TEXT to message.text,
-            KEY_TIMESTAMP_MILLIS to message.timestampMillis,
-        )
+        fun inputData(message: CapturedMessage): Data = capturedMessageInputData(message)
     }
 }

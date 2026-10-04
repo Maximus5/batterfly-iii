@@ -15,6 +15,7 @@ import io.github.maximus5.ffnotifyimporter.data.MessageStore
 import io.github.maximus5.ffnotifyimporter.databinding.FragmentAddTestMessageBinding
 import io.github.maximus5.ffnotifyimporter.notifications.AppLabelResolver
 import io.github.maximus5.ffnotifyimporter.posting.AutoCreateScheduler
+import io.github.maximus5.ffnotifyimporter.posting.ReviewNotificationScheduler
 import io.github.maximus5.ffnotifyimporter.prefs.MonitoredAppsPrefs
 import java.util.Calendar
 import java.util.Date
@@ -133,6 +134,7 @@ class AddTestMessageFragment : Fragment() {
             // "Exactly like a real notification would" (this file's own KDoc) - includes
             // triggering auto-create the same way BankNotificationListenerService does.
             AutoCreateScheduler.scheduleIfEnabled(context, added)
+            ReviewNotificationScheduler.scheduleIfNeeded(context, added)
             binding.titleInput.text?.clear()
             binding.textInput.text?.clear()
             selectedTimestampMillis = System.currentTimeMillis()

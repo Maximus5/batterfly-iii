@@ -219,6 +219,11 @@
     <string name="auto_create_failed_title">Auto-create failed</string>
     <string name="auto_create_failed_text">%1$s: %2$s</string>
 
+    <string name="review_match_channel_name">Rule matched</string>
+    <string name="review_match_channel_description">A notification matched a rule while auto-create is off - review and create the transaction by hand</string>
+    <string name="review_match_title">Transaction to review</string>
+    <string name="review_match_text">%1$s · %2$s %3$s · \"%4$s\"</string>
+
     <string name="settings_backup_title">Backup &amp; restore</string>
     <string name="settings_backup_subtitle">Save or restore everything except the Firefly connection</string>
     <string name="backup_explanation">Includes monitored apps, currencies, rules, and message history.\n\nBackup does not include the Firefly III connection parameters (base URL/token)! Re-enter them after a restore.</string>

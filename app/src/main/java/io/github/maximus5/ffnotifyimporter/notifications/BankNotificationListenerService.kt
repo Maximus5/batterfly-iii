@@ -5,6 +5,7 @@ import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import io.github.maximus5.ffnotifyimporter.data.MessageStore
 import io.github.maximus5.ffnotifyimporter.posting.AutoCreateScheduler
+import io.github.maximus5.ffnotifyimporter.posting.ReviewNotificationScheduler
 import io.github.maximus5.ffnotifyimporter.prefs.MonitoredAppsPrefs
 
 /** `onNotificationPosted` is not only called for a genuinely new notification - the system also
@@ -41,5 +42,6 @@ class BankNotificationListenerService : NotificationListenerService() {
         // same notification look brand new every time, well outside any dedup window.
         val recorded = MessageStore.shared.add(packageName, appLabel, title, text, sbn.postTime) ?: return
         AutoCreateScheduler.scheduleIfEnabled(applicationContext, recorded)
+        ReviewNotificationScheduler.scheduleIfNeeded(applicationContext, recorded)
     }
 }

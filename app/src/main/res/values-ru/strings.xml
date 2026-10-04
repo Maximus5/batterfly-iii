@@ -219,6 +219,11 @@
     <string name="auto_create_failed_title">Ошибка автосоздания</string>
     <string name="auto_create_failed_text">%1$s: %2$s</string>
 
+    <string name="review_match_channel_name">Совпадение с правилом</string>
+    <string name="review_match_channel_description">Уведомление совпало с правилом, пока автосоздание выключено - проверьте и создайте транзакцию вручную</string>
+    <string name="review_match_title">Транзакция на проверку</string>
+    <string name="review_match_text">%1$s · %2$s %3$s · \"%4$s\"</string>
+
     <string name="settings_backup_title">Бэкап и восстановление</string>
     <string name="settings_backup_subtitle">Сохранить или восстановить всё, кроме подключения к Firefly</string>
     <string name="backup_explanation">Включает мониторимые приложения, валюты, правила и историю сообщений.\n\nБэкап не включает параметры подключения к Firefly III (URL/токен)! Введите их заново после восстановления.</string>

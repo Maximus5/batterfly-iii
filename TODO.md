@@ -691,31 +691,30 @@ work.
   Create Again) and the no-match/not-configured cases are unchanged,
   still the original dialog - there's nothing to review/edit in
   either of those.
-- When `FireflyPrefs.isAutoCreateEnabled()` is *off*, a rule match
-  currently surfaces nowhere outside the app itself - the user has to
-  open Messages and tap in to notice/act on it. Raised by the user: a
-  system notification for a rule match even with auto-create disabled
-  (app/amount/account/description summary, same spirit as `posting.
-  AutoCreateNotifications`' own outcome notifications but for "here's
-  something to review," not "here's what happened"), with a "Create
-  transaction" action button that deep-links straight into
-  `ui.CreateTransactionActivity` (now built, see above) - picking a
-  category right from the notification's own flow is the explicit
-  point, not just a bare "open the app and find it yourself" prompt.
-  Now that the target screen exists, `CreateTransactionActivity.
-  intent(context, message)` already carries a plain `CapturedMessage`
-  across an Activity boundary (packageName/appLabel/title/text/
-  timestampMillis as Intent extras, re-parsed via `RuleEngine.match`
-  inside the fragment) - the exact same shape a notification's
-  `PendingIntent` extras would need, so that part of the "not yet
-  scoped" list below is effectively resolved.
-  Still not yet scoped: whether this runs the same rule-match pipeline
-  `posting.AutoCreateWorker` already has (parse + resolve amount) but
-  skips the actual post, or needs its own smaller worker; and whether
-  it should also run the duplicate check first and suppress the
-  notification entirely for a likely duplicate (suggesting "create" for
-  something that would just get flagged as a duplicate seems worse than
-  not suggesting it at all) or leave that judgment to the user once
-  they open the review screen (which already runs its own duplicate
-  check on tapping "Create transaction" there, so the worst case is
-  just one extra tap before finding out, not a silent wrong post).
+- **Done**: when `FireflyPrefs.isAutoCreateEnabled()` is *off*, a rule
+  match now surfaces a system notification (`posting.
+  ReviewNotifications`, its own `review_match` channel) with an
+  app/amount/currency/description summary and a "Create transaction"
+  action (and whole-notification tap) that deep-links straight into
+  `ui.CreateTransactionActivity`. Scheduled via `posting.
+  ReviewNotificationScheduler.scheduleIfNeeded`, called from both
+  `BankNotificationListenerService.onNotificationPosted` and
+  `AddTestMessageFragment.addTestMessage` right alongside the existing
+  `AutoCreateScheduler.scheduleIfEnabled` call - exactly one of the two
+  ever does anything for a given message, since they gate on opposite
+  states of `isAutoCreateEnabled()`. Resolved the two open questions
+  this entry used to raise: it reuses the exact same rule-match +
+  amount-resolution logic as `posting.AutoCreateWorker` (extracted into
+  shared top-level functions in the new `posting.RuleMatching.kt` -
+  `capturedMessageInputData`/`capturedMessageFrom`/`matchRule`/
+  `resolveAmountQuietly` - and `AutoCreateWorker` itself now calls these
+  instead of its own private copies); and it deliberately does *not*
+  run a duplicate check before notifying - that judgment is left to the
+  user once they open `CreateTransactionActivity`, which already runs
+  its own duplicate check on tapping "Create transaction" there, so the
+  worst case is one extra tap before finding out, not a suppressed
+  notification for something that turns out not to be a duplicate.
+  `ReviewNotificationWorker` is not part of `AutoCreateScheduler`'s
+  unique `APPEND` work chain - it never posts to Firefly or writes the
+  dedup log, so there's no shared mutable state for two in-flight
+  instances to race over.

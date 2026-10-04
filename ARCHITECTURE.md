@@ -936,6 +936,43 @@ Single `:app` module, packages under
     notifications posted back-to-back are still handled strictly one at
     a time, which is the entire reason this was built as a WorkManager
     chain instead of a plain per-message coroutine launch.
+  - `RuleMatching.kt` - `capturedMessageInputData`/`capturedMessageFrom`/
+    `matchRule`/`resolveAmountQuietly`, top-level functions extracted
+    from `AutoCreateWorker` so `ReviewNotificationWorker` (below) could
+    call the exact same rule-match + amount-resolution logic rather than
+    duplicating it a second way. Pure extraction, no behavior change -
+    `AutoCreateWorker` now calls these instead of its own private
+    copies.
+  - `ReviewNotificationScheduler`/`ReviewNotificationWorker`/
+    `ReviewNotifications` - the counterpart to `AutoCreateScheduler`/
+    `AutoCreateWorker`/`AutoCreateNotifications` for when auto-create is
+    *off*. Raised by the user: a rule match used to surface nowhere
+    outside the app itself when auto-create was disabled - the user had
+    to open Messages and tap in to notice it. `ReviewNotificationScheduler.
+    scheduleIfNeeded(context, message)` is called from the exact same two
+    places as `AutoCreateScheduler.scheduleIfEnabled`, right alongside
+    it - exactly one of the two ever does anything for a given message,
+    since they gate on opposite states of `isAutoCreateEnabled()`.
+    `ReviewNotificationWorker` re-parses the message via `RuleMatching.
+    matchRule`/`resolveAmountQuietly` (same as `AutoCreateWorker`), and
+    on a match with a resolved amount, posts a system notification
+    (`ReviewNotifications`, its own `review_match` channel, separate from
+    `auto_create`'s so the two are independently mutable/configurable)
+    with an app/amount/currency/description summary and a "Create
+    transaction" action (and whole-notification tap) that deep-links
+    into `ui.CreateTransactionActivity.intent(context, message)` - the
+    same review/edit screen the manual flow uses, picking a category
+    right from the notification's own flow rather than a bare "open the
+    app and find it yourself" prompt. Deliberately does **not** run a
+    duplicate check first and does **not** join `AutoCreateScheduler`'s
+    unique `APPEND` work chain: there's no shared mutable state here (no
+    Firefly `POST`, no dedup-log write) for two in-flight instances to
+    race over, so suppressing a likely-duplicate match before notifying
+    isn't worth the extra complexity - that judgment is left to the user
+    once they open `CreateTransactionActivity`, which already runs its
+    own duplicate check on tapping "Create transaction" there, so the
+    worst case is one extra tap before finding out, not a silently
+    wrong post.
 - `notifications` - `BankNotificationListenerService`
   (`NotificationListenerService` subclass): for every posted
   notification, checks `MonitoredAppsPrefs`, pulls `EXTRA_TITLE`/
@@ -943,7 +980,8 @@ Single `:app` module, packages under
   non-empty, resolves the app's current label via `AppLabelResolver`
   and calls `MessageStore.shared.add(...)` - a non-null (genuinely new,
   not a notification-level duplicate) result is handed straight to
-  `posting.AutoCreateScheduler.scheduleIfEnabled` right after.
+  `posting.AutoCreateScheduler.scheduleIfEnabled` and `posting.
+  ReviewNotificationScheduler.scheduleIfNeeded` right after.
   **Fixed a real duplicate-capture bug, caught directly on-device**:
   `onNotificationPosted` isn't only called for a genuinely new
   notification - the system also replays every notification still
