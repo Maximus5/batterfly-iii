@@ -1,5 +1,8 @@
 package io.github.maximus5.ffnotifyimporter.ui
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
@@ -7,6 +10,8 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import io.github.maximus5.ffnotifyimporter.R
@@ -24,6 +29,15 @@ class FireflySettingsFragment : Fragment() {
 
     private var binding: FragmentFireflySettingsBinding? = null
     private lateinit var prefs: FireflyPrefs
+
+    /** Requested the moment the user turns auto-create on, not at app startup - API 33+ only
+     * (`POST_NOTIFICATIONS` didn't exist as a runtime permission before that; a notification just
+     * showed unconditionally). Declining it doesn't block the switch itself - auto-create still
+     * works without it, the user just won't see `posting.AutoCreateNotifications`' outcome
+     * notifications (same as `BankNotificationListenerService`'s own "go grant this in system
+     * settings yourself" permission, no in-app gate on functioning without it). */
+    private val notificationPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { /* no-op either way */ }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -54,8 +68,17 @@ class FireflySettingsFragment : Fragment() {
             override fun afterTextChanged(s: Editable?) = updateCleartextWarning(s?.toString().orEmpty())
         })
 
+        binding.autoCreateSwitch.setOnCheckedChangeListener { _, isChecked -> if (isChecked) requestNotificationPermissionIfNeeded() }
+
         binding.testConnectionButton.setOnClickListener { testConnection() }
         binding.saveButton.setOnClickListener { save() }
+    }
+
+    private fun requestNotificationPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        val context = requireContext()
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) return
+        notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
     }
 
     private fun updateCleartextWarning(url: String) {

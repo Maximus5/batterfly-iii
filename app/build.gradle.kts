@@ -11,8 +11,8 @@ android {
         applicationId = "io.github.maximus5.ffnotifyimporter"
         minSdk = 26
         targetSdk = 36
-        versionCode = 82
-        versionName = "0.82"
+        versionCode = 83
+        versionName = "0.83"
     }
 
     buildTypes {
@@ -45,6 +45,10 @@ dependencies {
     implementation("androidx.constraintlayout:constraintlayout:2.2.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
+    // Auto-create (posting.AutoCreateWorker) - retries a failed Firefly call with backoff, and
+    // its ExistingWorkPolicy.APPEND queue is what guarantees two notifications arriving at once
+    // never get auto-created in parallel.
+    implementation("androidx.work:work-runtime-ktx:2.10.0")
 
     testImplementation("junit:junit:4.13.2")
     // org.json is part of the Android framework at runtime, but JVM unit tests run against a

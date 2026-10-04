@@ -4,6 +4,12 @@
     <!-- The Firefly III connection (base URL + token, entered by the user in Settings). -->
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- posting.AutoCreateNotifications - a runtime-requested permission on API 33+, asked for
+         when the user turns on "Auto-create" in Firefly III settings. Without it, API 33+ simply
+         drops the notification silently (not a crash) - the permission exists only so the
+         background auto-create outcome (posted/skipped-duplicate/failed) is actually visible. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <!-- Needed to list other installed apps for the "which apps to monitor" picker. -->
     <queries>
         <intent>

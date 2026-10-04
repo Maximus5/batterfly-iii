@@ -2,6 +2,8 @@ package io.github.maximus5.ffnotifyimporter.data
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -12,9 +14,9 @@ class MessageStoreTest {
         var now = 0L
         val store = MessageStore(dedupWindowMillis = 1000, clock = { now })
 
-        assertTrue(store.add("bank.app", "Bank", "Payment", "You spent 100"))
+        assertNotNull(store.add("bank.app", "Bank", "Payment", "You spent 100"))
         now += 500
-        assertFalse(store.add("bank.app", "Bank", "Payment", "You spent 100"))
+        assertNull(store.add("bank.app", "Bank", "Payment", "You spent 100"))
 
         assertEquals(1, store.snapshot().size)
     }
@@ -24,11 +26,21 @@ class MessageStoreTest {
         var now = 0L
         val store = MessageStore(dedupWindowMillis = 1000, clock = { now })
 
-        assertTrue(store.add("bank.app", "Bank", "Payment", "You spent 100"))
+        assertNotNull(store.add("bank.app", "Bank", "Payment", "You spent 100"))
         now += 1001
-        assertTrue(store.add("bank.app", "Bank", "Payment", "You spent 100"))
+        assertNotNull(store.add("bank.app", "Bank", "Payment", "You spent 100"))
 
         assertEquals(2, store.snapshot().size)
+    }
+
+    @Test
+    fun `add returns the recorded message on success, null when dropped as a duplicate`() {
+        val store = MessageStore(dedupWindowMillis = 1000, clock = { 0L })
+
+        val recorded = store.add("bank.a", "Bank A", "Payment", "text", timestampMillis = 42L)
+
+        assertEquals(CapturedMessage("bank.a", "Bank A", "Payment", "text", timestampMillis = 42L), recorded)
+        assertNull(store.add("bank.a", "Bank A", "Payment", "text", timestampMillis = 42L))
     }
 
     @Test
@@ -44,11 +56,11 @@ class MessageStoreTest {
     fun `add's dedup window compares against the given timestampMillis, not clock()`() {
         val store = MessageStore(dedupWindowMillis = 1000, clock = { 0L })
 
-        assertTrue(store.add("bank.a", "Bank A", "Payment", "text", timestampMillis = 10_000L))
+        assertNotNull(store.add("bank.a", "Bank A", "Payment", "text", timestampMillis = 10_000L))
         // Same content, a backdated timestamp just outside the window from the first one -
         // clock() never changed, so this only works if the window compares against the supplied
         // timestamps themselves, not against clock().
-        assertTrue(store.add("bank.a", "Bank A", "Payment", "text", timestampMillis = 8_999L))
+        assertNotNull(store.add("bank.a", "Bank A", "Payment", "text", timestampMillis = 8_999L))
         assertEquals(2, store.snapshot().size)
     }
 
@@ -56,10 +68,10 @@ class MessageStoreTest {
     fun `different app, title or text is never a duplicate`() {
         val store = MessageStore(dedupWindowMillis = 1000, clock = { 0L })
 
-        assertTrue(store.add("bank.a", "Bank A", "Payment", "You spent 100"))
-        assertTrue(store.add("bank.b", "Bank B", "Payment", "You spent 100"))
-        assertTrue(store.add("bank.a", "Bank A", "Refund", "You spent 100"))
-        assertTrue(store.add("bank.a", "Bank A", "Payment", "You spent 200"))
+        assertNotNull(store.add("bank.a", "Bank A", "Payment", "You spent 100"))
+        assertNotNull(store.add("bank.b", "Bank B", "Payment", "You spent 100"))
+        assertNotNull(store.add("bank.a", "Bank A", "Refund", "You spent 100"))
+        assertNotNull(store.add("bank.a", "Bank A", "Payment", "You spent 200"))
 
         assertEquals(4, store.snapshot().size)
     }

@@ -29,6 +29,10 @@ import io.github.maximus5.ffnotifyimporter.network.FireflyTransactionRequest
 import io.github.maximus5.ffnotifyimporter.network.dedupSearchQuery
 import io.github.maximus5.ffnotifyimporter.network.searchUrl
 import io.github.maximus5.ffnotifyimporter.network.transactionUrl
+import io.github.maximus5.ffnotifyimporter.posting.DuplicateCheckResult
+import io.github.maximus5.ffnotifyimporter.posting.checkForDuplicate
+import io.github.maximus5.ffnotifyimporter.posting.findDuplicate
+import io.github.maximus5.ffnotifyimporter.posting.toRemoteCandidate
 import io.github.maximus5.ffnotifyimporter.prefs.FireflyPrefs
 import io.github.maximus5.ffnotifyimporter.rules.CreatedTransactionsDb
 import io.github.maximus5.ffnotifyimporter.rules.CurrenciesDb
@@ -40,7 +44,6 @@ import io.github.maximus5.ffnotifyimporter.rules.RuleEngine
 import io.github.maximus5.ffnotifyimporter.rules.RulesDb
 import io.github.maximus5.ffnotifyimporter.rules.TransactionDraft
 import io.github.maximus5.ffnotifyimporter.rules.applyApproxConversion
-import io.github.maximus5.ffnotifyimporter.rules.remoteCandidateMatches
 import io.github.maximus5.ffnotifyimporter.rules.transactionDedupHash
 import java.math.RoundingMode
 import java.time.Instant
@@ -219,105 +222,6 @@ class MessagesFragment : Fragment() {
             }
         }
     }
-
-    private sealed interface DuplicateCheckResult {
-        /** [rawCandidates] is whatever Firefly's search actually returned before client-side
-         * filtering (`remoteCandidateMatches`) rejected every one of them - empty for a
-         * local-only miss (dedup disabled, no query possible, or the local log already found
-         * nothing and the remote search genuinely returned nothing either). A non-empty list
-         * alongside `None` means Firefly found *something* for the query but nothing passed the
-         * exact-match check - [checkIfCreated] shows each candidate's actual field values next to
-         * the query, so a mismatch (case, whitespace, a stale date, ...) is visible on sight
-         * instead of needing another debug round-trip to find. */
-        data class None(val rawCandidates: List<RemoteTransactionCandidate> = emptyList()) : DuplicateCheckResult
-
-        /** [candidate] is the full matched record when this came from the remote search (already
-         * fetched, no reason to ask Firefly for it again) - null for a local-log hit, which only
-         * ever has the id (`CreatedTransactionsDb` doesn't store full fields); `showDuplicateConfirmDialog`
-         * fetches it itself in that case (`FireflyApiClient.getTransaction`) so it can always show
-         * what the found transaction actually looks like, not just a bare id. */
-        data class Found(val id: String, val candidate: RemoteTransactionCandidate? = null) : DuplicateCheckResult
-        data class FoundMultiple(val mostRecentId: String, val count: Int, val candidate: RemoteTransactionCandidate? = null) : DuplicateCheckResult
-
-        /** The remote search's HTTP call itself failed (network error, non-2xx response) - kept
-         * distinct from [None] so [checkIfCreated] can show the *real* reason instead of silently
-         * reporting "not found" for what was actually an error. The create-flow callers
-         * ([showTestMatch]'s preemptive check, [startCreate]) still treat this the same as [None]
-         * (best-effort - fall through to posting normally rather than blocking on it). */
-        data class SearchFailed(val message: String) : DuplicateCheckResult
-    }
-
-    /** Gated by `FireflyPrefs.isDedupEnabled()` - the setting is about whether *creating* a
-     * transaction checks for a duplicate first, which is what this gates for (the preemptive
-     * check above and [startCreate]'s "Create Again" below). [checkIfCreated]'s explicit,
-     * user-initiated "just tell me" action calls [findDuplicate] directly instead, bypassing this
-     * toggle entirely - it's a separate question from whether creation should pause on one. */
-    private suspend fun checkForDuplicate(context: Context, draft: TransactionDraft): DuplicateCheckResult {
-        val prefs = FireflyPrefs(context)
-        if (!prefs.isDedupEnabled()) return DuplicateCheckResult.None()
-        return findDuplicate(context, draft, prefs, prefs.isDedupIncludeDescription())
-    }
-
-    /** Local dedup log first (`CreatedTransactionsDb`, this app's own log); only if *that* comes
-     * up empty does it also ask Firefly itself (`FireflyApiClient.searchTransactionsByQuery`) - a
-     * second device/app notifying about the same real payment wouldn't be in this app's own log
-     * at all, so a clean local lookup alone can't rule that out. [includeDescription] is an
-     * explicit parameter rather than always reading `prefs.isDedupIncludeDescription()` so
-     * [checkIfCreated] can call this twice with different values (see its own KDoc for why). */
-    private suspend fun findDuplicate(context: Context, draft: TransactionDraft, prefs: FireflyPrefs, includeDescription: Boolean): DuplicateCheckResult {
-        val windowMinutes = prefs.getDedupWindowMinutes()
-        val hash = transactionDedupHash(draft, includeDescription)
-        val localFoundId = CreatedTransactionsDb.getInstance(context)
-            .findWithinWindow(hash, includeDescription, draft.date.toEpochMilli(), windowMinutes)
-        if (localFoundId != null) return DuplicateCheckResult.Found(localFoundId)
-
-        // Known fragility - see dedupSearchQuery's KDoc: Firefly's account_is operators silently
-        // zero out the *entire* search if the given name doesn't exactly match a real account,
-        // which this app's often-free-typed account names can't guarantee. Not yet resolved (see
-        // TODO.md) - two fixes were proposed and rejected, so this still searches by name as-is.
-        val query = dedupSearchQuery(
-            amount = draft.amount,
-            currencyCode = draft.currencyCode,
-            foreignAmount = draft.foreignAmount,
-            foreignCurrencyCode = draft.foreignCurrencyCode,
-            centerDate = draft.date,
-            windowMinutes = windowMinutes,
-            sourceName = draft.sourceName,
-            destinationName = draft.destinationName,
-            description = draft.description,
-            includeDescription = includeDescription,
-        ) ?: return DuplicateCheckResult.None()
-
-        val client = FireflyApiClient(prefs.getBaseUrl(), prefs.getToken())
-        return when (val result = client.searchTransactionsByQuery(query)) {
-            is FireflyApiClient.Result.Success -> {
-                val candidates = result.value.map { it.toRemoteCandidate() }
-                val matches = candidates.filter { remoteCandidateMatches(draft, it, includeDescription, windowMinutes) }
-                when {
-                    matches.isEmpty() -> DuplicateCheckResult.None(rawCandidates = candidates)
-                    matches.size == 1 -> DuplicateCheckResult.Found(matches.first().groupId, matches.first())
-                    // The dialog only has room for one "found" id - the most recent match, same
-                    // tie-break `CreatedTransactionsDb.findWithinWindow` already uses.
-                    else -> matches.maxBy { it.date }.let { DuplicateCheckResult.FoundMultiple(it.groupId, matches.size, it) }
-                }
-            }
-            is FireflyApiClient.Result.Failure -> DuplicateCheckResult.SearchFailed(result.message)
-        }
-    }
-
-    private fun FireflyTransactionCandidate.toRemoteCandidate() = RemoteTransactionCandidate(
-        groupId = groupId,
-        date = date,
-        amount = amount,
-        currencyCode = currencyCode,
-        foreignAmount = foreignAmount,
-        foreignCurrencyCode = foreignCurrencyCode,
-        description = description,
-        sourceId = sourceId,
-        sourceName = sourceName,
-        destinationId = destinationId,
-        destinationName = destinationName,
-    )
 
     /** Confirms before "Create Again" actually runs - the user's own call, after noticing the tap
      * had no confirmation at all. [startCreate] below does still run its own [checkForDuplicate]

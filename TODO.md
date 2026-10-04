@@ -90,18 +90,85 @@ work.
       anyway"/"cancel": "Already Created" links *that* found id to the
       message via `MessageStore.setTransactionId` instead of posting a
       new one, per the user's own answer on this exact question.
-      **Still not done**: the auto-create path (WorkManager retry on
-      failure, per AGENTS.md's stack note) - `FireflyPrefs.
-      isAutoCreateEnabled()` exists as a setting but nothing reads it
-      yet. Decided (asked the user directly, not assumed) for when this
-      gets built: manual creation (the button above) asks for an
-      explicit confirmation on a likely duplicate before creating it
-      anyway; automatic creation *skips* a likely duplicate instead and
-      surfaces that as a system notification, and a *successful*
-      automatic creation also gets a system notification (manual
-      creation's success feedback stays the in-app OK dialog it has
-      now, not a notification - the user is already looking at the
-      screen).
+      **Done**: the auto-create path (`posting.AutoCreateWorker`/
+      `AutoCreateScheduler`/`AutoCreateNotifications`), per the design
+      decided earlier (asked the user directly, not assumed): manual
+      creation (the button above) asks for an explicit confirmation on a
+      likely duplicate before creating it anyway; automatic creation
+      *skips* a likely duplicate instead and surfaces that as a system
+      notification, and a *successful* automatic creation also gets a
+      system notification (manual creation's success feedback stays the
+      in-app OK dialog it has now, not a notification - the user is
+      already looking at the screen).
+      `posting.DuplicateChecker` (`DuplicateCheckResult`/
+      `checkForDuplicate`/`findDuplicate`) is the same local-then-remote
+      dedup lookup `MessagesFragment` already had, pulled out of that
+      Fragment into its own Context-based (not Fragment-based) file so
+      `AutoCreateWorker` can call the identical logic instead of
+      re-deriving it a second way and risking drift - `MessagesFragment`
+      now just imports these as top-level functions, no behavior change
+      there.
+      `AutoCreateScheduler.scheduleIfEnabled(context, message)` is the
+      one entry point, called right after a genuinely new message is
+      recorded - from both `BankNotificationListenerService` (a real
+      notification) and `AddTestMessageFragment` (a manually-injected
+      test message, "exactly like a real notification would" per its
+      own KDoc - includes this too, deliberately). A no-op unless
+      `FireflyPrefs.isAutoCreateEnabled()`.
+      **The user's own explicit requirement, the reason this needed its
+      own scheduler rather than just launching a coroutine per
+      message**: two notifications can arrive essentially
+      simultaneously, and auto-create must never process them in
+      parallel - a race between two concurrent duplicate checks could
+      let both independently decide "not a duplicate" and both post the
+      same real payment, exactly the failure mode dedup exists to
+      prevent. Every message is enqueued into one single WorkManager
+      unique work chain (`ExistingWorkPolicy.APPEND`,
+      `AutoCreateScheduler.UNIQUE_WORK_NAME`) regardless of origin -
+      `APPEND` makes each new request a dependency of whatever's already
+      queued/running in that chain, so WorkManager itself guarantees
+      strict one-at-a-time, in-arrival-order execution with no manual
+      locking, and it survives process death (WorkManager persists its
+      queue) - a burst that arrives right before the app is killed still
+      finishes in order once it restarts.
+      A failed Firefly call retries (`Result.retry()`, exponential
+      backoff) up to `AutoCreateWorker.MAX_ATTEMPTS` (5) - this is the
+      actual "WorkManager for retrying failed API calls" use AGENTS.md's
+      stack note was written for. Capped rather than left to
+      WorkManager's own default indefinite retry: since every message
+      shares one `APPEND` chain, a stuck-retrying item would otherwise
+      block every later notification's auto-create attempt forever (a
+      dead/revoked token would silently stall the entire feature, not
+      just one message) - exceeding the cap gives up (`Result.failure()`)
+      instead, unblocking the chain, and notifies the user once rather
+      than retrying forever in silence. A `Constraints.
+      setRequiredNetworkType(CONNECTED)` constraint means a request
+      sitting in the chain without connectivity just waits instead of
+      burning through those attempts on a guaranteed-to-fail call.
+      Can't auto-post without a resolved amount
+      (`DraftIssue.LOCAL_AMOUNT_MISSING` still unresolved after the
+      exchange-rate fetch) - same "flag it, don't guess" precedent as
+      everywhere else that issue shows up; treated as a quiet no-op
+      (the message stays in the Messages list for the user to handle by
+      hand), not a failure worth retrying or notifying about.
+      `MessageStore.add` changed its return type from `Boolean` to
+      `CapturedMessage?` (the recorded message, or null if dropped as a
+      duplicate) specifically to support this: `AutoCreateScheduler`
+      needs the *exact* `timestampMillis` that was actually stored (for
+      `MessageStore.setTransactionId`'s later exact-identity lookup once
+      a transaction posts), and re-deriving "now" a second time at the
+      call site could race against a second notification arriving in
+      between and land on a different value than what `add` itself used
+      internally - returning the already-computed message avoids that
+      race entirely rather than reading it back via a separate lookup.
+      **Needs real-device verification** (not yet done): auto-create
+      actually firing from a real notification with the app closed/
+      backgrounded, the skip-duplicate and success notifications both
+      appearing and tapping through correctly, a forced API failure
+      actually retrying and eventually giving up after `MAX_ATTEMPTS`,
+      and - the one this was specifically built for - two notifications
+      posted back-to-back in a way that previously could have raced,
+      confirming they're still handled strictly one at a time.
     - Transaction-level dedup (**done**, manual-creation path only -
       see above): `rules.transactionDedupHash` (pure, unit tested -
       `TransactionDedupTest`) hashes source/destination
@@ -575,3 +642,26 @@ work.
   (`values/strings.xml` and `values-ru/strings.xml`). Default/base is
   English; add more `values-<lang>/strings.xml` as needed, keep
   `strings.xml` in sync across locales when adding new strings.
+- Manual transaction creation (`MessagesFragment`'s "Создать" button)
+  has no review/edit step - the test-match dialog shows the rule's
+  output read-only and posts exactly that, with no way to override a
+  field by hand before it goes to Firefly. Raised by the user: a
+  dedicated pre-create screen, opened from that same dialog, where the
+  draft's fields can be verified/edited before posting - category in
+  particular, picked from Firefly's own real category list (`GET
+  /v1/categories`, not yet wired anywhere in this app - category is
+  currently only ever free-text via `ParseRule`'s template, same
+  "counterparty auto-creates by name" reasoning tags/description
+  already rely on, but unlike the asset-account side a category can't
+  be posted by picking a wrong/misspelled one without the user
+  noticing). The user's own suggestion for visual style: start from the
+  rule editor's existing account-picker UI
+  (`RuleEditFragment.showAccountPicker`, `FireflyApiClient.
+  listAssetAccounts`) as the template - same picker shape, a new
+  `FireflyApiClient.listCategories()` endpoint call feeding it instead.
+  Not yet scoped beyond that: which other fields this screen should
+  cover besides category (amount/date/description/accounts, already
+  shown read-only in the current dialog - open whether they become
+  editable here too, or category stays the one addition), and whether
+  it replaces the existing test-match dialog outright or is a second
+  step opened from it.

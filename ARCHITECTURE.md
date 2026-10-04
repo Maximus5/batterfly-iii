@@ -131,8 +131,16 @@ Single `:app` module, packages under
     update its id" impossible to express as a lookup.
   - `MessageStore` - the in-memory, time-windowed dedup store
     (`MessageStoreTest`). `MessageStore.shared` is the one instance
-    used by the listener service and the UI. `add` dedups and notifies
-    listeners; `restore` bulk-seeds already-deduplicated entries
+    used by the listener service and the UI. `add` dedups, notifies
+    listeners, and returns the recorded `CapturedMessage` (or null if
+    dropped as a duplicate) - changed from a plain `Boolean` specifically
+    for `posting.AutoCreateScheduler` (see the `posting` section below):
+    it needs the *exact* `timestampMillis` `add` actually stored, and
+    re-deriving "now" a second time at the call site could race against
+    a second notification arriving in between and land on a different
+    value than what was stored internally - returning the already-
+    computed message avoids that race entirely. `restore` bulk-seeds
+    already-deduplicated entries
     (loaded from disk at startup) without re-running the dedup check;
     `remove` deletes one entry (matched by value equality - there's no
     separate id) for the Messages screen's delete action.
@@ -753,14 +761,110 @@ Single `:app` module, packages under
     (`backup_export_success_named`, etc.) used only when a name actually
     came back, falling back to the plain no-name message otherwise -
     "if we know it", not a guess.
+- `posting` - the shared machinery behind actually posting a
+  transaction, used by both the manual "Создать" button
+  (`ui.MessagesFragment`) and automatic creation (below); depends on
+  both `rules` and `network`, same layering `ui.MessagesFragment`
+  itself already had - this package exists so that dependency doesn't
+  have to live in `ui` alone anymore:
+  - `DuplicateChecker.kt` (`DuplicateCheckResult`, `checkForDuplicate`,
+    `findDuplicate`, `FireflyTransactionCandidate.toRemoteCandidate`) -
+    the local-then-remote dedup lookup, pulled out of
+    `ui.MessagesFragment` (where it used to live as private members)
+    specifically so `AutoCreateWorker` could call the exact same logic
+    a manual create already goes through, rather than re-deriving the
+    same comparison a second way and risking the two paths drifting
+    apart over time. Pure extraction, no behavior change -
+    `MessagesFragment` now imports these as top-level functions.
+  - `AutoCreateScheduler`/`AutoCreateWorker`/`AutoCreateNotifications` -
+    automatic transaction creation, gated by `FireflyPrefs.
+    isAutoCreateEnabled()` (a long-standing setting that previously had
+    no code reading it at all - see TODO.md). Design decided with the
+    user directly before building: a likely duplicate is *skipped*, not
+    posted and not auto-resolved (no human in the loop here to make
+    that call, unlike the manual path's "create anyway" confirmation),
+    surfaced as a system notification so the user can still act on it
+    by hand; a genuine success also gets a system notification, since
+    there's no in-app dialog to show it in when the app isn't even
+    open.
+    `AutoCreateScheduler.scheduleIfEnabled(context, message)` is the one
+    entry point - called right after a genuinely new message is
+    recorded, from both `notifications.BankNotificationListenerService`
+    (a real notification) and `ui.AddTestMessageFragment` (a manually-
+    injected test message, "exactly like a real notification would" per
+    its own KDoc, deliberately includes this too).
+    **The user's own explicit requirement, and the reason this needed a
+    real scheduler/worker rather than just launching a coroutine per
+    message**: two notifications can arrive essentially simultaneously,
+    and auto-create must never process them in parallel - a race
+    between two concurrent duplicate checks could let both
+    independently decide "not a duplicate" and both post the same real
+    payment, exactly the failure mode dedup exists to prevent in the
+    first place. Every message is enqueued into one single WorkManager
+    unique work chain (`WorkManager.enqueueUniqueWork`,
+    `ExistingWorkPolicy.APPEND`, `AutoCreateScheduler.UNIQUE_WORK_NAME`)
+    regardless of origin - `APPEND` makes each new request a dependency
+    of whatever's already queued/running in that chain, so WorkManager
+    itself guarantees strict one-at-a-time, in-arrival-order execution
+    with no manual locking needed on this app's side, and it survives
+    process death (WorkManager persists its own queue), so a burst that
+    arrives right before the app is killed still finishes in order once
+    it restarts.
+    `AutoCreateWorker` (`CoroutineWorker`) re-checks `isAutoCreateEnabled`/
+    `isConfigured` itself (not just trusting the scheduler's check at
+    enqueue time, since the setting or connection could have changed
+    while a message sat behind an earlier one in the chain), re-parses
+    the message fresh via `RuleEngine.match` (input data only carries
+    the plain packageName/appLabel/title/text/timestampMillis fields,
+    `WorkManager.Data` only holds primitives - the `CapturedMessage` is
+    reconstructed from those), resolves `DraftIssue.LOCAL_AMOUNT_MISSING`
+    the same way `MessagesFragment.resolveAmountQuietly` does, then
+    calls `posting.checkForDuplicate`. A failed Firefly call retries
+    (`Result.retry()`, exponential backoff) up to `MAX_ATTEMPTS` (5) -
+    the actual "WorkManager for retrying failed API calls" use
+    AGENTS.md's own stack note was written for. Capped rather than left
+    to WorkManager's default indefinite retry: since every message
+    shares one `APPEND` chain, a stuck-retrying item would otherwise
+    block every later notification's auto-create attempt forever (a
+    dead/revoked token would silently stall the entire feature, not
+    just one message) - exceeding the cap gives up (`Result.failure()`)
+    instead, unblocking the chain for whatever's queued behind it, and
+    notifies the user once via `AutoCreateNotifications.notifyFailed`
+    rather than retrying forever in silence. A `Constraints.
+    setRequiredNetworkType(NetworkType.CONNECTED)` constraint means a
+    request sitting in the chain without connectivity just waits
+    instead of burning through those attempts on a guaranteed-to-fail
+    call - once connectivity returns, the whole backlog drains in
+    order.
+    `AutoCreateNotifications` posts to one `NotificationChannel`
+    (`IMPORTANCE_DEFAULT` - not `_HIGH`, no heads-up warranted for a
+    background bookkeeping result; not `_LOW` either, a skipped-
+    duplicate or a failure deserves more than a silent badge), created
+    lazily on first use. Requires `POST_NOTIFICATIONS` on API 33+
+    (declared in the manifest, requested from `FireflySettingsFragment`
+    the moment the user turns the "Auto-create" switch on, not at app
+    startup) - a declined/missing permission is caught as a
+    `SecurityException` around `NotificationManagerCompat.notify` and
+    silently skipped, same "doesn't block the feature from working,
+    just from being visible" shape `BankNotificationListenerService`'s
+    own notification-listener access already has.
+    **Needs real-device verification** (not yet done, see TODO.md):
+    nothing here can be exercised by a JVM unit test (WorkManager,
+    system notifications, and the notification-listener path itself all
+    need a real device/emulator) - in particular, confirming two
+    notifications posted back-to-back are still handled strictly one at
+    a time, which is the entire reason this was built as a WorkManager
+    chain instead of a plain per-message coroutine launch.
 - `notifications` - `BankNotificationListenerService`
   (`NotificationListenerService` subclass): for every posted
   notification, checks `MonitoredAppsPrefs`, pulls `EXTRA_TITLE`/
   `EXTRA_TEXT` from the notification extras, and if either is
   non-empty, resolves the app's current label via `AppLabelResolver`
-  and calls `MessageStore.shared.add(...)`. Requires the user to grant
-  notification-listener access manually in system settings - there is
-  no runtime permission dialog for this, only
+  and calls `MessageStore.shared.add(...)` - a non-null (genuinely new,
+  not a notification-level duplicate) result is handed straight to
+  `posting.AutoCreateScheduler.scheduleIfEnabled` right after. Requires
+  the user to grant notification-listener access manually in system
+  settings - there is no runtime permission dialog for this, only
   `Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS`.
 - `ui`:
   - `MainActivity` - home screen, just hosts `MessagesFragment` plus a
@@ -1001,8 +1105,10 @@ Single `:app` module, packages under
       as before this change, rather than leaving the button stuck
       disabled with no way forward.)
 
-    `checkForDuplicate(context, draft)` (shared by both paths above) is
-    the dedup logic itself, returning a `DuplicateCheckResult`
+    `checkForDuplicate(context, draft)` (shared by both paths above, and
+    by `posting.AutoCreateWorker` - see the `posting` package section
+    above for why it now lives there rather than as a private member
+    here) is the dedup logic itself, returning a `DuplicateCheckResult`
     (`None`/`Found(id)`/`FoundMultiple(mostRecentId, count)`) instead of
     directly branching to a dialog - local log first
     (`rules.CreatedTransactionsDb.findWithinWindow`, skipped entirely
@@ -1159,8 +1265,10 @@ Single `:app` module, packages under
       monitored apps list and calls `MessageStore.shared.add(...)`
       directly with user-entered title/text, exactly like
       `BankNotificationListenerService` would for a real notification
-      (same dedup, same persistence-if-enabled) - lets rule processing
-      be tested without waiting for a real bank notification.
+      (same dedup, same persistence-if-enabled, same
+      `posting.AutoCreateScheduler.scheduleIfEnabled` call on a
+      genuinely new result) - lets rule processing be tested without
+      waiting for a real bank notification.
       `dateTimeButton` (defaults to "now" when the screen opens, chained
       `DatePickerDialog`+`TimePickerDialog` to edit) lets the injected
       message carry a chosen timestamp instead of always being "just

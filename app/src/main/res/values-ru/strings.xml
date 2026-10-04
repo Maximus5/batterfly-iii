@@ -184,6 +184,15 @@
     <string name="firefly_dedup_window_invalid">Окно дедупликации должно быть положительным числом минут.</string>
     <string name="firefly_settings_saved">Сохранено</string>
 
+    <string name="auto_create_channel_name">Автосоздание</string>
+    <string name="auto_create_channel_description">Транзакции, созданные автоматически из уведомлений, без открытия приложения</string>
+    <string name="auto_create_success_title">Транзакция создана</string>
+    <string name="auto_create_success_text">%1$s → транзакция Firefly #%2$s</string>
+    <string name="auto_create_skipped_title">Пропущен вероятный дубль</string>
+    <string name="auto_create_skipped_text">%1$s совпадает с транзакцией #%2$s, уже существующей в Firefly - не создано автоматически.</string>
+    <string name="auto_create_failed_title">Ошибка автосоздания</string>
+    <string name="auto_create_failed_text">%1$s: %2$s</string>
+
     <string name="settings_backup_title">Бэкап и восстановление</string>
     <string name="settings_backup_subtitle">Сохранить или восстановить всё, кроме подключения к Firefly</string>
     <string name="backup_explanation">Включает мониторимые приложения, валюты, правила и историю сообщений.\n\nБэкап не включает параметры подключения к Firefly III (URL/токен)! Введите их заново после восстановления.</string>

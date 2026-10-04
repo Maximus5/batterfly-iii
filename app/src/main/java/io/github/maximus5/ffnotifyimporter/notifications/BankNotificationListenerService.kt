@@ -4,6 +4,7 @@ import android.app.Notification
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import io.github.maximus5.ffnotifyimporter.data.MessageStore
+import io.github.maximus5.ffnotifyimporter.posting.AutoCreateScheduler
 import io.github.maximus5.ffnotifyimporter.prefs.MonitoredAppsPrefs
 
 class BankNotificationListenerService : NotificationListenerService() {
@@ -25,6 +26,7 @@ class BankNotificationListenerService : NotificationListenerService() {
         if (title.isEmpty() && text.isEmpty()) return
 
         val appLabel = AppLabelResolver.resolve(applicationContext, packageName)
-        MessageStore.shared.add(packageName, appLabel, title, text)
+        val recorded = MessageStore.shared.add(packageName, appLabel, title, text) ?: return
+        AutoCreateScheduler.scheduleIfEnabled(applicationContext, recorded)
     }
 }

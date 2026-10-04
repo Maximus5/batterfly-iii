@@ -184,6 +184,15 @@
     <string name="firefly_dedup_window_invalid">Dedup window must be a positive number of minutes.</string>
     <string name="firefly_settings_saved">Saved</string>
 
+    <string name="auto_create_channel_name">Auto-create</string>
+    <string name="auto_create_channel_description">Transactions created automatically from notifications, without opening the app</string>
+    <string name="auto_create_success_title">Transaction created</string>
+    <string name="auto_create_success_text">%1$s → Firefly transaction #%2$s</string>
+    <string name="auto_create_skipped_title">Skipped a likely duplicate</string>
+    <string name="auto_create_skipped_text">%1$s matches transaction #%2$s already in Firefly - not created automatically.</string>
+    <string name="auto_create_failed_title">Auto-create failed</string>
+    <string name="auto_create_failed_text">%1$s: %2$s</string>
+
     <string name="settings_backup_title">Backup &amp; restore</string>
     <string name="settings_backup_subtitle">Save or restore everything except the Firefly connection</string>
     <string name="backup_explanation">Includes monitored apps, currencies, rules, and message history.\n\nBackup does not include the Firefly III connection parameters (base URL/token)! Re-enter them after a restore.</string>

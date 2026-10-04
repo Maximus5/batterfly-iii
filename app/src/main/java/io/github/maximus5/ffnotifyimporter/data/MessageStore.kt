@@ -32,12 +32,19 @@ class MessageStore(
      * row's `firefly_transaction_id` too. */
     var onMessageUpdated: ((CapturedMessage) -> Unit)? = null
 
-    /** Returns true if a new entry was recorded, false if it was dropped as a duplicate.
+    /** Returns the recorded [CapturedMessage] (with its exact, assigned [CapturedMessage.
+     * timestampMillis]), or null if it was dropped as a duplicate. Returning the message itself,
+     * not just a success [Boolean], matters once a caller needs to act on *this exact* message
+     * afterward (`posting.AutoCreateScheduler`, enqueued right after `add` - it needs the same
+     * [CapturedMessage.timestampMillis] that was actually stored, computed once here inside the
+     * lock, since re-deriving "now" a second time at the call site could race against a second
+     * notification arriving in between and land on a different value, breaking
+     * [setTransactionId]'s later exact-identity lookup).
      * [timestampMillis] defaults to "now" (every real notification-capture call site relies on
      * this default) - `ui.AddTestMessageFragment` is the one caller that overrides it, so a test
      * message can carry a chosen date/time instead of always being "just now", useful for
      * reproducing a rule bug tied to a specific real notification's timestamp. */
-    fun add(packageName: String, appLabel: String, title: String, text: String, timestampMillis: Long = clock()): Boolean {
+    fun add(packageName: String, appLabel: String, title: String, text: String, timestampMillis: Long = clock()): CapturedMessage? {
         val now = timestampMillis
         val recorded: CapturedMessage
         val snapshot: List<CapturedMessage>
@@ -48,14 +55,14 @@ class MessageStore(
                     existing.text == text &&
                     Math.abs(now - existing.timestampMillis) <= dedupWindowMillis
             }
-            if (isDuplicate) return false
+            if (isDuplicate) return null
             recorded = CapturedMessage(packageName, appLabel, title, text, now)
             messages.add(0, recorded)
             snapshot = messages.toList()
         }
         listeners.forEach { it(snapshot) }
         onNewMessage?.invoke(recorded)
-        return true
+        return recorded
     }
 
     /**

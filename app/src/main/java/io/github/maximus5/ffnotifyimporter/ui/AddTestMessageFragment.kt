@@ -14,6 +14,7 @@ import io.github.maximus5.ffnotifyimporter.R
 import io.github.maximus5.ffnotifyimporter.data.MessageStore
 import io.github.maximus5.ffnotifyimporter.databinding.FragmentAddTestMessageBinding
 import io.github.maximus5.ffnotifyimporter.notifications.AppLabelResolver
+import io.github.maximus5.ffnotifyimporter.posting.AutoCreateScheduler
 import io.github.maximus5.ffnotifyimporter.prefs.MonitoredAppsPrefs
 import java.util.Calendar
 import java.util.Date
@@ -119,15 +120,19 @@ class AddTestMessageFragment : Fragment() {
             return
         }
 
+        val context = requireContext()
         val added = MessageStore.shared.add(selected.packageName, selected.label, title, text, selectedTimestampMillis)
-        val resultMessage = if (added) {
+        val resultMessage = if (added != null) {
             R.string.add_test_message_added
         } else {
             R.string.add_test_message_duplicate
         }
-        Toast.makeText(requireContext(), resultMessage, Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, resultMessage, Toast.LENGTH_SHORT).show()
 
-        if (added) {
+        if (added != null) {
+            // "Exactly like a real notification would" (this file's own KDoc) - includes
+            // triggering auto-create the same way BankNotificationListenerService does.
+            AutoCreateScheduler.scheduleIfEnabled(context, added)
             binding.titleInput.text?.clear()
             binding.textInput.text?.clear()
             selectedTimestampMillis = System.currentTimeMillis()
