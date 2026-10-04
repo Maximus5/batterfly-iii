@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Firefly III Notification Importer</string>
+    <string name="app_name">Notification Importer for Firefly III</string>
 
     <string name="apps_empty">Не удалось получить список приложений.</string>
     <string name="messages_empty">Пока ничего не поймано. Включите мониторинг для нужных приложений и дождитесь уведомления.</string>
