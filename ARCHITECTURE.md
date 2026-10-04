@@ -1111,11 +1111,22 @@ Single `:app` module, packages under
     ambiguity - it's the same view in the same layout slot throughout,
     just different content. A plain tap *outside* of that selection mode
     runs `RuleEngine.match` against the tapped message - a *fresh* match
-    (nothing linked yet, Firefly configured) opens `CreateTransactionActivity`
-    directly (see its own entry below); everything else (no match, an
-    already-linked message, or Firefly not configured) still shows the
-    result (source/destination account, amounts/currencies, rendered
-    description/notes, issues) in a dialog - "test match". The dialog's
+    (nothing linked yet, Firefly configured) runs the same preemptive
+    `checkForDuplicate` every other create path does *before* deciding
+    what to show: found -> the duplicate-confirm dialog; not found (or
+    the amount couldn't be resolved to check with, or the remote check
+    failed) -> `CreateTransactionActivity` opens directly (see its own
+    entry below). **Fixed a real "the screen doesn't even try" gap,
+    caught directly on-device right after `CreateTransactionActivity`
+    shipped**: the first version of this just opened the review screen
+    unconditionally for a fresh match, skipping the check entirely - a
+    transaction that genuinely already existed (confirmed separately by
+    "Check if created" finding it) went unnoticed until the user tapped
+    "Create transaction" on the review screen itself. Everything else
+    (no match, an already-linked message, or Firefly not configured)
+    still shows the result (source/destination account, amounts/
+    currencies, rendered description/notes, issues) in a dialog - "test
+    match". The dialog's
     *title* is the outcome itself: the matched rule's own label, or
     "No match" - not a generic "Test match" every time regardless of
     what happened, which made the matched-vs-not distinction easy to
@@ -1165,8 +1176,11 @@ Single `:app` module, packages under
       settings - `startCreate` only runs after that's accepted, keeping
       its own `checkForDuplicate` call as an additional (not a
       replacement) safety net.
-    - Nothing linked yet (and Firefly configured): this dialog doesn't
-      show at all anymore - `showTestMatch` redirects to
+    - Nothing linked yet (and Firefly configured): this dialog shows up
+      as its *found* variant (`showDuplicateConfirmDialog`, same as
+      every other create path's duplicate hit) if the preemptive check
+      above finds one, and doesn't show at all otherwise -
+      `checkThenOpenCreateOrShowFound` redirects straight to
       `CreateTransactionActivity` instead (see above, and that class's
       own entry below). **History, superseded but kept for context**:
       this dialog used to offer a neutral "Создать" button here,

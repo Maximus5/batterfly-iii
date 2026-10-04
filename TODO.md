@@ -665,11 +665,17 @@ work.
   same as everywhere else in this app).
   The user's own decision on scope: this screen *replaces* the old
   test-match dialog outright for a fresh match (nothing linked yet,
-  Firefly configured) - `MessagesFragment.showTestMatch` now launches
-  it directly instead of showing a dialog at all in that case. The
-  already-linked case (Open/Create Again) and the no-match/not-
-  configured cases are unchanged, still the original dialog - there's
-  nothing to review/edit in either of those.
+  Firefly configured) - `MessagesFragment.showTestMatch` now opens it
+  directly instead of showing a dialog in that case, *but only after*
+  a preemptive `checkForDuplicate` comes up empty first (**fixed
+  separately, right after this screen first shipped**: the very first
+  version skipped that check entirely and always opened a blank
+  screen, so a transaction that genuinely already existed went
+  unnoticed - caught directly on-device). A hit shows the usual
+  duplicate-confirm dialog instead. The already-linked case (Open/
+  Create Again) and the no-match/not-configured cases are unchanged,
+  still the original dialog - there's nothing to review/edit in
+  either of those.
 - When `FireflyPrefs.isAutoCreateEnabled()` is *off*, a rule match
   currently surfaces nowhere outside the app itself - the user has to
   open Messages and tap in to notice/act on it. Raised by the user: a

@@ -93,11 +93,14 @@ class MessagesFragment : Fragment() {
      * generic "Test match" that made every dialog look the same regardless of which rule (if any)
      * actually fired.
      *
-     * A fresh match (nothing linked yet, Firefly configured) opens [CreateTransactionActivity]
-     * directly instead of a dialog - the user's own request for a real pre-create review/edit
-     * step (see TODO.md's dedup history), replacing what used to be a read-only body plus a
-     * "Создать" button here. The already-linked case (Open/Create Again) and the no-match/
-     * not-configured cases still show the dialog - there's nothing to review/edit in either. */
+     * A fresh match (nothing linked yet, Firefly configured) runs the same preemptive duplicate
+     * check every other create path does, *before* deciding what to show - a real tap-tested
+     * case the user caught: a transaction genuinely already existed for it (confirmed by "Check
+     * if created" separately finding it), but tapping the message just opened a blank review
+     * screen instead of surfacing that first. Found -> the usual duplicate-confirm dialog; not
+     * found (or the remote check failed/was skipped) -> [CreateTransactionActivity] opens as
+     * before. The already-linked case (Open/Create Again) and the no-match/not-configured cases
+     * still show the plain dialog directly - there's nothing to check or review/edit in either. */
     private fun showTestMatch(message: CapturedMessage) {
         val rules = RulesDb.getInstance(requireContext()).loadAllOrdered()
         val currencySymbols = CurrenciesDb.getInstance(requireContext()).symbolToCodeMap()
@@ -115,10 +118,39 @@ class MessagesFragment : Fragment() {
             is ParseOutcome.Matched -> {
                 val configured = FireflyPrefs(context).isConfigured()
                 if (message.fireflyTransactionId == null && configured) {
-                    startActivity(CreateTransactionActivity.intent(context, message))
+                    checkThenOpenCreateOrShowFound(context, outcome.draft, message)
                     return
                 }
                 showMatchedDialog(context, outcome, message, if (configured) message.fireflyTransactionId else null)
+            }
+        }
+    }
+
+    /** Resolves the amount (if `DraftIssue.LOCAL_AMOUNT_MISSING`, same lookup `checkIfCreated`
+     * already does quietly), then runs [checkForDuplicate] before deciding what to show - see
+     * [showTestMatch]'s own KDoc for why. A still-unresolved amount after the lookup skips the
+     * check entirely and opens the review screen directly, same "flag it, don't guess, don't
+     * block" fallback used everywhere else `LOCAL_AMOUNT_MISSING` shows up - `transactionDedupHash`
+     * requires a resolved amount, there's nothing to hash/search with yet. */
+    private fun checkThenOpenCreateOrShowFound(context: Context, initialDraft: TransactionDraft, message: CapturedMessage) {
+        viewLifecycleOwner.lifecycleScope.launch {
+            var draft = initialDraft
+            if (DraftIssue.LOCAL_AMOUNT_MISSING in draft.issues) {
+                draft = resolveAmountQuietly(draft)
+            }
+            if (draft.amount == null) {
+                startActivity(CreateTransactionActivity.intent(context, message))
+                return@launch
+            }
+            when (val result = checkForDuplicate(context, draft)) {
+                is DuplicateCheckResult.None, is DuplicateCheckResult.SearchFailed ->
+                    startActivity(CreateTransactionActivity.intent(context, message))
+                is DuplicateCheckResult.Found ->
+                    showDuplicateConfirmDialog(context, result.id, draft, message, knownCandidate = result.candidate)
+                is DuplicateCheckResult.FoundMultiple -> {
+                    Toast.makeText(context, getString(R.string.create_remote_duplicates_found, result.count), Toast.LENGTH_LONG).show()
+                    showDuplicateConfirmDialog(context, result.mostRecentId, draft, message, knownCandidate = result.candidate)
+                }
             }
         }
     }
