@@ -329,7 +329,12 @@ work.
   prompted it (a real `dd.MM.yy`-style future charge date, confirming
   the posted Firefly transaction lands on the right day, not the
   notification's arrival day) and `RulesDb`'s v6->v7 migration against
-  a real on-disk v6 database with actual saved rules.
+  a real on-disk v6 database with actual saved rules. Also needs
+  re-verification now that it's fixed (see ARCHITECTURE.md's Known
+  bugs/gotchas): full backup/restore actually preserving a message's
+  linked `#<id>` and the dedup log across a real export-then-restore,
+  including the "restore onto a fresh install" case (dedup must still
+  catch a duplicate whose original transaction predates the restore).
 - No cap on `MessageStore`'s in-memory list size, or on
   `MessageHistoryDb` beyond the retention-window purge - for personal,
   low-volume bank notifications this is unlikely to matter. Revisit if

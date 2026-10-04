@@ -501,14 +501,27 @@ Single `:app` module, packages under
     (Android-dependent orchestration, not unit tested, same reason
     `RulesDb` isn't) - the new "Backup & restore" Settings row
     (`BackupFragment`), covering monitored apps, currencies, rules
-    (reusing `RulesJson`'s per-rule shape), and message history in one
-    file. Hand-picks each message's fields rather than serializing
-    `CapturedMessage` wholesale, so `fireflyTransactionId` (added after
-    this file was written) isn't included without anyone deciding to -
-    same "Firefly-instance-specific derived id, excluded even here"
-    treatment rules' own `sourceAccountId`/`destinationAccountId` get,
-    just by omission rather than an explicit choice; restored messages
-    simply come back with no linked transaction. Deliberately excludes
+    (reusing `RulesJson`'s per-rule shape), message history, *and*
+    the `CreatedTransactionsDb` dedup log in one file.
+    `messages`' `fireflyTransactionId` **is** included, unlike
+    `RulesJson`'s deliberate exclusion of `ParseRule.sourceAccountId`/
+    `destinationAccountId` - an earlier version of this file wrongly
+    treated them the same way ("Firefly-instance-specific derived id,
+    excluded even here") and shipped `FullBackupJson` hand-picking
+    message fields without `fireflyTransactionId`, a real bug: a
+    restored message silently lost its "#1234" link even though the
+    transaction still existed in Firefly, reported directly by the
+    user testing a just-made backup. The two aren't the same kind of
+    id - a rule's account id is a live-picker reference that
+    legitimately needs re-picking after import (a different Firefly
+    instance, or even the same one with the account renamed), while a
+    created transaction's id is historical record-keeping about *this
+    message*, nothing to re-pick. `createdTransactions`
+    (`rules.CreatedTransactionRecord`, `CreatedTransactionsDb.loadAll`/
+    `clearAll`) exists for the same underlying reason: without backing
+    it up too, the dedup log would come back empty after a restore onto
+    a fresh install, silently disabling duplicate detection for
+    everything created before the backup. Deliberately excludes
     the Firefly connection (base URL/
     token): the one real secret in this app, `KeystoreCipher`-encrypted
     against an Android Keystore key that wouldn't even decrypt on a
@@ -1029,6 +1042,24 @@ connection exists (see TODO.md).
   relying on what's stored, and that transition has no clear signal -
   bumping a `DB_VERSION` deserves friction (confirm with the user, or
   just write the migration) from here on, not habit.
+- **Real incident, data lost**: `FullBackupJson`'s first version
+  hand-picked `CapturedMessage` fields for export and left out
+  `fireflyTransactionId`, by analogy with `RulesJson`'s *deliberate*
+  exclusion of `ParseRule.sourceAccountId`/`destinationAccountId` - a
+  wrong analogy. A rule's account id is a live-picker reference that
+  genuinely needs re-picking after import; a created transaction's id
+  is just historical record-keeping about that one message, nothing to
+  re-pick. The user caught it directly: restored a backup made minutes
+  earlier and every message that had shown "#1234" came back with no
+  link, even though the transaction still existed in Firefly.
+  `CreatedTransactionsDb` (the dedup log) had the same gap from a
+  different angle - `BackupManager` never touched it at all, so a
+  restore onto a fresh install would've silently come back with an
+  empty dedup log. Both are fixed now (`FullBackupData.
+  createdTransactions`, see the `backup` package section above) -
+  lesson: when copying a design decision from one place to another
+  ("exclude this kind of id"), check *why* the original exclusion was
+  correct there, not just that it looks like the same shape of field.
 - Android 15+ (targetSdk 35+, which this app uses) forces the window
   to draw edge-to-edge with no permanent opt-out -
   `android:windowOptOutEdgeToEdgeEnforcement` looked like one but is

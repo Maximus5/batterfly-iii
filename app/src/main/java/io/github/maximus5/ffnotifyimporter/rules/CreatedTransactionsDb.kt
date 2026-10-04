@@ -5,6 +5,14 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 
+/** One row of [CreatedTransactionsDb], for [CreatedTransactionsDb.loadAll]/full-backup round
+ * tripping (see `backup.FullBackupJson`) - the same three columns the table itself has. */
+data class CreatedTransactionRecord(
+    val hash: String,
+    val dateMillis: Long,
+    val fireflyTransactionId: String,
+)
+
 /**
  * Local log of transactions this app has actually posted to Firefly - exists purely for dedup
  * (`existsWithinWindow`, see TODO.md's dedup history) and so a future "already created" indicator
@@ -65,6 +73,27 @@ class CreatedTransactionsDb(context: Context) : SQLiteOpenHelper(context, DB_NAM
         ).use { cursor ->
             return if (cursor.moveToFirst()) cursor.getString(cursor.getColumnIndexOrThrow(COL_FIREFLY_TRANSACTION_ID)) else null
         }
+    }
+
+    /** Every row, for full-backup export (`backup.BackupManager.collect`) - no real need for
+     * ordering here, the table is just a flat log, not something displayed in sequence. */
+    fun loadAll(): List<CreatedTransactionRecord> {
+        val records = mutableListOf<CreatedTransactionRecord>()
+        readableDatabase.query(TABLE, null, null, null, null, null, null).use { cursor ->
+            val hashIdx = cursor.getColumnIndexOrThrow(COL_HASH)
+            val dateIdx = cursor.getColumnIndexOrThrow(COL_DATE_MILLIS)
+            val idIdx = cursor.getColumnIndexOrThrow(COL_FIREFLY_TRANSACTION_ID)
+            while (cursor.moveToNext()) {
+                records.add(CreatedTransactionRecord(cursor.getString(hashIdx), cursor.getLong(dateIdx), cursor.getString(idIdx)))
+            }
+        }
+        return records
+    }
+
+    /** Wipes the whole log - used by `backup.BackupManager.restore` before re-adding the backed-up
+     * rows, same replace-not-merge semantics every other store restore uses. */
+    fun clearAll() {
+        writableDatabase.delete(TABLE, null, null)
     }
 
     companion object {

@@ -1,6 +1,7 @@
 package io.github.maximus5.ffnotifyimporter.backup
 
 import io.github.maximus5.ffnotifyimporter.data.CapturedMessage
+import io.github.maximus5.ffnotifyimporter.rules.CreatedTransactionRecord
 import io.github.maximus5.ffnotifyimporter.rules.CurrencyEntry
 import io.github.maximus5.ffnotifyimporter.rules.ParseRule
 import org.json.JSONArray
@@ -15,6 +16,15 @@ import org.json.JSONObject
  * reinstall, and a backup file is exactly the kind of thing that ends up in a cloud folder or
  * gets shared - not somewhere a bearer token belongs, encrypted or not. The user re-enters it
  * after a restore.
+ *
+ * [messages]' `fireflyTransactionId` *is* included (unlike `RulesJson`'s deliberate exclusion of
+ * `ParseRule.sourceAccountId`/`destinationAccountId`) - a real bug, not a parallel design choice:
+ * a created transaction's id is historical record-keeping tied to this message, not a live-picker
+ * reference that could go stale, so dropping it on restore was pure data loss (a restored message
+ * silently lost its "#1234" link even though the transaction genuinely still exists in Firefly).
+ * [createdTransactions] mirrors `CreatedTransactionsDb` for the same reason - without it, the
+ * dedup log would come back empty after a restore onto a fresh install, silently disabling
+ * duplicate detection for everything created before the backup.
  */
 data class FullBackupData(
     val monitoredPackages: Set<String>,
@@ -22,6 +32,7 @@ data class FullBackupData(
     val currencies: List<CurrencyEntry>,
     val rules: List<ParseRule>,
     val messages: List<CapturedMessage>,
+    val createdTransactions: List<CreatedTransactionRecord> = emptyList(),
 )
 
 fun fullBackupToJson(data: FullBackupData): String {
@@ -47,7 +58,21 @@ fun fullBackupToJson(data: FullBackupData): String {
                         .put("appLabel", message.appLabel)
                         .put("title", message.title)
                         .put("text", message.text)
-                        .put("timestampMillis", message.timestampMillis),
+                        .put("timestampMillis", message.timestampMillis)
+                        .put("fireflyTransactionId", message.fireflyTransactionId),
+                )
+            }
+        },
+    )
+    root.put(
+        "createdTransactions",
+        JSONArray().apply {
+            data.createdTransactions.forEach { record ->
+                put(
+                    JSONObject()
+                        .put("hash", record.hash)
+                        .put("dateMillis", record.dateMillis)
+                        .put("fireflyTransactionId", record.fireflyTransactionId),
                 )
             }
         },
@@ -95,7 +120,19 @@ fun fullBackupFromJson(json: String): FullBackupData? {
                 title = entry.optString("title", ""),
                 text = entry.optString("text", ""),
                 timestampMillis = timestamp,
+                fireflyTransactionId = entry.optString("fireflyTransactionId").takeIf { it.isNotBlank() },
             )
+        }
+    }.orEmpty()
+
+    val createdTransactions = root.optJSONArray("createdTransactions")?.let { arr ->
+        (0 until arr.length()).mapNotNull { i ->
+            val entry = arr.optJSONObject(i) ?: return@mapNotNull null
+            val hash = entry.optString("hash").takeIf { it.isNotBlank() } ?: return@mapNotNull null
+            val fireflyTransactionId = entry.optString("fireflyTransactionId").takeIf { it.isNotBlank() } ?: return@mapNotNull null
+            val dateMillis = entry.optLong("dateMillis", -1L)
+            if (dateMillis < 0) return@mapNotNull null
+            CreatedTransactionRecord(hash, dateMillis, fireflyTransactionId)
         }
     }.orEmpty()
 
@@ -105,5 +142,6 @@ fun fullBackupFromJson(json: String): FullBackupData? {
         currencies = currencies,
         rules = rules,
         messages = messages,
+        createdTransactions = createdTransactions,
     )
 }

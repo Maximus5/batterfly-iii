@@ -1,6 +1,7 @@
 package io.github.maximus5.ffnotifyimporter.backup
 
 import io.github.maximus5.ffnotifyimporter.data.CapturedMessage
+import io.github.maximus5.ffnotifyimporter.rules.CreatedTransactionRecord
 import io.github.maximus5.ffnotifyimporter.rules.CurrencyEntry
 import io.github.maximus5.ffnotifyimporter.rules.ParseRule
 import io.github.maximus5.ffnotifyimporter.rules.RuleKind
@@ -28,8 +29,11 @@ class FullBackupJsonTest {
             ),
         ),
         messages = listOf(
-            CapturedMessage("bank.app", "Bank App", "Payment", "You spent 10 EUR", 1_000L),
+            CapturedMessage("bank.app", "Bank App", "Payment", "You spent 10 EUR", 1_000L, fireflyTransactionId = "12345"),
             CapturedMessage("bank.app", "Bank App", "Payment", "You spent 20 EUR", 2_000L),
+        ),
+        createdTransactions = listOf(
+            CreatedTransactionRecord(hash = "abc123", dateMillis = 1_000L, fireflyTransactionId = "12345"),
         ),
     )
 
@@ -48,6 +52,15 @@ class FullBackupJsonTest {
         assertEquals("", imported.rules.first().id)
         assertNull(imported.rules.first().sourceAccountId)
         assertEquals(original.messages, imported.messages)
+        assertEquals(original.createdTransactions, imported.createdTransactions)
+    }
+
+    @Test
+    fun `a message's fireflyTransactionId round-trips - restoring a backup must not lose it`() {
+        val imported = fullBackupFromJson(fullBackupToJson(data()))!!
+
+        assertEquals("12345", imported.messages.first { it.text == "You spent 10 EUR" }.fireflyTransactionId)
+        assertNull(imported.messages.first { it.text == "You spent 20 EUR" }.fireflyTransactionId)
     }
 
     @Test
@@ -65,6 +78,7 @@ class FullBackupJsonTest {
         assertTrue(imported?.currencies?.isEmpty() == true)
         assertTrue(imported?.rules?.isEmpty() == true)
         assertTrue(imported?.messages?.isEmpty() == true)
+        assertTrue(imported?.createdTransactions?.isEmpty() == true)
     }
 
     @Test

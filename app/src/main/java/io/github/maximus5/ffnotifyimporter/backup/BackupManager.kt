@@ -5,6 +5,7 @@ import io.github.maximus5.ffnotifyimporter.data.MessageHistoryDb
 import io.github.maximus5.ffnotifyimporter.data.MessageStore
 import io.github.maximus5.ffnotifyimporter.prefs.MonitoredAppsPrefs
 import io.github.maximus5.ffnotifyimporter.prefs.RetentionPrefs
+import io.github.maximus5.ffnotifyimporter.rules.CreatedTransactionsDb
 import io.github.maximus5.ffnotifyimporter.rules.CurrenciesDb
 import io.github.maximus5.ffnotifyimporter.rules.RulesDb
 
@@ -22,6 +23,7 @@ object BackupManager {
         currencies = CurrenciesDb.getInstance(context).loadAll(),
         rules = RulesDb.getInstance(context).loadAllOrdered(),
         messages = MessageStore.shared.snapshot(),
+        createdTransactions = CreatedTransactionsDb.getInstance(context).loadAll(),
     )
 
     /**
@@ -56,5 +58,9 @@ object BackupManager {
         if (data.retentionDays > 0) {
             oldestFirst.forEach { historyDb.insert(it) }
         }
+
+        val createdTransactionsDb = CreatedTransactionsDb.getInstance(context)
+        createdTransactionsDb.clearAll()
+        data.createdTransactions.forEach { createdTransactionsDb.recordCreated(it.hash, it.dateMillis, it.fireflyTransactionId) }
     }
 }
