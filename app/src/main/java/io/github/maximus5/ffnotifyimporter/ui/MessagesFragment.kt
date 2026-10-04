@@ -192,8 +192,19 @@ class MessagesFragment : Fragment() {
         val localFoundId = CreatedTransactionsDb.getInstance(context)
             .findWithinWindow(hash, includeDescription, draft.date.toEpochMilli(), windowMinutes)
 
+        // TEMPORARY while tracking down a real miss the user hit - remove once resolved.
+        val debug = StringBuilder()
+            .append("hash=$hash\n")
+            .append("includeDescription=$includeDescription windowMinutes=$windowMinutes\n")
+            .append("draft.date=${draft.date}\n")
+            .append("sourceAccountId=${draft.sourceAccountId} destinationAccountId=${draft.destinationAccountId}\n")
+            .append("sourceName=${draft.sourceName} destinationName=${draft.destinationName}\n")
+            .append("amount=${draft.amount} ${draft.currencyCode}\n")
+            .append("description=${draft.description}\n")
+            .append("local dedup: ${if (localFoundId != null) "FOUND #$localFoundId" else "not found"}\n")
+
         if (localFoundId != null) {
-            showDuplicateConfirmDialog(context, localFoundId, draft, message)
+            showDebugDialog(context, debug.toString()) { showDuplicateConfirmDialog(context, localFoundId, draft, message) }
             return
         }
 
@@ -203,7 +214,8 @@ class MessagesFragment : Fragment() {
         // transaction on a different account).
         val accountId = draft.sourceAccountId ?: draft.destinationAccountId
         if (accountId == null) {
-            postTransaction(draft, message)
+            debug.append("accountId=null -> remote search skipped")
+            showDebugDialog(context, debug.toString()) { postTransaction(draft, message) }
             return
         }
 
@@ -211,6 +223,14 @@ class MessagesFragment : Fragment() {
             val client = FireflyApiClient(prefs.getBaseUrl(), prefs.getToken())
             when (val result = client.searchNearbyTransactions(accountId, draft.date, windowMinutes)) {
                 is FireflyApiClient.Result.Success -> {
+                    debug.append("accountId=$accountId\n")
+                    debug.append("remote raw candidates=${result.value.size}\n")
+                    result.value.forEach {
+                        debug.append(
+                            " - #${it.groupId} ${it.date} ${it.amount} ${it.currencyCode} \"${it.description}\" " +
+                                "src=${it.sourceId}/${it.sourceName} dst=${it.destinationId}/${it.destinationName}\n",
+                        )
+                    }
                     val matches = result.value
                         .map {
                             RemoteTransactionCandidate(
@@ -226,9 +246,13 @@ class MessagesFragment : Fragment() {
                             )
                         }
                         .filter { remoteCandidateMatches(draft, it, includeDescription, windowMinutes) }
+                    debug.append("matched=${matches.size}")
                     when {
-                        matches.isEmpty() -> postTransaction(draft, message)
-                        matches.size == 1 -> showDuplicateConfirmDialog(context, matches.first().groupId, draft, message)
+                        matches.isEmpty() -> showDebugDialog(context, debug.toString()) { postTransaction(draft, message) }
+                        matches.size == 1 ->
+                            showDebugDialog(context, debug.toString()) {
+                                showDuplicateConfirmDialog(context, matches.first().groupId, draft, message)
+                            }
                         else -> {
                             // More than one plausible match - the user's own call: an extra
                             // warning on top of (not instead of) the usual duplicate-confirm
@@ -241,7 +265,9 @@ class MessagesFragment : Fragment() {
                                 Toast.LENGTH_LONG,
                             ).show()
                             val mostRecent = matches.maxBy { it.date }
-                            showDuplicateConfirmDialog(context, mostRecent.groupId, draft, message)
+                            showDebugDialog(context, debug.toString()) {
+                                showDuplicateConfirmDialog(context, mostRecent.groupId, draft, message)
+                            }
                         }
                     }
                 }
@@ -249,10 +275,24 @@ class MessagesFragment : Fragment() {
                     // A failed remote check shouldn't block creation - it's an extra safety net on
                     // top of the local dedup log above, not the primary mechanism; that one already
                     // ran and found nothing.
-                    postTransaction(draft, message)
+                    debug.append("remote search FAILED: ${result.message}")
+                    showDebugDialog(context, debug.toString()) { postTransaction(draft, message) }
                 }
             }
         }
+    }
+
+    /** TEMPORARY - a plain-text dump of what the dedup check actually saw/decided, shown before
+     * [onProceed] runs, while tracking down a real on-device miss the user hit (local AND remote
+     * checks both apparently found nothing for a transaction that does already exist in Firefly).
+     * Remove this and go back to running straight through once that's diagnosed. */
+    private fun showDebugDialog(context: Context, text: String, onProceed: () -> Unit) {
+        AlertDialog.Builder(context)
+            .setTitle("DEBUG dedup")
+            .setMessage(text)
+            .setPositiveButton(android.R.string.ok) { _, _ -> onProceed() }
+            .setCancelable(false)
+            .show()
     }
 
     /** Four actions, not three ("Use Created"/"Open"/"Create anyway"/"Cancel", Cancel always
