@@ -95,7 +95,9 @@ data class RemoteTransactionCandidate(
  * True if [candidate] - a transaction Firefly already has, found by `ui.MessagesFragment`'s
  * remote duplicate check once the local dedup log already came up empty (see TODO.md's dedup
  * history) - looks like the same real-world payment as [draft]. Needed because [candidate] isn't
- * a [TransactionDraft] (different shape - no notes/category/tags/foreignAmount, but a `groupId`)
+ * a [TransactionDraft] (different shape - has a `groupId`, no `foreignAmount` the asset/counterparty
+ * ids [TransactionDraft] carries for posting; [notes]/[category]/[tags] *are* present on both now,
+ * added specifically so an already-linked transaction's dialog can show its real current fields)
  * and because [transactionDedupHash] deliberately doesn't cover date at all (the window check
  * below is its own thing, same reason `CreatedTransactionsDb.findWithinWindow` does its own SQL
  * `BETWEEN` rather than folding date into the hash). Reuses [transactionDedupHash] for the rest

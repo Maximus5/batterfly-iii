@@ -841,10 +841,30 @@ work.
     - `Found(candidate)`/`Gone`/`CheckFailed`), used by all of
     `findDuplicate`, `verifyLinkedThenShow`, the new linked-id-first
     check in `checkIfCreated`, and `fetchCandidateInfo`.
-  **Needs real-device verification** (not yet done): tap an
-  already-linked message where the transaction is still genuinely there
-  (expect the real id/amount/date/description/notes/category/tags, not
-  rule-derived guesses) and run "Check if created" on a message whose
-  linked transaction had its description/notes edited by hand in
-  Firefly (expect it reported as still found via the linked id, no
-  search, no "different id" suggestion).
+  **Real-device verification done** - ran exactly this (checked a
+  message with a still-genuinely-linked transaction), the live
+  candidate's real fields showed as expected. Three more bugs caught on
+  that same run, the user's own report (screenshotted):
+  - `buildFoundTransactionInfo` (the `showDuplicateConfirmDialog` body)
+    was still plain text - the one field-summary dialog in this
+    fragment not using the bold-label style `buildMatchedBody`/
+    `buildCandidateBody` already had. Fixed via a shared `boldField`
+    helper all three now use.
+  - **The user's own explicit instruction**: "Use Created" shouldn't
+    appear when the found transaction already *is* the cached id - at
+    that point there's nothing to "use", it's already linked. Now
+    hidden whenever `foundId == message.fireflyTransactionId`.
+  - A category-less transaction showed "Category: null" (literal text)
+    instead of being omitted - an `org.json` quirk (`optString` returns
+    the *string* `"null"` for an explicit JSON `null`, not a real
+    Kotlin `null`). Fixed with a proper `isNull`-checking
+    `optStringOrNull`, applied to every genuinely-nullable split field,
+    not just `category_name` - `source_name`/`destination_name`/
+    `foreign_currency_code`/`notes` had the identical latent bug, just
+    not yet observed in practice (checked: `foreign_currency_code`'s
+    string-"null" case couldn't actually surface as visible "null null"
+    text, since `foreign_amount` parsing already produced a real `null`
+    by accident - `remoteCandidateMatches` only reads
+    `candidate.foreignCurrencyCode` at all when the *draft* side already
+    has a genuine foreign currency, a narrower edge case than "every
+    domestic transaction").

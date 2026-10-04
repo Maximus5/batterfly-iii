@@ -172,17 +172,28 @@ private fun parseTransactionSplit(groupId: String, split: JSONObject?): FireflyT
         amount = amount,
         currencyCode = currencyCode,
         foreignAmount = split.optString("foreign_amount").takeIf { it.isNotBlank() }?.toBigDecimalOrNull(),
-        foreignCurrencyCode = split.optString("foreign_currency_code").takeIf { it.isNotBlank() },
+        foreignCurrencyCode = split.optStringOrNull("foreign_currency_code"),
         description = split.optString("description", ""),
-        sourceId = split.optString("source_id").takeIf { it.isNotBlank() && it != "0" },
-        sourceName = split.optString("source_name").takeIf { it.isNotBlank() },
-        destinationId = split.optString("destination_id").takeIf { it.isNotBlank() && it != "0" },
-        destinationName = split.optString("destination_name").takeIf { it.isNotBlank() },
-        notes = split.optString("notes").takeIf { it.isNotBlank() },
-        category = split.optString("category_name").takeIf { it.isNotBlank() },
+        sourceId = split.optStringOrNull("source_id")?.takeIf { it != "0" },
+        sourceName = split.optStringOrNull("source_name"),
+        destinationId = split.optStringOrNull("destination_id")?.takeIf { it != "0" },
+        destinationName = split.optStringOrNull("destination_name"),
+        notes = split.optStringOrNull("notes"),
+        category = split.optStringOrNull("category_name"),
         tags = tags,
     )
 }
+
+/** org.json quirk, caught directly (a transaction with no category set came back in the dialog as
+ * the literal text "Category: null"): plain `optString(name)` returns the *string* `"null"`, not a
+ * real Kotlin `null`, when the field's JSON value is `null` rather than absent -
+ * `org.json.JSONObject.NULL` is a real sentinel object, not Java/Kotlin `null`, so `optString`'s
+ * own internal `object != null` check still passes, and that sentinel's own `toString()` happens
+ * to be `"null"`. `isNull(name)` is org.json's own correct way to ask "is this JSON null or
+ * missing" - checked first here so a genuinely-absent category reads the same as an explicitly-null
+ * one, both -> a real `null`, not the four-letter word. */
+private fun JSONObject.optStringOrNull(name: String): String? =
+    if (isNull(name)) null else optString(name).takeIf { it.isNotBlank() }
 
 private fun String.toBigDecimalOrNull(): BigDecimal? = try {
     BigDecimal(this)

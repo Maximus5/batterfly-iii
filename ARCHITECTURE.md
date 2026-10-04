@@ -378,9 +378,12 @@ Single `:app` module, packages under
     Needed as its own function rather than just calling
     `transactionDedupHash` on `candidate` directly for two reasons:
     `candidate` isn't a `TransactionDraft` (different shape - a
-    `groupId`, no notes/category/tags/foreignAmount - see
+    `groupId`, no `foreignAmount`/asset-counterparty ids - see
     `network.FireflyTransactionCandidate`, which `MessagesFragment`
-    maps into this plain, `network`-free form), and
+    maps into this plain, `network`-free form; `notes`/`category`/`tags`
+    *are* on both now, added so an already-linked transaction's dialog
+    can show its real current fields, not just a rule-derived guess),
+    and
     `transactionDedupHash` deliberately doesn't cover date at all (the
     window check here is its own explicit thing, same reason
     `CreatedTransactionsDb.findWithinWindow` does its own SQL `BETWEEN`
@@ -696,6 +699,21 @@ Single `:app` module, packages under
     catch: a transaction's description/notes/category/tags can be
     edited by hand directly in Firefly after this app posted it, and the
     rule-derived draft has no way to know that happened.
+    **Fixed a real parsing bug, caught directly on-device the same
+    day**: a category-less transaction showed up in the dialog as the
+    literal text "Category: null" instead of being omitted. `org.json`
+    quirk - `JSONObject.optString(name)` returns the *string* `"null"`,
+    not a real Kotlin `null`, when the field's JSON value is explicit
+    `null` rather than absent (`JSONObject.NULL` is a real sentinel
+    object, so `optString`'s own internal non-null check still passes,
+    and that sentinel's `toString()` happens to be `"null"`).
+    `JSONObject.optStringOrNull` (new, checks `isNull(name)` first -
+    org.json's own correct way to ask) replaces the bare `optString` for
+    every genuinely-nullable split field (`foreign_currency_code`,
+    `source_name`/`destination_name`, `notes`, `category_name`) -
+    `foreign_amount` already happened to be safe by accident (`"null"`
+    isn't valid `BigDecimal` syntax, so `toBigDecimalOrNull()` silently
+    produced a real `null` anyway), but the others had no such luck.
   - `withNetworkRetry` (`network/NetworkRetry.kt`) - up to 3 attempts,
     exponential backoff (500ms/1000ms), retrying only on `IOException`
     (a genuine network-level failure - no connection, timeout, DNS) and
@@ -1252,14 +1270,30 @@ Single `:app` module, packages under
       `test_match_label_*` strings rather than a new, denser format) for
       the transaction it's actually offering as *the* match - a bare
       `#<id>` on its own gave the user no way to independently judge the
-      match without leaving the app.
+      match without leaving the app. **Fixed a real inconsistency, the
+      user's own catch**: `buildFoundTransactionInfo` used to be plain
+      text, reading differently from `buildMatchedBody`/
+      `buildCandidateBody`'s bold-label style elsewhere in the same
+      fragment - now built via the same shared `boldField` helper all
+      three use.
+      **Fixed a real "offers a pointless choice" bug, the user's own
+      catch**: "Use Created" used to always show, even when `foundId`
+      already *is* the message's own linked id - a pure no-op in that
+      case (the common one now that `checkIfCreated` checks the linked
+      id first, see its own entry above, and shows it here directly once
+      confirmed still valid). The button is hidden (`View.GONE`, the
+      row/grid's other buttons reflow to fill the space - both
+      `dialog_duplicate_confirm_3.xml`'s single row and `_4.xml`'s 2x2
+      already use `layout_weight`, so this needed no layout change)
+      whenever `foundId == message.fireflyTransactionId`.
       `DuplicateCheckResult.Found`/`FoundMultiple` now carry an optional
       `candidate: RemoteTransactionCandidate?` - already populated for
       free for a remote-search hit, `null` for a local-log hit (which
       only ever has a bare id). `showDuplicateConfirmDialog` is now
-      `suspend`: when `knownCandidate` is null it calls the new
-      `FireflyApiClient.getTransaction(id)` itself (see the `network`
-      section above) to fetch the missing fields - a locally-recorded
+      `suspend`: when `knownCandidate` is null it calls
+      `fetchCandidateInfo`, which goes through `posting.
+      verifyLinkedTransaction` (see the `posting` section above) to
+      fetch the missing fields - a locally-recorded
       duplicate gets the same display as a remote one, just one extra
       API round-trip first. Best-effort: a failed fetch (or a genuinely
       missing transaction) just shows the dialog without the info block,

@@ -308,17 +308,26 @@ class MessagesFragment : Fragment() {
      * Always shows the found transaction's real fields (date/amount/description/accounts)
      * alongside the id, not just the bare "#<id>" - the user's own call, same reasoning as the
      * not-found dialog's candidate dump: seeing what was actually found is what lets the user
-     * judge whether "Use Created" is really correct, not just trust the id. [knownCandidate] is
-     * passed straight through when this came from the remote search (already fetched in full,
-     * no reason to ask again); for a local-log hit (`CreatedTransactionsDb` only ever has the id)
-     * this fetches it itself (`FireflyApiClient.getTransaction`) - suspends briefly for that, a
-     * worthwhile trade for not showing a bare id the user has no way to independently verify.
+     * judge whether "Use Created" is really correct, not just trust the id. Bold field labels,
+     * same [boldField] helper every field-summary dialog in this fragment uses - the user's own
+     * catch, this one used to be plain text. [knownCandidate] is passed straight through when this
+     * came from the remote search (already fetched in full, no reason to ask again); for a
+     * local-log hit (`CreatedTransactionsDb` only ever has the id) this fetches it itself
+     * (`fetchCandidateInfo`) - suspends briefly for that, a worthwhile trade for not showing a bare
+     * id the user has no way to independently verify.
+     *
+     * "Use Created" is hidden when [foundId] already *is* [message]'s own linked id - the user's
+     * own catch: relinking a message to the exact id it's already linked to is a pure no-op, and
+     * offering it as if it were a real choice (next to "Open"/"Cancel") was just confusing. This
+     * is the common case once `checkIfCreated`'s own linked-id-first check (see its KDoc) finds
+     * the known id still valid and shows it here directly.
+     *
      * [descriptionMismatch] (only ever true from [checkIfCreated]'s retry-without-description -
      * see its own KDoc) prepends an explicit warning that this match ignored description.
      * [staleLinkedId] (the user's own catch/report, screenshotted) prepends a second, independent
-     * warning when [message] already had a *different* linked id that's been confirmed gone (404)
-     * - see [staleLinkedIdOrNull] - so "here's what matches now" doesn't read as if nothing had
-     * ever been linked, when actually something was, and it's since vanished from Firefly. */
+     * warning when [message] already had a *different* linked id that's been confirmed gone - see
+     * `posting.verifyLinkedTransaction` - so "here's what matches now" doesn't read as if nothing
+     * had ever been linked, when actually something was, and it's since vanished from Firefly. */
     private suspend fun showDuplicateConfirmDialog(
         context: Context,
         foundId: String,
@@ -338,17 +347,26 @@ class MessagesFragment : Fragment() {
         }
         val staleWarning = staleLinkedId?.let { getString(R.string.check_linked_transaction_gone_warning, it) + "\n\n" }.orEmpty()
         val warning = staleWarning + if (descriptionMismatch) getString(R.string.check_found_description_mismatch_warning) + "\n\n" else ""
-        val info = candidate?.let { buildFoundTransactionInfo(it) }.orEmpty()
+        val dialogMessage = SpannableStringBuilder(warning + baseMessage)
+        candidate?.let {
+            dialogMessage.append("\n\n")
+            dialogMessage.append(buildFoundTransactionInfo(it))
+        }
         val dialog = AlertDialog.Builder(context)
             .setTitle(if (showCreateAnyway) R.string.create_duplicate_confirm_title else R.string.check_found_title)
-            .setMessage(warning + baseMessage + info)
+            .setMessage(dialogMessage)
             .setView(view)
             .create()
 
-        view.findViewById<View>(R.id.useCreatedButton).setOnClickListener {
-            MessageStore.shared.setTransactionId(message, foundId)
-            Toast.makeText(context, getString(R.string.create_already_created_linked, foundId), Toast.LENGTH_SHORT).show()
-            dialog.dismiss()
+        val useCreatedButton = view.findViewById<View>(R.id.useCreatedButton)
+        if (foundId == message.fireflyTransactionId) {
+            useCreatedButton.visibility = View.GONE
+        } else {
+            useCreatedButton.setOnClickListener {
+                MessageStore.shared.setTransactionId(message, foundId)
+                Toast.makeText(context, getString(R.string.create_already_created_linked, foundId), Toast.LENGTH_SHORT).show()
+                dialog.dismiss()
+            }
         }
         view.findViewById<View>(R.id.openDuplicateButton).setOnClickListener { openTransaction(context, foundId) }
         if (showCreateAnyway) {
@@ -376,25 +394,39 @@ class MessagesFragment : Fragment() {
      * user judge a match independently, not just trust a bare id. Shows the foreign amount/
      * currency alongside the home one when present, for the same reason the home amount alone is
      * unreliable for matching (see `network.dedupSearchQuery`'s KDoc) - it's informative here too,
-     * not just for searching. */
-    private fun buildFoundTransactionInfo(candidate: RemoteTransactionCandidate): String {
+     * not just for searching. Bold field labels, same [boldField] helper [buildMatchedBody]/
+     * [buildCandidateBody] use - the user's own catch: this one used to be plain text, reading
+     * inconsistently next to the other two field-summary dialogs in this fragment. */
+    private fun buildFoundTransactionInfo(candidate: RemoteTransactionCandidate): CharSequence {
         val amountText = if (candidate.foreignAmount != null && candidate.foreignCurrencyCode != null) {
             "${candidate.amount.toPlainString()} ${candidate.currencyCode} " +
                 "(${candidate.foreignAmount.toPlainString()} ${candidate.foreignCurrencyCode})"
         } else {
             "${candidate.amount.toPlainString()} ${candidate.currencyCode}"
         }
-        val lines = mutableListOf(
-            "${getString(R.string.test_match_label_date)} ${formatDraftDate(candidate.date)}",
-            "${getString(R.string.test_match_label_amount)} $amountText",
-            "${getString(R.string.test_match_label_description)} ${candidate.description}",
-        )
-        candidate.sourceName?.let { lines += "${getString(R.string.test_match_label_source)} $it" }
-        candidate.destinationName?.let { lines += "${getString(R.string.test_match_label_destination)} $it" }
-        candidate.notes?.takeIf { it.isNotBlank() }?.let { lines += "${getString(R.string.test_match_label_notes)} $it" }
-        candidate.category?.let { lines += "${getString(R.string.test_match_label_category)} $it" }
-        if (candidate.tags.isNotEmpty()) lines += "${getString(R.string.test_match_label_tags)} ${candidate.tags.joinToString(", ")}"
-        return "\n\n" + lines.joinToString("\n")
+        val text = SpannableStringBuilder()
+        val field = boldField(text)
+        field(getString(R.string.test_match_label_date), formatDraftDate(candidate.date))
+        field(getString(R.string.test_match_label_amount), amountText)
+        field(getString(R.string.test_match_label_description), candidate.description)
+        candidate.sourceName?.let { field(getString(R.string.test_match_label_source), it) }
+        candidate.destinationName?.let { field(getString(R.string.test_match_label_destination), it) }
+        candidate.notes?.takeIf { it.isNotBlank() }?.let { field(getString(R.string.test_match_label_notes), it) }
+        candidate.category?.let { field(getString(R.string.test_match_label_category), it) }
+        if (candidate.tags.isNotEmpty()) field(getString(R.string.test_match_label_tags), candidate.tags.joinToString(", "))
+        return text
+    }
+
+    /** Shared bold-label field appender behind every field-summary dialog in this fragment
+     * ([buildMatchedBody]/[buildCandidateBody]/[buildFoundTransactionInfo]) - appends "\n<label>
+     * <value>" to [text] (no leading newline the very first time), bolding just the label, so a
+     * multi-field dialog reads as a list of fields rather than a wall of same-weight text. */
+    private fun boldField(text: SpannableStringBuilder): (String, String) -> Unit = { label, value ->
+        if (text.isNotEmpty()) text.append("\n")
+        val labelStart = text.length
+        text.append(label)
+        text.setSpan(StyleSpan(Typeface.BOLD), labelStart, text.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        text.append(" ").append(value)
     }
 
     private fun openTransaction(context: Context, transactionId: String) {
@@ -411,16 +443,10 @@ class MessagesFragment : Fragment() {
     }
 
     /** Bolds each field's label ("Source:", "Amount:", ...) so a multi-field dialog reads as a
-     * list of fields rather than a wall of same-weight text. */
+     * list of fields rather than a wall of same-weight text - via the shared [boldField] helper. */
     private fun buildMatchedBody(draft: TransactionDraft): CharSequence {
         val text = SpannableStringBuilder()
-        fun field(label: String, value: String) {
-            if (text.isNotEmpty()) text.append("\n")
-            val labelStart = text.length
-            text.append(label)
-            text.setSpan(StyleSpan(Typeface.BOLD), labelStart, text.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-            text.append(" ").append(value)
-        }
+        val field = boldField(text)
 
         draft.sourceName?.let { field(getString(R.string.test_match_label_source), it) }
         draft.destinationName?.let { field(getString(R.string.test_match_label_destination), it) }
@@ -463,13 +489,7 @@ class MessagesFragment : Fragment() {
      * missing from this dialog entirely. */
     private fun buildCandidateBody(transactionId: String, candidate: RemoteTransactionCandidate): CharSequence {
         val text = SpannableStringBuilder()
-        fun field(label: String, value: String) {
-            if (text.isNotEmpty()) text.append("\n")
-            val labelStart = text.length
-            text.append(label)
-            text.setSpan(StyleSpan(Typeface.BOLD), labelStart, text.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-            text.append(" ").append(value)
-        }
+        val field = boldField(text)
 
         field(getString(R.string.test_match_label_transaction_id), "#$transactionId")
         candidate.sourceName?.let { field(getString(R.string.test_match_label_source), it) }
