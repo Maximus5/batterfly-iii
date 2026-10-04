@@ -90,4 +90,22 @@ class RuleValidationTest {
         val errors = validateRule(validRule().copy(descriptionTemplate = "{title}: {body}"))
         assertTrue(errors.isEmpty())
     }
+
+    @Test
+    fun `a blank date format is valid - it just means use the notification's own time`() {
+        val errors = validateRule(validRule().copy(dateFormat = ""))
+        assertTrue(errors.isEmpty())
+    }
+
+    @Test
+    fun `a well-formed date format is valid`() {
+        val errors = validateRule(validRule().copy(dateFormat = "dd.MM.yy"))
+        assertTrue(errors.isEmpty())
+    }
+
+    @Test
+    fun `a malformed date format is reported`() {
+        val errors = validateRule(validRule().copy(dateFormat = "dd.MM.'yy"))
+        assertTrue(errors.any { it.contains("date format", ignoreCase = true) })
+    }
 }

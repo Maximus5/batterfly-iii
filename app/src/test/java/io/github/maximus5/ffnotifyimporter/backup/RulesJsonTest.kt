@@ -17,6 +17,7 @@ class RulesJsonTest {
         sourceAccountName: String = "Bank Account A",
         destinationAccountName: String = "",
         sourceAccountId: String? = "2",
+        dateFormat: String = "dd.MM.yy",
     ) = ParseRule(
         id = id,
         label = label,
@@ -32,6 +33,7 @@ class RulesJsonTest {
         categoryTemplate = "Groceries",
         tagsTemplate = "recurring",
         enabled = true,
+        dateFormat = dateFormat,
     )
 
     @Test
@@ -53,6 +55,7 @@ class RulesJsonTest {
         assertEquals(original.categoryTemplate, round.categoryTemplate)
         assertEquals(original.tagsTemplate, round.tagsTemplate)
         assertEquals(original.enabled, round.enabled)
+        assertEquals(original.dateFormat, round.dateFormat)
     }
 
     @Test

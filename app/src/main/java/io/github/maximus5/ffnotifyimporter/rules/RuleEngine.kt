@@ -3,6 +3,7 @@ package io.github.maximus5.ffnotifyimporter.rules
 import io.github.maximus5.ffnotifyimporter.data.CapturedMessage
 import io.github.maximus5.ffnotifyimporter.parser.extractGroups
 import io.github.maximus5.ffnotifyimporter.parser.parseAmount
+import io.github.maximus5.ffnotifyimporter.parser.parseDate
 import java.math.BigDecimal
 import java.time.Instant
 
@@ -62,6 +63,20 @@ class RuleEngine(
             issues += DraftIssue.LOCAL_AMOUNT_MISSING
         }
 
+        // The notification's own arrival time, unless the rule opted into reading the
+        // transaction's *own* date from the pattern instead (e.g. "the charge happens on
+        // 01.02.30", a date that can differ from when the notification arrived).
+        var date = Instant.ofEpochMilli(message.timestampMillis)
+        val capturedDate = groups[Groups.DATE]
+        if (capturedDate != null && rule.dateFormat.isNotBlank()) {
+            val parsed = parseDate(capturedDate, rule.dateFormat)
+            if (parsed != null) {
+                date = parsed
+            } else {
+                issues += DraftIssue.DATE_UNPARSABLE
+            }
+        }
+
         // Renders to a non-empty value, or null (field wasn't set / rendered empty). Used for
         // every field that's "this or nothing" rather than always-a-string.
         fun renderOptional(template: String) =
@@ -74,7 +89,7 @@ class RuleEngine(
 
         return TransactionDraft(
             kind = rule.kind,
-            date = Instant.ofEpochMilli(message.timestampMillis),
+            date = date,
             amount = localAmount,
             currencyCode = rule.homeCurrency,
             foreignAmount = foreignAmount,

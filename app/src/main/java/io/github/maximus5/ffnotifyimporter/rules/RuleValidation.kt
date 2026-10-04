@@ -1,6 +1,7 @@
 package io.github.maximus5.ffnotifyimporter.rules
 
 import io.github.maximus5.ffnotifyimporter.parser.namedGroupNames
+import java.time.format.DateTimeFormatter
 
 /** Human-readable validation errors to show in the rule editor before letting a save through. */
 fun validateRule(rule: ParseRule): List<String> {
@@ -28,6 +29,14 @@ fun validateRule(rule: ParseRule): List<String> {
 
     if (Groups.AMOUNT !in declaredGroups) {
         errors += "Pattern must define group '${Groups.AMOUNT}'"
+    }
+
+    // Catches a typo'd format pattern (e.g. a stray "Q") at save time, rather than only at match
+    // time, every time, forever, as a silent DraftIssue.DATE_UNPARSABLE nobody notices until a
+    // transaction posts with the wrong date.
+    if (rule.dateFormat.isNotBlank()) {
+        runCatching { DateTimeFormatter.ofPattern(rule.dateFormat) }
+            .onFailure { errors += "Invalid date format: ${it.message}" }
     }
     // Deliberately nothing else about the pattern's groups is required - currency/counterparty/
     // foreignAmount/foreignCurrency are all optional, same as the fields that would reference

@@ -106,6 +106,7 @@ class RuleEditFragment : Fragment() {
         binding.saveRuleButton.setOnClickListener { save() }
         binding.deleteRuleButton.setOnClickListener { confirmDelete() }
         binding.homeCurrencyLayout.setEndIconOnClickListener { showCurrencyPicker() }
+        binding.dateFormatLayout.setEndIconOnClickListener { showDateFormatPicker() }
 
         setupMacroInsertButtons()
         updateAvailableMacros()
@@ -123,6 +124,20 @@ class RuleEditFragment : Fragment() {
         AlertDialog.Builder(context)
             .setTitle(R.string.rule_pick_currency)
             .setItems(labels) { _, which -> binding?.homeCurrencyInput?.setText(entries[which].code) }
+            .show()
+    }
+
+    /** Presets for [ParseRule.dateFormat] - fills the field, same as [showCurrencyPicker], but the
+     * text stays freely editable afterward (a bank's actual wording won't always match one of
+     * these exactly, e.g. a format with a literal weekday name mixed in). Covers the common
+     * day-first/ISO/US shapes; see [ParseRule.dateFormat]'s KDoc for why there's no attempt to
+     * detect the right one automatically. */
+    private fun showDateFormatPicker() {
+        val context = requireContext()
+        val presets = listOf("dd.MM.yy", "dd.MM.yyyy", "dd/MM/yyyy", "yyyy-MM-dd", "MM/dd/yyyy")
+        AlertDialog.Builder(context)
+            .setTitle(R.string.rule_pick_date_format)
+            .setItems(presets.toTypedArray()) { _, which -> binding?.dateFormatInput?.setText(presets[which]) }
             .show()
     }
 
@@ -328,6 +343,7 @@ class RuleEditFragment : Fragment() {
         sourceAccountPick = rule?.sourceAccountId?.let { PickedAccount(it, rule.sourceAccountName) }
         destinationAccountPick = rule?.destinationAccountId?.let { PickedAccount(it, rule.destinationAccountName) }
         binding.homeCurrencyInput.setText(rule?.homeCurrency.orEmpty())
+        binding.dateFormatInput.setText(rule?.dateFormat.orEmpty())
         binding.patternInput.setText(rule?.pattern.orEmpty())
         binding.descriptionTemplateInput.setText(rule?.descriptionTemplate.orEmpty())
         binding.notesTemplateInput.setText(rule?.notesTemplate.orEmpty())
@@ -503,6 +519,7 @@ class RuleEditFragment : Fragment() {
             categoryTemplate = binding.categoryTemplateInput.text?.toString().orEmpty().trim(),
             tagsTemplate = binding.tagsTemplateInput.text?.toString().orEmpty().trim(),
             enabled = binding.enabledSwitch.isChecked,
+            dateFormat = binding.dateFormatInput.text?.toString().orEmpty().trim(),
         )
     }
 

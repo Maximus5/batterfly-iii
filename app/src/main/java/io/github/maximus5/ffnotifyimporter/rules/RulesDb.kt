@@ -33,7 +33,8 @@ class RulesDb(context: Context) : SQLiteOpenHelper(context, DB_NAME, null, DB_VE
                 $COL_CATEGORY_TEMPLATE TEXT NOT NULL,
                 $COL_TAGS_TEMPLATE TEXT NOT NULL,
                 $COL_ENABLED INTEGER NOT NULL,
-                $COL_SORT_ORDER INTEGER NOT NULL
+                $COL_SORT_ORDER INTEGER NOT NULL,
+                $COL_DATE_FORMAT TEXT NOT NULL DEFAULT ''
             )
             """.trimIndent(),
         )
@@ -53,6 +54,9 @@ class RulesDb(context: Context) : SQLiteOpenHelper(context, DB_NAME, null, DB_VE
         if (oldVersion < 6) {
             db.execSQL("ALTER TABLE $TABLE ADD COLUMN $COL_SOURCE_ACCOUNT_ID TEXT")
             db.execSQL("ALTER TABLE $TABLE ADD COLUMN $COL_DESTINATION_ACCOUNT_ID TEXT")
+        }
+        if (oldVersion < 7) {
+            db.execSQL("ALTER TABLE $TABLE ADD COLUMN $COL_DATE_FORMAT TEXT NOT NULL DEFAULT ''")
         }
     }
 
@@ -181,6 +185,7 @@ class RulesDb(context: Context) : SQLiteOpenHelper(context, DB_NAME, null, DB_VE
         put(COL_TAGS_TEMPLATE, tagsTemplate)
         put(COL_ENABLED, if (enabled) 1 else 0)
         put(COL_SORT_ORDER, sortOrder)
+        put(COL_DATE_FORMAT, dateFormat)
     }
 
     private fun Cursor.toRule(): ParseRule {
@@ -205,6 +210,7 @@ class RulesDb(context: Context) : SQLiteOpenHelper(context, DB_NAME, null, DB_VE
             categoryTemplate = str(COL_CATEGORY_TEMPLATE),
             tagsTemplate = str(COL_TAGS_TEMPLATE),
             enabled = getInt(getColumnIndexOrThrow(COL_ENABLED)) != 0,
+            dateFormat = str(COL_DATE_FORMAT),
         )
     }
 
@@ -214,7 +220,9 @@ class RulesDb(context: Context) : SQLiteOpenHelper(context, DB_NAME, null, DB_VE
         // v6: added nullable source/destination_account_id (Firefly account ID, set only when
         // the corresponding name was picked from FireflyApiClient.listAssetAccounts() - see
         // ParseRule's KDoc)
-        private const val DB_VERSION = 6
+        // v7: added date_format (NOT NULL, default '' = use the notification's own arrival time,
+        // same as every rule saved before this existed) - see ParseRule.dateFormat's KDoc
+        private const val DB_VERSION = 7
         private const val TABLE = "rules"
         private const val COL_ID = "id"
         private const val COL_LABEL = "label"
@@ -232,6 +240,7 @@ class RulesDb(context: Context) : SQLiteOpenHelper(context, DB_NAME, null, DB_VE
         private const val COL_TAGS_TEMPLATE = "tags_template"
         private const val COL_ENABLED = "enabled"
         private const val COL_SORT_ORDER = "sort_order"
+        private const val COL_DATE_FORMAT = "date_format"
 
         @Volatile
         private var instance: RulesDb? = null

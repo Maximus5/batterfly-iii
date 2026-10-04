@@ -182,6 +182,25 @@
         </com.google.android.material.textfield.TextInputLayout>
 
         <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/dateFormatLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            android:hint="@string/rule_field_date_format"
+            app:expandedHintEnabled="false"
+            app:endIconMode="custom"
+            app:endIconDrawable="@drawable/ic_dropdown"
+            app:endIconContentDescription="@string/rule_pick_date_format">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/dateFormatInput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fontFamily="monospace" />
+
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <com.google.android.material.textfield.TextInputLayout
             android:id="@+id/descriptionTemplateLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

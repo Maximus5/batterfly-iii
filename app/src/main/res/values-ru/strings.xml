@@ -72,6 +72,7 @@
     <string name="rule_field_source_account">Счёт-источник</string>
     <string name="rule_field_destination_account">Счёт назначения</string>
     <string name="rule_field_home_currency">Валюта счёта</string>
+    <string name="rule_field_date_format">Формат даты (необязательно — пусто = время нотификации)</string>
     <string name="rule_field_pattern">Регулярное выражение (матчится против title + text)</string>
     <string name="rule_pick_existing_pattern">Выбрать существующее…</string>
     <string name="rule_pick_message">Выбрать сообщение…</string>
@@ -83,6 +84,7 @@
     <string name="rule_available_macros">Доступные макросы: %1$s</string>
     <string name="rule_insert_macro">Вставить макрос</string>
     <string name="rule_pick_currency">Выбрать валюту</string>
+    <string name="rule_pick_date_format">Выбрать формат даты</string>
     <string name="rule_pick_account">Выбрать счёт</string>
     <string name="rule_firefly_not_configured">Сначала подключите Firefly III в настройках.</string>
     <string name="rule_firefly_accounts_failed">Не удалось загрузить счета: %1$s</string>
@@ -111,11 +113,13 @@
     <string name="test_match_label_amount">Сумма:</string>
     <string name="test_match_amount_missing_value">(отсутствует, см. проблемы ниже)</string>
     <string name="test_match_label_foreign">Валютная сумма:</string>
+    <string name="test_match_label_date">Дата:</string>
     <string name="test_match_label_description">Описание:</string>
     <string name="test_match_label_notes">Заметки:</string>
     <string name="test_match_label_category">Категория:</string>
     <string name="test_match_label_tags">Теги:</string>
     <string name="test_match_issue_local_amount_missing">⚠ Нет суммы в валюте счёта.</string>
+    <string name="test_match_issue_date_unparsable">⚠ Захваченная дата не распозналась по заданному формату — использовано время нотификации.</string>
     <string name="test_match_rate_lookup_failed">⚠ Не удалось получить курс: %1$s — это правило не сможет создать транзакцию для этого сообщения.</string>
     <string name="test_match_create">Создать транзакцию</string>
     <string name="create_amount_not_ready">Сумма ещё не готова — дождитесь загрузки курса.</string>

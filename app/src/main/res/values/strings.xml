@@ -72,6 +72,7 @@
     <string name="rule_field_source_account">Source account</string>
     <string name="rule_field_destination_account">Destination account</string>
     <string name="rule_field_home_currency">Account currency</string>
+    <string name="rule_field_date_format">Date format (optional - leave blank to use the notification\'s own time)</string>
     <string name="rule_field_pattern">Regular expression (matched against title + text)</string>
     <string name="rule_pick_existing_pattern">Pick existing…</string>
     <string name="rule_pick_message">Pick message…</string>
@@ -83,6 +84,7 @@
     <string name="rule_available_macros">Available macros: %1$s</string>
     <string name="rule_insert_macro">Insert macro</string>
     <string name="rule_pick_currency">Pick currency</string>
+    <string name="rule_pick_date_format">Pick date format</string>
     <string name="rule_pick_account">Pick account</string>
     <string name="rule_firefly_not_configured">Connect Firefly III in Settings first.</string>
     <string name="rule_firefly_accounts_failed">Couldn\'t load accounts: %1$s</string>
@@ -111,11 +113,13 @@
     <string name="test_match_label_amount">Amount:</string>
     <string name="test_match_amount_missing_value">(missing, see issues below)</string>
     <string name="test_match_label_foreign">Foreign:</string>
+    <string name="test_match_label_date">Date:</string>
     <string name="test_match_label_description">Description:</string>
     <string name="test_match_label_notes">Notes:</string>
     <string name="test_match_label_category">Category:</string>
     <string name="test_match_label_tags">Tags:</string>
     <string name="test_match_issue_local_amount_missing">⚠ No amount in the account\'s own currency.</string>
+    <string name="test_match_issue_date_unparsable">⚠ Captured date didn\'t match the rule\'s date format - using the notification\'s own time instead.</string>
     <string name="test_match_rate_lookup_failed">⚠ Exchange-rate lookup failed: %1$s - this rule can\'t post a transaction for this message.</string>
     <string name="test_match_create">Create Transaction</string>
     <string name="create_amount_not_ready">Amount isn\'t ready yet - wait for the exchange-rate lookup to finish.</string>

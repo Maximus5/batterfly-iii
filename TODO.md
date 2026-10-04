@@ -199,6 +199,43 @@ work.
           the preview dialog show a real number instead of "missing").
           Also still not done, nice-to-have: `POST`ing the fetched rate
           back into Firefly's own exchange-rate table as a side effect.
+    - **Done**: a rule can opt into reading the transaction's *own*
+      date from the notification text instead of always using when the
+      notification arrived - prompted by a real case (Bank DE: "Die
+      Abbuchung über €99,99 für 00000 findet am 01.02.30 statt", a
+      charge-date announcement sent days before the actual debit).
+      `Groups.DATE` (`"date"`) is a new optional named group;
+      `ParseRule.dateFormat` (blank by default = old behavior) is a
+      `java.time.format.DateTimeFormatter` pattern the user types in,
+      e.g. `dd.MM.yy` - deliberately *not* auto-detected, unlike
+      `parseAmount`'s decimal-separator heuristic: a date like
+      `01.02.30` is genuinely ambiguous (day-first or month-first)
+      without knowing the bank's own convention, and guessing wrong
+      would silently post the wrong date. `parser.parseDate(raw,
+      pattern)` (pure, `DateParserTest`) resolves to noon UTC on the
+      parsed date (no time of day - banks announcing a future charge
+      never give one) - `RuleEngine.buildDraft` uses it instead of
+      `message.timestampMillis` when both the group and the format are
+      present and it actually parses; a captured-but-unparsable date
+      (typo'd format, or text that doesn't match) flags the new
+      `DraftIssue.DATE_UNPARSABLE` and falls back to the notification's
+      own time, rather than either blocking the match or silently
+      posting a wrong date with no warning - the same "flag it, don't
+      guess" precedent `LOCAL_AMOUNT_MISSING` set. `validateRule` checks
+      a non-blank `dateFormat` is a legal formatter pattern at save
+      time. The rule editor's new "Date format" field has a preset
+      picker (`dd.MM.yy`/`dd.MM.yyyy`/`dd/MM/yyyy`/`yyyy-MM-dd`/
+      `MM/dd/yyyy`) that fills the field with editable text, same
+      "picker sets it, typing still works" shape as the currency
+      picker - not a closed dropdown, since a bank's actual wording
+      won't always match one of the presets exactly. The test-match
+      dialog gained a "Date:" field (there wasn't one at all before -
+      otherwise this whole feature would be invisible until a
+      transaction posted with the wrong date). `RulesDb` v6->v7,
+      additive `date_format TEXT NOT NULL DEFAULT ''`; `RulesJson`
+      carries `dateFormat` through export/import (portable config, not
+      a device/Firefly-instance-specific id - unlike
+      `sourceAccountId`/`destinationAccountId`, which stay excluded).
   - A way to reorder rules other than one-step-at-a-time up/down
     buttons (fine for a handful of rules; revisit - e.g. drag handles
     - if the list grows long enough to make that tedious).
@@ -287,7 +324,12 @@ work.
   coverage exists for either, same as every other `SQLiteOpenHelper` in
   this app - `MessageHistoryDb`'s v1->v2 `ALTER TABLE` migration in
   particular has never run against a real on-disk v1 database yet, only
-  against a fresh `onCreate`).
+  against a fresh `onCreate`). Also needs real-device verification: the
+  date-override feature against the actual Bank DE notification that
+  prompted it (a real `dd.MM.yy`-style future charge date, confirming
+  the posted Firefly transaction lands on the right day, not the
+  notification's arrival day) and `RulesDb`'s v6->v7 migration against
+  a real on-disk v6 database with actual saved rules.
 - No cap on `MessageStore`'s in-memory list size, or on
   `MessageHistoryDb` beyond the retention-window purge - for personal,
   low-volume bank notifications this is unlikely to matter. Revisit if

@@ -189,6 +189,18 @@ Single `:app` module, packages under
     Known gap: single-digit cents (`"12,5"`) aren't detected - hasn't
     come up with real bank notifications, which always pad to two
     digits.
+  - `parseDate(raw, pattern)` (`DateParserTest`) - the opposite call on
+    auto-detection from `parseAmount`: a date-only string like
+    `01.02.30` genuinely can't be disambiguated (day-first vs.
+    month-first) without knowing the bank's own convention, so this
+    takes an explicit `DateTimeFormatter` pattern (`ParseRule.
+    dateFormat`, a `rules`-layer concept - `parser` itself has no
+    opinion on it) rather than guessing. Null on a malformed pattern or
+    a non-matching `raw`, never throws - the caller (`RuleEngine`)
+    decides what that means. Resolves to noon UTC on the parsed date
+    (no time of day - a bank announcing a future charge never gives
+    one), a fixed but arbitrary choice that sidesteps any
+    timezone-driven day-rollover surprise a midnight value could cause.
 - `rules` - the Firefly-*flavored* domain, still Firefly-API-free
   (string placeholders - see Overview):
   - `ParseRule` - one parsing template scoped to one app
@@ -196,9 +208,23 @@ Single `:app` module, packages under
     placeholders; `pattern` matched against `parser`'s combined-input
     convention; `descriptionTemplate`/`notesTemplate` are macro
     templates, blank by default - no silently pre-filled text).
+    `dateFormat` is blank by default (= the old, still-default
+    behavior: the transaction's date is when the notification arrived)
+    - a `java.time.format.DateTimeFormatter` pattern the user types in
+      (e.g. `dd.MM.yy`), for banks that announce a *future* charge date
+      separately from when the notification itself arrives (real case:
+      Bank DE - "Die Abbuchung über €99,99 für 00000 findet am
+      01.02.30 statt"). Deliberately user-specified, not auto-detected
+      like `parseAmount`'s decimal separator - a date like `01.02.30`
+      is genuinely ambiguous (day-first or month-first) without the
+      bank's own convention, and guessing wrong risks silently posting
+      the wrong date; see TODO.md.
   - `Groups` - the named-group names `rules` knows to look for
     (`amount`, `currency`, `foreignAmount`, `foreignCurrency`,
-    `counterparty`) - a convention `parser` has no opinion on.
+    `counterparty`, `date`) - a convention `parser` has no opinion on.
+    `date` only does anything when `ParseRule.dateFormat` is also set
+    (see `RuleEngine.buildDraft` below); otherwise it's just another
+    name available to `{macro}` templates, same as `counterparty`.
   - `renderTemplate`/`templateMacroNames`/`FIXED_MACROS`
     (`MacroTemplateTest`) - `{x}` macro substitution for
     description/notes/account names/etc, using the match's captured
@@ -246,7 +272,15 @@ Single `:app` module, packages under
     against `homeCurrency` - banks print symbols ("€50.00") far more
     often than ISO codes, and without this every symbol-only
     notification would look "foreign" even when it's actually the
-    home currency.
+    home currency. `buildDraft`'s `date` defaults to
+    `Instant.ofEpochMilli(message.timestampMillis)`; when the pattern
+    captured `Groups.DATE` *and* `rule.dateFormat` is non-blank, it
+    tries `parser.parseDate(captured, rule.dateFormat)` instead - a
+    successful parse replaces the date outright, a failed one (typo'd
+    format, or the text just doesn't match it) flags
+    `DraftIssue.DATE_UNPARSABLE` and keeps the notification's own time,
+    same "flag it, don't guess, don't block the match" shape
+    `LOCAL_AMOUNT_MISSING` already uses.
   - `CurrencyEntry`/`CurrenciesDb` - another user-maintained
     placeholder table (code<->symbol, e.g. `EUR`<->`€`), same idea and
     same "plain SQLite, no ORM, `getInstance(context)` singleton"
@@ -265,7 +299,10 @@ Single `:app` module, packages under
     template field still mentions a macro from an earlier, richer draft
     of it. `currency`/`counterparty`/`foreignAmount`/`foreignCurrency`
     are all optional in the pattern for the same reason the fields that
-    would reference them are optional.
+    would reference them are optional. A non-blank `dateFormat` is
+    checked against `DateTimeFormatter.ofPattern` - catches a typo'd
+    format at save time rather than only as a `DATE_UNPARSABLE`
+    `DraftIssue` every single time the rule matches afterward.
   - `RulesDb` - plain SQLite (no ORM), one row per rule plus an
     explicit `sort_order` column - the only priority mechanism
     `RuleEngine` uses, so `moveUp`/`moveDown` just swap two rows'
@@ -543,7 +580,12 @@ Single `:app` module, packages under
     `getString(R.string.x, value)` concatenation read as one
     same-weight wall of text; this needed splitting the old combined
     "Label: %1$s" string resources into label-only strings so code can
-    bold just the label span. When the draft has `LOCAL_AMOUNT_MISSING`
+    bold just the label span. `Date:` (`formatDraftDate`, system
+    date+time format, same as `MessagesAdapter`) shows for every match,
+    not only when `ParseRule.dateFormat` overrides it - there was no
+    date field in this dialog at all before that feature existed, so a
+    wrong override would've been invisible until a transaction actually
+    posted with it. When the draft has `LOCAL_AMOUNT_MISSING`
     (foreign-currency message, no home-currency amount), the dialog
     shows "no amount" immediately and, in the background
     (`fetchApproxConversionIfNeeded`, `viewLifecycleOwner.lifecycleScope`),
@@ -894,7 +936,14 @@ Single `:app` module, packages under
       (`RuleEditFragment.showCurrencyPicker`) - a plain list of the
       user-maintained `CurrenciesDb` codes (e.g. "EUR (€)"). Saves a
       typo turning into a currency `normalizeCurrency` never
-      recognizes.
+      recognizes. `dateFormat` (`showDateFormatPicker`, same end-icon
+      dropdown shape, right below `homeCurrency` in field order - both
+      are "how to interpret a captured value" fields) offers five
+      preset patterns (`dd.MM.yy`/`dd.MM.yyyy`/`dd/MM/yyyy`/
+      `yyyy-MM-dd`/`MM/dd/yyyy`) that *fill* the field rather than lock
+      it - unlike the currency picker's codes, a bank's actual date
+      wording won't always match one of these exactly, so the text
+      stays freely editable afterward.
       Every `TextInputLayout` on this form (and on
       `AddTestMessageFragment`'s) sets `app:expandedHintEnabled="false"`
       so the field label always sits in the compact/floating position -

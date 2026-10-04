@@ -7,6 +7,10 @@ package io.github.maximus5.ffnotifyimporter.rules
  *
  * `amount`/`currency`               - amount as reported by the bank
  * `foreignAmount`/`foreignCurrency` - original amount for a cross-currency payment
+ * `date`                            - the transaction's *own* date, when a notification reports
+ *                                      one that differs from when the notification itself arrived
+ *                                      (e.g. "the charge will happen on 01.02.30") - only used
+ *                                      when [ParseRule.dateFormat] is also set, see its KDoc.
  *
  * Nothing else is privileged - e.g. a `counterparty` group isn't special to `RuleEngine`, it's
  * just another name available to `{macro}` templates (description/notes/category/tags) via
@@ -18,4 +22,5 @@ object Groups {
     const val CURRENCY = "currency"
     const val FOREIGN_AMOUNT = "foreignAmount"
     const val FOREIGN_CURRENCY = "foreignCurrency"
+    const val DATE = "date"
 }

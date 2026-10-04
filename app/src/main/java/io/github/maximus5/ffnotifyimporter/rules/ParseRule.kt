@@ -29,6 +29,15 @@ package io.github.maximus5.ffnotifyimporter.rules
  * ID survives a rename in Firefly; the name alone doesn't - posting should prefer the ID when
  * it's present and still matches the displayed name, and fall back to posting by name otherwise,
  * exactly the same `source_name`/`destination_name` behavior this app already had.
+ *
+ * [dateFormat] is blank by default, meaning "use the notification's own arrival time as the
+ * transaction date" (the original, still-default behavior). Non-blank - a `java.time.format.
+ * DateTimeFormatter` pattern, e.g. `dd.MM.yy` - opts into using whatever [Groups.DATE] captures
+ * instead, for banks that announce a *future* charge date separately from when the notification
+ * itself arrives (e.g. "the charge will happen on 01.02.30"). Deliberately user-specified, not
+ * auto-detected: unlike an amount's decimal separator, a date like "01.02.30" is genuinely
+ * ambiguous (day-first or month-first) without knowing the bank's own convention - guessing would
+ * risk silently posting the wrong date, see TODO.md.
  */
 data class ParseRule(
     val id: String,
@@ -46,4 +55,5 @@ data class ParseRule(
     val categoryTemplate: String = "", // renders to one category name; blank = none
     val tagsTemplate: String = "", // renders then splits on ',' (trimmed, blanks dropped)
     val enabled: Boolean = true,
+    val dateFormat: String = "",
 )

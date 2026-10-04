@@ -7,6 +7,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.text.SpannableStringBuilder
 import android.text.Spanned
+import android.text.format.DateFormat
 import android.text.style.StyleSpan
 import android.view.LayoutInflater
 import android.view.View
@@ -35,6 +36,8 @@ import io.github.maximus5.ffnotifyimporter.rules.RulesDb
 import io.github.maximus5.ffnotifyimporter.rules.TransactionDraft
 import io.github.maximus5.ffnotifyimporter.rules.applyApproxConversion
 import io.github.maximus5.ffnotifyimporter.rules.transactionDedupHash
+import java.time.Instant
+import java.util.Date
 import kotlinx.coroutines.launch
 
 class MessagesFragment : Fragment() {
@@ -289,6 +292,7 @@ class MessagesFragment : Fragment() {
                 "${it.toPlainString()} ${draft.foreignCurrencyCode.orEmpty()}",
             )
         }
+        field(getString(R.string.test_match_label_date), formatDraftDate(draft.date))
         field(getString(R.string.test_match_label_description), draft.description)
         field(getString(R.string.test_match_label_notes), draft.notes)
         draft.category?.let { field(getString(R.string.test_match_label_category), it) }
@@ -297,10 +301,24 @@ class MessagesFragment : Fragment() {
             text.append("\n").append(
                 when (issue) {
                     DraftIssue.LOCAL_AMOUNT_MISSING -> getString(R.string.test_match_issue_local_amount_missing)
+                    DraftIssue.DATE_UNPARSABLE -> getString(R.string.test_match_issue_date_unparsable)
                 },
             )
         }
         return text
+    }
+
+    /** Same system date+time formatting `MessagesAdapter` uses for the notification list, for the
+     * same reason - respects the device's actual date/time settings rather than guessing from
+     * locale alone. Shown for every match, not just when [ParseRule.dateFormat] overrides it, so
+     * the override is actually visible: without this field the dialog never showed a date at all,
+     * and a wrong override would be invisible until a transaction posted with it. */
+    private fun formatDraftDate(date: Instant): String {
+        val context = requireContext()
+        val javaDate = Date.from(date)
+        val dateFormat = DateFormat.getDateFormat(context)
+        val timeFormat = DateFormat.getTimeFormat(context)
+        return "${dateFormat.format(javaDate)} ${timeFormat.format(javaDate)}"
     }
 
     private fun reasonStringRes(reason: NoMatchReason) = when (reason) {

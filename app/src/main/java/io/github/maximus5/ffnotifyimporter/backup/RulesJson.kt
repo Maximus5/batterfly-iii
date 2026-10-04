@@ -53,6 +53,7 @@ private fun ParseRule.toJson(): JSONObject = JSONObject().apply {
     put("categoryTemplate", categoryTemplate)
     put("tagsTemplate", tagsTemplate)
     put("enabled", enabled)
+    put("dateFormat", dateFormat)
 }
 
 private fun JSONObject.toRuleOrNull(): ParseRule? {
@@ -81,5 +82,6 @@ private fun JSONObject.toRuleOrNull(): ParseRule? {
         categoryTemplate = optString("categoryTemplate", ""),
         tagsTemplate = optString("tagsTemplate", ""),
         enabled = optBoolean("enabled", true),
+        dateFormat = optString("dateFormat", ""),
     )
 }

@@ -5,6 +5,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.math.BigDecimal
+import java.time.Instant
 
 class RuleEngineTest {
 
@@ -22,6 +23,7 @@ class RuleEngineTest {
         categoryTemplate: String = "",
         tagsTemplate: String = "",
         enabled: Boolean = true,
+        dateFormat: String = "",
     ) = ParseRule(
         id = id,
         label = label,
@@ -36,6 +38,7 @@ class RuleEngineTest {
         categoryTemplate = categoryTemplate,
         tagsTemplate = tagsTemplate,
         enabled = enabled,
+        dateFormat = dateFormat,
     )
 
     private fun message(
@@ -215,5 +218,50 @@ class RuleEngineTest {
         val engine = RuleEngine(listOf(rule(pattern = """(?<amount>\d+)""", enabled = false)))
         val outcome = engine.match(message(text = "123"))
         assertEquals(ParseOutcome.NoMatch(NoMatchReason.NO_RULES_FOR_APP), outcome)
+    }
+
+    @Test
+    fun `date defaults to the notification's own arrival time when dateFormat is blank`() {
+        val r = rule(pattern = """spent (?<amount>[\d,]+) EUR""")
+        val outcome = RuleEngine(listOf(r)).match(message()) as ParseOutcome.Matched
+
+        assertEquals(Instant.ofEpochMilli(1000), outcome.draft.date)
+        assertTrue(outcome.draft.issues.isEmpty())
+    }
+
+    @Test
+    fun `a captured date group is ignored unless dateFormat is also set`() {
+        val r = rule(pattern = """spent (?<amount>[\d,]+) EUR.*am (?<date>[\d.]+) statt""")
+        val outcome = RuleEngine(listOf(r))
+            .match(message(text = "You spent 12,50 EUR, charged am 01.02.30 statt")) as ParseOutcome.Matched
+
+        assertEquals(Instant.ofEpochMilli(1000), outcome.draft.date)
+        assertTrue(outcome.draft.issues.isEmpty())
+    }
+
+    @Test
+    fun `a captured date overrides the notification's arrival time when dateFormat parses it`() {
+        val r = rule(
+            pattern = """spent (?<amount>[\d,]+) EUR.*am (?<date>[\d.]+) statt""",
+            dateFormat = "dd.MM.yy",
+        )
+        val outcome = RuleEngine(listOf(r))
+            .match(message(text = "You spent 12,50 EUR, charged am 01.02.30 statt")) as ParseOutcome.Matched
+
+        assertEquals(Instant.parse("2030-02-01T12:00:00Z"), outcome.draft.date)
+        assertTrue(outcome.draft.issues.isEmpty())
+    }
+
+    @Test
+    fun `a captured date that does not match dateFormat flags DATE_UNPARSABLE and falls back`() {
+        val r = rule(
+            pattern = """spent (?<amount>[\d,]+) EUR.*am (?<date>[\d.]+) statt""",
+            dateFormat = "yyyy-MM-dd",
+        )
+        val outcome = RuleEngine(listOf(r))
+            .match(message(text = "You spent 12,50 EUR, charged am 01.02.30 statt")) as ParseOutcome.Matched
+
+        assertEquals(Instant.ofEpochMilli(1000), outcome.draft.date)
+        assertEquals(setOf(DraftIssue.DATE_UNPARSABLE), outcome.draft.issues)
     }
 }

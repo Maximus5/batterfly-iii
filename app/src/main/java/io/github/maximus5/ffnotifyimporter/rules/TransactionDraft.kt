@@ -7,6 +7,12 @@ import java.time.Instant
 enum class DraftIssue {
     /** Only a foreign-currency amount was found; the home-currency amount needs manual entry. */
     LOCAL_AMOUNT_MISSING,
+
+    /** [ParseRule.dateFormat] is set and [Groups.DATE] was captured, but the captured text didn't
+     * parse against that format (typo in the format, or the text just doesn't match) - [date]
+     * falls back to the notification's own arrival time rather than blocking the match, but this
+     * flags that the fallback happened instead of the date silently being wrong with no warning. */
+    DATE_UNPARSABLE,
 }
 
 /** What a [ParseRule] detected in a notification - "what we matched", now postable via
