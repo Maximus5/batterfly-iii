@@ -499,12 +499,26 @@ Single `:app` module, packages under
       row has move up/down, duplicate, delete - all straight
       `RulesDb` calls followed by a reload. A FAB opens
       `RuleEditFragment` with no rule id, to create one. Export/Import
-      (`RulesJson`, see `backup` above) are plain icon `ImageButton`s
-      (`ic_export`/`ic_import`, `selectableItemBackgroundBorderless`,
-      48dp) in a row above the list - matching the FAB's "icon, not a
-      text button" language instead of the borderless *text* buttons
-      this screen used at first, per user feedback once the FAB was
-      sitting right next to them. Each row's
+      (`RulesJson`, see `backup` above) are 40dp icon `ImageButton`s
+      (`ic_export`/`ic_import`, `selectableItemBackgroundBorderless`)
+      sitting in the *same* bottom-end row as the FAB, not a separate
+      row above the list - the first version put them in their own row
+      (matching the FAB's "icon, not text" language but not its
+      position), which the user flagged directly ("я же просил
+      поставить кнопки рядом с +"). The icons themselves went through a
+      multi-round design review (plain Material up/down tray arrows ->
+      a thin arrow overlaid on a DB-barrel silhouette, rejected as
+      illegible and for not actually being an outline -> the current
+      design: an outlined folder silhouette with an outlined DB
+      cylinder inside and an *outlined* block arrow - head + stem, not
+      a hairline - passing through a deliberate gap in the folder's top
+      edge, wide enough on both sides that the arrow and the folder
+      outline don't visually fuse; export's arrow exits upward, import's
+      enters downward, otherwise identical paths) - all of it iterated
+      live via a published Design-type Artifact (JSON shared record of
+      a design review, not committed anywhere in this repo) before any
+      drawable XML was written, per the user's explicit "покажи дизайн
+      прежде чем реализовать". Each row's
       subtitle is the app name bold on its own line (`SpannableStringBuilder`
       + `StyleSpan`, not a separate `TextView` - it's the row's identity,
       everything else is detail about that one app), then
