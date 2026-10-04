@@ -547,7 +547,16 @@ Single `:app` module, packages under
   - `SettingsActivity` - everything else, as a stack of fragments
     pushed via plain `FragmentManager` back-stack transactions (no
     Navigation Component - the flow is small and linear enough not to
-    need it). `SettingsRootFragment` is the menu (Firefly III
+    need it). `setBackGuard(guard)` lets whichever fragment is on top
+    intercept *both* the toolbar's up arrow (`onSupportNavigateUp`) and
+    system back (an `OnBackPressedCallback`, toggled enabled/disabled
+    by the same call) with its own logic instead of the default
+    pop-or-finish - same two-triggers-one-handler shape as
+    `MainActivity`'s `onSelectionCancel`, just generalized into a
+    reusable setter here since more than one fragment hosted by this
+    activity can plausibly need it (so far: `RuleEditFragment`'s
+    unsaved-changes confirm, see its own entry below). `null` restores
+    the default. `SettingsRootFragment` is the menu (Firefly III
     connection, monitored apps, currencies, rules, message history, add
     test message, backup & restore, about, added one row
     at a time as each is built - Firefly connection sits first since
@@ -651,7 +660,20 @@ Single `:app` module, packages under
       replaces that spot with the Firefly-familiar wording instead of
       reintroducing the same confusion).
     - `RuleEditFragment` - one form for both create (`ruleId == null`)
-      and edit, via `RuleEditFragment.newInstance(ruleId)`. App and
+      and edit, via `RuleEditFragment.newInstance(ruleId)`. Leaving the
+      screen with unsaved edits (toolbar's up arrow *or* system
+      back/gesture - both, not just one) asks for confirmation first:
+      `initialDraft` snapshots `buildDraft()` right after the fields
+      are first populated, `hasUnsavedChanges()` just compares it
+      against a fresh `buildDraft()` (`ParseRule` is a data class, one
+      `!=` covers every field), and `SettingsActivity.setBackGuard`
+      (see its own entry above) is how both back triggers get routed
+      through that check instead of the activity's default
+      pop-or-finish - registered in `onViewCreated` right after
+      `initialDraft` is captured, cleared in `onDestroyView` so it
+      can't linger once the fragment is gone (a real save/delete pops
+      the back stack directly, bypassing this check entirely - there's
+      nothing to discard). App and
       kind are both Material "exposed dropdown menu" fields (an
       outlined `TextInputLayout` wrapping a
       `MaterialAutoCompleteTextView`) rather than a bare `Spinner` -

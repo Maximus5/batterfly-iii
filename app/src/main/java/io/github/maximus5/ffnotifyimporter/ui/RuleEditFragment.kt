@@ -44,6 +44,12 @@ class RuleEditFragment : Fragment() {
     private lateinit var rulesDb: RulesDb
     private var existingRule: ParseRule? = null
 
+    /** A snapshot of [buildDraft] taken right after the fields are first populated - the baseline
+     * [hasUnsavedChanges] compares against. Captured, not recomputed from [existingRule] directly,
+     * because a brand-new rule's "nothing changed yet" state is whatever [populateFields] defaults
+     * it to (today's date label, first monitored app, WITHDRAWAL), not an all-blank `ParseRule`. */
+    private var initialDraft: ParseRule? = null
+
     /** package name to display label, sorted - a rule can only ever match a monitored app. */
     private var monitoredApps: List<Pair<String, String>> = emptyList()
     private var selectedPackageName: String? = null
@@ -85,6 +91,8 @@ class RuleEditFragment : Fragment() {
         val ruleId = arguments?.getString(ARG_RULE_ID)
         existingRule = ruleId?.let { id -> rulesDb.loadAllOrdered().firstOrNull { it.id == id } }
         populateFields(existingRule)
+        initialDraft = buildDraft()
+        (activity as? SettingsActivity)?.setBackGuard { handleBackPressed() }
 
         binding.patternInput.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
@@ -530,10 +538,29 @@ class RuleEditFragment : Fragment() {
             .show()
     }
 
+    /** True once [buildDraft] differs from [initialDraft] in any field - covers every editable
+     * field in one comparison (`ParseRule` is a data class) instead of tracking each input's
+     * dirty state separately. */
+    private fun hasUnsavedChanges(): Boolean = initialDraft != buildDraft()
+
+    private fun handleBackPressed() {
+        if (hasUnsavedChanges()) {
+            AlertDialog.Builder(requireContext())
+                .setTitle(R.string.rule_discard_changes_title)
+                .setMessage(R.string.rule_discard_changes_message)
+                .setPositiveButton(R.string.rule_discard_changes_discard) { _, _ -> parentFragmentManager.popBackStack() }
+                .setNegativeButton(android.R.string.cancel, null)
+                .show()
+        } else {
+            parentFragmentManager.popBackStack()
+        }
+    }
+
     private fun requireBinding() = binding ?: error("binding accessed after onDestroyView")
 
     override fun onDestroyView() {
         super.onDestroyView()
+        (activity as? SettingsActivity)?.setBackGuard(null)
         binding = null
     }
 

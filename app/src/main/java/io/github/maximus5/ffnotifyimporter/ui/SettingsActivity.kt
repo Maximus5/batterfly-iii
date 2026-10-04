@@ -1,6 +1,7 @@
 package io.github.maximus5.ffnotifyimporter.ui
 
 import android.os.Bundle
+import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
 import io.github.maximus5.ffnotifyimporter.R
@@ -15,6 +16,19 @@ class SettingsActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivitySettingsBinding
 
+    /** Set by the current fragment (via [setBackGuard]) to intercept *both* the toolbar's up
+     * arrow and system back (button/gesture) with its own logic instead of the default
+     * pop-or-finish - e.g. [RuleEditFragment] uses this to confirm before discarding unsaved
+     * edits. Same two-trigger-one-handler shape as `MainActivity`'s `onSelectionCancel`, just
+     * hosted here since this is where the editor fragment lives. */
+    private var backGuard: (() -> Unit)? = null
+
+    private val backPressedCallback = object : OnBackPressedCallback(false) {
+        override fun handleOnBackPressed() {
+            backGuard?.invoke() ?: defaultBack()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivitySettingsBinding.inflate(layoutInflater)
@@ -23,6 +37,7 @@ class SettingsActivity : AppCompatActivity() {
 
         setSupportActionBar(binding.toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        onBackPressedDispatcher.addCallback(this, backPressedCallback)
 
         if (savedInstanceState == null) {
             supportFragmentManager.beginTransaction()
@@ -46,12 +61,24 @@ class SettingsActivity : AppCompatActivity() {
             .commit()
     }
 
+    /** [guard] is called instead of the default back behavior for as long as it's set - passing
+     * null restores the default. The caller decides what "back" means while it's registered
+     * (e.g. show a confirm dialog, then actually leave only once the user agrees). */
+    fun setBackGuard(guard: (() -> Unit)?) {
+        backGuard = guard
+        backPressedCallback.isEnabled = guard != null
+    }
+
     override fun onSupportNavigateUp(): Boolean {
+        backGuard?.invoke() ?: defaultBack()
+        return true
+    }
+
+    private fun defaultBack() {
         if (supportFragmentManager.backStackEntryCount > 0) {
             supportFragmentManager.popBackStack()
         } else {
             finish()
         }
-        return true
     }
 }
