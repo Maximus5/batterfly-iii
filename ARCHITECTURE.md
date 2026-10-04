@@ -840,15 +840,19 @@ Single `:app` module, packages under
     (`IMPORTANCE_DEFAULT` - not `_HIGH`, no heads-up warranted for a
     background bookkeeping result; not `_LOW` either, a skipped-
     duplicate or a failure deserves more than a silent badge), created
-    lazily on first use. The success and skipped-duplicate notifications
-    both carry an explicit "Open transaction" action button (not just a
-    whole-notification tap target) pointing straight at Firefly's own
+    lazily on first use. The whole-notification tap always opens the app
+    (`MainActivity`) on every outcome - the user's own call, after
+    trying tap-opens-Firefly first and preferring the app as the
+    consistent, predictable destination instead. The success and
+    skipped-duplicate notifications separately also carry an explicit
+    "Open transaction" action button pointing straight at Firefly's own
     page for the relevant transaction - the created one for a success,
     the *existing* one the skip was against for a skipped duplicate
     (confirming whether it's really the same payment means looking at
-    that transaction, not the app's own message list) - the user's own
-    request, so getting there doesn't need expanding the notification
-    first. Requires `POST_NOTIFICATIONS` on API 33+
+    that transaction, not the app's own message list) - so getting
+    there doesn't need going through the app first, without changing
+    what a plain tap on the body does. Requires `POST_NOTIFICATIONS` on
+    API 33+
     (declared in the manifest, requested from `FireflySettingsFragment`
     the moment the user turns the "Auto-create" switch on, not at app
     startup) - a declined/missing permission is caught as a

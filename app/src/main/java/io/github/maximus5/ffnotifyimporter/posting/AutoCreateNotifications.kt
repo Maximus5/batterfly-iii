@@ -21,9 +21,10 @@ import io.github.maximus5.ffnotifyimporter.ui.MainActivity
  * heads-up popup warranted for a background bookkeeping result), not `_LOW` either (a
  * skipped-duplicate or a failure is worth more attention than a silent badge).
  *
- * [notifySuccess]/[notifySkippedDuplicate] add an explicit "Open transaction" action button
- * (same destination the whole-notification tap already has) - the user's own request, so jumping
- * straight to Firefly's page for it doesn't need expanding the notification first.
+ * The whole-notification tap always opens the app ([MainActivity]) on every outcome - the user's
+ * own call, after trying tap-opens-Firefly first. [notifySuccess]/[notifySkippedDuplicate] also
+ * carry an explicit "Open transaction" action button for jumping straight to Firefly's page
+ * without going through the app first.
  *
  * Every call is a no-op if [android.Manifest.permission.POST_NOTIFICATIONS] was never granted
  * (API 33+, requested from `FireflySettingsFragment` when the user turns "Auto-create" on) -
@@ -36,29 +37,27 @@ object AutoCreateNotifications {
     private const val CHANNEL_ID = "auto_create"
 
     fun notifySuccess(context: Context, baseUrl: String, message: CapturedMessage, transactionId: String) {
-        val openTransaction = transactionIntent(context, baseUrl, transactionId)
         show(
             context,
             id = message.hashCode(),
             title = context.getString(R.string.auto_create_success_title),
             text = context.getString(R.string.auto_create_success_text, message.appLabel, transactionId),
-            pendingIntent = openTransaction,
-            action = openTransaction,
+            pendingIntent = mainActivityIntent(context),
+            action = transactionIntent(context, baseUrl, transactionId),
         )
     }
 
-    /** [existingTransactionId] is the transaction the skip was *against* - both the tap target and
-     * the action button jump straight to it (not `MainActivity`), since confirming whether it's
-     * really the same payment means looking at that transaction, not the app's own message list. */
+    /** [existingTransactionId] is the transaction the skip was *against* - the action button jumps
+     * straight to it, since confirming whether it's really the same payment means looking at that
+     * transaction, not the app's own message list (the tap target still just opens the app). */
     fun notifySkippedDuplicate(context: Context, baseUrl: String, message: CapturedMessage, existingTransactionId: String) {
-        val openTransaction = transactionIntent(context, baseUrl, existingTransactionId)
         show(
             context,
             id = message.hashCode(),
             title = context.getString(R.string.auto_create_skipped_title),
             text = context.getString(R.string.auto_create_skipped_text, message.appLabel, existingTransactionId),
-            pendingIntent = openTransaction,
-            action = openTransaction,
+            pendingIntent = mainActivityIntent(context),
+            action = transactionIntent(context, baseUrl, existingTransactionId),
         )
     }
 
@@ -86,10 +85,9 @@ object AutoCreateNotifications {
     }
 
     /** [action] - when non-null, an explicit "Open transaction" button in the shade (collapsed or
-     * expanded, no tap-and-wait needed) alongside the usual whole-notification tap target
-     * ([pendingIntent], same destination when both are set) - the user's own request: tapping the
-     * body alone meant expanding/finding the notification first, a visible action button is one
-     * tap from the shade directly. */
+     * expanded, no tap-and-wait needed) alongside [pendingIntent] (the whole-notification tap
+     * target, always the app itself - the user's own call, not necessarily the same destination
+     * as [action]). */
     private fun show(context: Context, id: Int, title: String, text: String, pendingIntent: PendingIntent, action: PendingIntent?) {
         ensureChannel(context)
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
