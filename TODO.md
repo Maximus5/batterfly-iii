@@ -769,3 +769,29 @@ work.
   just-created transaction by hand in Firefly, then tapping "Check if
   created" on its message, to confirm the stale-id path actually falls
   through to a fresh search instead of showing the dead match again.
+- **Fixed a second real instance of the same bug, the user's own
+  catch/report (screenshotted)**: the fix above covered `findDuplicate`
+  (used by "Check if created" and every create-flow preemptive check),
+  but tapping an *already-linked* message never went through
+  `findDuplicate` at all - `showTestMatch` branched straight to
+  `showMatchedDialog` off `message.fireflyTransactionId` with zero
+  verification, so "Open transaction" on a message whose linked
+  transaction had been deleted by hand in Firefly just pointed at a
+  dead link, with nothing on screen explaining why. Fixed with
+  `verifyLinkedThenShow`: live-checks the linked id first, falls
+  through to the normal search-then-show/create flow on a confirmed
+  `404` (clearing the stale link), stops and shows the error on a real
+  verification failure. Added a visible warning for this specific
+  case too, the user's own requested wording: `check_linked_
+  transaction_gone_warning` ("⚠ Linked transaction #%1$s no longer
+  exists in Firefly.", matching the existing `⚠` style of
+  `check_found_description_mismatch_warning` rather than the `*` first
+  floated, for consistency) - shown whenever a dialog presents a match
+  found via search *and* the message had a different linked id
+  confirmed gone, via a new `staleLinkedId` parameter on
+  `showDuplicateConfirmDialog`, computed by a shared `staleLinkedIdOrNull`
+  helper used by both `verifyLinkedThenShow` and `checkIfCreated`.
+  **Needs real-device verification** (not yet done): tap an
+  already-linked message after deleting that transaction by hand in
+  Firefly, both when a replacement match exists (warning + found-dialog
+  expected) and when it doesn't (warning-free create screen expected).

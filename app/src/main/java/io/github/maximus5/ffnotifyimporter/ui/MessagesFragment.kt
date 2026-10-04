@@ -96,11 +96,11 @@ class MessagesFragment : Fragment() {
      * if created" separately finding it), but tapping the message just opened a blank review
      * screen instead of surfacing that first. Found -> the usual duplicate-confirm dialog; not
      * found (or the remote check failed/was skipped) -> [CreateTransactionActivity] opens as
-     * before. The already-linked case (Open/Create Again) still shows the plain info dialog first
-     * - that's just a read-only summary of what's already linked, nothing to check/review/edit in
-     * it - but "Create Again" itself now also leads into [CreateTransactionActivity] (see
-     * [startCreate]), same as every other manual create path. The no-match/not-configured cases
-     * still show the plain dialog directly - there's nothing to check or review/edit in either. */
+     * before. The already-linked case (Open/Create Again) now runs [verifyLinkedThenShow] first -
+     * see its own KDoc for why - instead of trusting the linked id blindly; "Create Again" itself
+     * still leads into [CreateTransactionActivity] (see [startCreate]), same as every other manual
+     * create path. The no-match/not-configured cases still show the plain dialog directly - there's
+     * nothing to check or review/edit in either. */
     private fun showTestMatch(message: CapturedMessage) {
         val rules = RulesDb.getInstance(requireContext()).loadAllOrdered()
         val currencySymbols = CurrenciesDb.getInstance(requireContext()).symbolToCodeMap()
@@ -117,11 +117,44 @@ class MessagesFragment : Fragment() {
             }
             is ParseOutcome.Matched -> {
                 val configured = FireflyPrefs(context).isConfigured()
-                if (message.fireflyTransactionId == null && configured) {
-                    checkThenOpenCreateOrShowFound(context, outcome.draft, message)
-                    return
+                val existingId = message.fireflyTransactionId
+                when {
+                    existingId == null && configured -> checkThenOpenCreateOrShowFound(context, outcome.draft, message)
+                    existingId != null && configured -> verifyLinkedThenShow(context, outcome, message, existingId)
+                    else -> showMatchedDialog(context, outcome, message, null)
                 }
-                showMatchedDialog(context, outcome, message, if (configured) message.fireflyTransactionId else null)
+            }
+        }
+    }
+
+    /** Verifies [existingId] still exists before trusting it - **fixed a real "pretends everything
+     * is fine" bug, the user's own catch/report (screenshotted)**: tapping an already-linked
+     * message used to go straight to [showMatchedDialog] with zero verification, so a transaction
+     * deleted by hand in Firefly left "Open transaction" pointing at a dead link with nothing on
+     * screen explaining why. Still there -> [showMatchedDialog] exactly as before. Confirmed gone
+     * (`404`) -> the stale link is cleared (`MessageStore.setTransactionId` to `null`) and this
+     * falls through to the exact same search-then-show/create flow [checkThenOpenCreateOrShowFound]
+     * already runs for a fresh match - a replacement match, if search finds one, is shown with
+     * [showDuplicateConfirmDialog]'s `staleLinkedId` warning rather than presenting it as if
+     * nothing had ever been linked; nothing found falls through to [CreateTransactionActivity]
+     * same as any other fresh match. A verification failure (network/server error, *not* confirmed
+     * gone) shows the error and stops - same "don't guess" rule every dedup check in this file now
+     * follows (see `DuplicateCheckResult.SearchFailed`'s KDoc). */
+    private fun verifyLinkedThenShow(context: Context, outcome: ParseOutcome.Matched, message: CapturedMessage, existingId: String) {
+        viewLifecycleOwner.lifecycleScope.launch {
+            val prefs = FireflyPrefs(context)
+            val client = FireflyApiClient(prefs.getBaseUrl(), prefs.getToken())
+            when (val result = client.getTransaction(existingId)) {
+                is FireflyApiClient.Result.Success -> {
+                    if (result.value != null) {
+                        showMatchedDialog(context, outcome, message, existingId)
+                    } else {
+                        MessageStore.shared.setTransactionId(message, null)
+                        checkThenOpenCreateOrShowFound(context, outcome.draft, message, staleLinkedId = existingId)
+                    }
+                }
+                is FireflyApiClient.Result.Failure ->
+                    showResultDialog(context, R.string.check_search_failed_title, result.message)
             }
         }
     }
@@ -132,7 +165,12 @@ class MessagesFragment : Fragment() {
      * check entirely and opens the review screen directly, same "flag it, don't guess, don't
      * block" fallback used everywhere else `LOCAL_AMOUNT_MISSING` shows up - `transactionDedupHash`
      * requires a resolved amount, there's nothing to hash/search with yet. */
-    private fun checkThenOpenCreateOrShowFound(context: Context, initialDraft: TransactionDraft, message: CapturedMessage) {
+    private fun checkThenOpenCreateOrShowFound(
+        context: Context,
+        initialDraft: TransactionDraft,
+        message: CapturedMessage,
+        staleLinkedId: String? = null,
+    ) {
         viewLifecycleOwner.lifecycleScope.launch {
             var draft = initialDraft
             if (DraftIssue.LOCAL_AMOUNT_MISSING in draft.issues) {
@@ -148,10 +186,10 @@ class MessagesFragment : Fragment() {
                 is DuplicateCheckResult.SearchFailed ->
                     showResultDialog(context, R.string.check_search_failed_title, result.message)
                 is DuplicateCheckResult.Found ->
-                    showDuplicateConfirmDialog(context, result.id, message, knownCandidate = result.candidate)
+                    showDuplicateConfirmDialog(context, result.id, message, knownCandidate = result.candidate, staleLinkedId = staleLinkedId)
                 is DuplicateCheckResult.FoundMultiple -> {
                     Toast.makeText(context, getString(R.string.create_remote_duplicates_found, result.count), Toast.LENGTH_LONG).show()
-                    showDuplicateConfirmDialog(context, result.mostRecentId, message, knownCandidate = result.candidate)
+                    showDuplicateConfirmDialog(context, result.mostRecentId, message, knownCandidate = result.candidate, staleLinkedId = staleLinkedId)
                 }
             }
         }
@@ -252,7 +290,11 @@ class MessagesFragment : Fragment() {
      * this fetches it itself (`FireflyApiClient.getTransaction`) - suspends briefly for that, a
      * worthwhile trade for not showing a bare id the user has no way to independently verify.
      * [descriptionMismatch] (only ever true from [checkIfCreated]'s retry-without-description -
-     * see its own KDoc) prepends an explicit warning that this match ignored description. */
+     * see its own KDoc) prepends an explicit warning that this match ignored description.
+     * [staleLinkedId] (the user's own catch/report, screenshotted) prepends a second, independent
+     * warning when [message] already had a *different* linked id that's been confirmed gone (404)
+     * - see [staleLinkedIdOrNull] - so "here's what matches now" doesn't read as if nothing had
+     * ever been linked, when actually something was, and it's since vanished from Firefly. */
     private suspend fun showDuplicateConfirmDialog(
         context: Context,
         foundId: String,
@@ -260,6 +302,7 @@ class MessagesFragment : Fragment() {
         showCreateAnyway: Boolean = true,
         knownCandidate: RemoteTransactionCandidate? = null,
         descriptionMismatch: Boolean = false,
+        staleLinkedId: String? = null,
     ) {
         val candidate = knownCandidate ?: fetchCandidateInfo(context, foundId)
         val layoutRes = if (showCreateAnyway) R.layout.dialog_duplicate_confirm_4 else R.layout.dialog_duplicate_confirm_3
@@ -269,7 +312,8 @@ class MessagesFragment : Fragment() {
         } else {
             getString(R.string.check_found_message, foundId)
         }
-        val warning = if (descriptionMismatch) getString(R.string.check_found_description_mismatch_warning) + "\n\n" else ""
+        val staleWarning = staleLinkedId?.let { getString(R.string.check_linked_transaction_gone_warning, it) + "\n\n" }.orEmpty()
+        val warning = staleWarning + if (descriptionMismatch) getString(R.string.check_found_description_mismatch_warning) + "\n\n" else ""
         val info = candidate?.let { buildFoundTransactionInfo(it) }.orEmpty()
         val dialog = AlertDialog.Builder(context)
             .setTitle(if (showCreateAnyway) R.string.create_duplicate_confirm_title else R.string.check_found_title)
@@ -303,6 +347,27 @@ class MessagesFragment : Fragment() {
         val client = FireflyApiClient(prefs.getBaseUrl(), prefs.getToken())
         return when (val result = client.getTransaction(id)) {
             is FireflyApiClient.Result.Success -> result.value?.toRemoteCandidate()
+            is FireflyApiClient.Result.Failure -> null
+        }
+    }
+
+    /** [message]'s own linked id (`CapturedMessage.fireflyTransactionId`), live-verified -
+     * independent of `posting.findDuplicate`'s own local-log verification (`CreatedTransactionsDb`'s
+     * hash log and a message's own linked id are tracked separately and can diverge: "Use Created"
+     * links a message to an id with no local-log row at all, and the reverse is possible too).
+     * The user's own catch/report: tapping an already-linked message used to go straight to
+     * [showMatchedDialog] with zero verification, so a transaction deleted by hand in Firefly left
+     * "Open transaction" pointing at a dead link with nothing on screen explaining why.
+     * Returns the id only when it's *confirmed* gone (`getTransaction`'s `404` -> `null`-success
+     * mapping, see the `network` section's KDoc) - null for "nothing linked", "still there", and a
+     * failed check alike, since this is a secondary cross-check feeding a warning message, not
+     * something worth blocking the caller's own primary flow over. */
+    private suspend fun staleLinkedIdOrNull(context: Context, message: CapturedMessage): String? {
+        val existingId = message.fireflyTransactionId ?: return null
+        val prefs = FireflyPrefs(context)
+        val client = FireflyApiClient(prefs.getBaseUrl(), prefs.getToken())
+        return when (val result = client.getTransaction(existingId)) {
+            is FireflyApiClient.Result.Success -> existingId.takeIf { result.value == null }
             is FireflyApiClient.Result.Failure -> null
         }
     }
@@ -499,6 +564,7 @@ class MessagesFragment : Fragment() {
                 return@launch
             }
             val prefs = FireflyPrefs(context)
+            val staleLinkedId = staleLinkedIdOrNull(context, message)
             val includeDescription = prefs.isDedupIncludeDescription()
             var result = findDuplicate(context, resolved, prefs, includeDescription)
             var effectiveIncludeDescription = includeDescription
@@ -540,6 +606,7 @@ class MessagesFragment : Fragment() {
                     showDuplicateConfirmDialog(
                         context, r.id, message,
                         showCreateAnyway = false, knownCandidate = r.candidate, descriptionMismatch = matchedWithoutDescription,
+                        staleLinkedId = staleLinkedId,
                     )
                 is DuplicateCheckResult.FoundMultiple -> {
                     Toast.makeText(
@@ -550,6 +617,7 @@ class MessagesFragment : Fragment() {
                     showDuplicateConfirmDialog(
                         context, r.mostRecentId, message,
                         showCreateAnyway = false, knownCandidate = r.candidate, descriptionMismatch = matchedWithoutDescription,
+                        staleLinkedId = staleLinkedId,
                     )
                 }
                 // Unlike the create-flow callers, this is an explicit "just tell me" lookup - a

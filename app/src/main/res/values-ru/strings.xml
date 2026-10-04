@@ -53,6 +53,7 @@
     <string name="check_found_title">Найдено в Firefly</string>
     <string name="check_found_message">Совпадает транзакция #%1$s.</string>
     <string name="check_found_description_mismatch_warning">⚠ Описание не совпадает, проверьте.</string>
+    <string name="check_linked_transaction_gone_warning">⚠ Привязанная транзакция №%1$s больше не существует в Firefly.</string>
     <string name="check_not_found_title">Не найдено в Firefly</string>
     <string name="check_not_found_message">Подходящая транзакция не найдена для:\n\n%1$s</string>
     <string name="check_not_found_message_with_candidates">*Firefly вернул результатов: %2$d, но ни один не совпал точно:\n\n%1$s\n\nКандидаты:\n%3$s</string>

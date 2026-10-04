@@ -1291,7 +1291,32 @@ Single `:app` module, packages under
     linked transaction - only added when the match produced a draft
     *and* `FireflyPrefs.isConfigured()`, not shown at all for a no-match
     or an unconfigured connection:
-    - Already linked: neutral = "Open Transaction" (same
+    - Already linked: **fixed a real "pretends everything is fine" bug,
+      the user's own catch/report (screenshotted)** - reaching this
+      dialog used to trust `message.fireflyTransactionId` blindly, with
+      zero verification, so a transaction deleted by hand in Firefly
+      left "Open Transaction" pointing at a dead link with nothing on
+      screen explaining why. `showTestMatch` now routes the already-
+      linked case through `verifyLinkedThenShow` first: a live
+      `FireflyApiClient.getTransaction(id)` check: still there -> this
+      dialog, unchanged; confirmed gone (`404`) -> the stale link is
+      cleared (`MessageStore.setTransactionId(message, null)`) and
+      control falls through to `checkThenOpenCreateOrShowFound` (the
+      same fresh-match search-then-show/create flow below), now carrying
+      a `staleLinkedId` parameter so a replacement match (if search
+      finds one) shows `check_linked_transaction_gone_warning` ("⚠
+      Linked transaction #X no longer exists in Firefly") instead of
+      presenting the new match as if nothing had ever been linked;
+      nothing found falls through to `CreateTransactionActivity`, same
+      as any other fresh match. A verification failure (network/server
+      error, *not* confirmed gone) shows the error and stops - same
+      "don't guess" rule every dedup check in this file follows since
+      the stale-cache fix below. `MessagesFragment.checkIfCreated` got
+      the equivalent fix too, via a shared `staleLinkedIdOrNull` helper -
+      its own "Found"/"Found Multiple" dialogs now carry the same
+      warning whenever the message had a *different* linked id that's
+      confirmed gone, not just a content-match that happens to differ.
+      Neutral = "Open Transaction" (same
       `network.transactionUrl`/`ACTION_VIEW` as the success dialog's own
       button, factored into one `openTransaction(context, id)` helper
       both call, wired immediately - no async dependency), negative =
