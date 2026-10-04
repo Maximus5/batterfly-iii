@@ -52,6 +52,10 @@ Read both before making non-trivial changes, once they exist.
   or one bug fix + its regression test), not batched turns.
 - Once a remote/collaborators exist, treat history as immutable - no
   rewriting published commits.
+- Do not add a `Claude-Session:` (or similar session-URL) trailer to
+  commit messages or PR descriptions - whether that link is safe to
+  expose isn't established, and this repo's history can end up public.
+  `Co-Authored-By: Claude ...` alone is fine.
 
 ## Secrets
 
