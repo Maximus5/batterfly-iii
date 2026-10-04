@@ -795,7 +795,19 @@ Single `:app` module, packages under
       offers to open the same search, pre-filled, in Firefly's own web
       UI (`network.searchUrl`, confirmed against `routes/web.php`'s
       `search.index`/`SearchController::index` reading a `search` GET
-      parameter, not assumed). Found: the same
+      parameter, not assumed). Each listed raw candidate's field dump
+      (below) is labeled (`id=`/`date=`/`amount=`/`desc=`/`src=`/`dst=`)
+      rather than bare positional values, the user's own fix after
+      finding some fields unlabeled; the amount is also rounded to 2
+      decimal places for display (`setScale`), not the raw scale
+      Firefly's JSON happened to carry. **User's own call**: when
+      exactly one raw candidate came back, a neutral-slot "Use anyway"
+      button (between "Open search in Firefly" and Cancel, which stays
+      last per the house convention) links the message to it directly,
+      same as "Use Created" does elsewhere - one candidate makes the
+      client-side rejection more likely a field-comparison quirk than a
+      genuinely different transaction, so skip the round trip through
+      Firefly's own web search. Found: the same
       `showDuplicateConfirmDialog` the create flow uses, with
       `showCreateAnyway = false` - inflates `dialog_duplicate_confirm_3.xml`
       (three actions in one row) instead of `dialog_duplicate_confirm_4.xml`
@@ -864,9 +876,11 @@ Single `:app` module, packages under
       `showDuplicateConfirmDialog` (used by all three callers, not just
       `checkIfCreated`) now always appends the same level of detail
       (date/amount(+foreign)/description/source/destination,
-      `check_found_transaction_info`) for the transaction it's actually
-      offering as *the* match - a bare `#<id>` on its own gave the user
-      no way to independently judge the match without leaving the app.
+      `buildFoundTransactionInfo`, labeled with `showTestMatch`'s own
+      `test_match_label_*` strings rather than a new, denser format) for
+      the transaction it's actually offering as *the* match - a bare
+      `#<id>` on its own gave the user no way to independently judge the
+      match without leaving the app.
       `DuplicateCheckResult.Found`/`FoundMultiple` now carry an optional
       `candidate: RemoteTransactionCandidate?` - already populated for
       free for a remote-search hit, `null` for a local-log hit (which

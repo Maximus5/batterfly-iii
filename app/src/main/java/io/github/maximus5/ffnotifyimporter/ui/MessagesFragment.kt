@@ -42,6 +42,7 @@ import io.github.maximus5.ffnotifyimporter.rules.TransactionDraft
 import io.github.maximus5.ffnotifyimporter.rules.applyApproxConversion
 import io.github.maximus5.ffnotifyimporter.rules.remoteCandidateMatches
 import io.github.maximus5.ffnotifyimporter.rules.transactionDedupHash
+import java.math.RoundingMode
 import java.time.Instant
 import java.util.Date
 import kotlinx.coroutines.launch
@@ -426,12 +427,14 @@ class MessagesFragment : Fragment() {
         }
     }
 
-    /** Plain-text field dump appended to the duplicate-confirm dialog's message, same spirit as
-     * [showSearchNotFoundDialog]'s "Candidates:" list - seeing the found transaction's actual
-     * date/amount/description/accounts is what lets the user judge a match independently, not
-     * just trust a bare id. Shows the foreign amount/currency alongside the home one when
-     * present, for the same reason the home amount alone is unreliable for matching (see
-     * `network.dedupSearchQuery`'s KDoc) - it's informative here too, not just for searching. */
+    /** Labeled field summary appended to the duplicate-confirm dialog's message - reuses
+     * `showTestMatch`'s own field labels (`test_match_label_*`) so this reads the same way as the
+     * already-familiar match-preview dialog, rather than inventing a second, denser text format.
+     * Seeing the found transaction's actual date/amount/description/accounts is what lets the
+     * user judge a match independently, not just trust a bare id. Shows the foreign amount/
+     * currency alongside the home one when present, for the same reason the home amount alone is
+     * unreliable for matching (see `network.dedupSearchQuery`'s KDoc) - it's informative here too,
+     * not just for searching. */
     private fun buildFoundTransactionInfo(candidate: RemoteTransactionCandidate): String {
         val amountText = if (candidate.foreignAmount != null && candidate.foreignCurrencyCode != null) {
             "${candidate.amount.toPlainString()} ${candidate.currencyCode} " +
@@ -439,14 +442,14 @@ class MessagesFragment : Fragment() {
         } else {
             "${candidate.amount.toPlainString()} ${candidate.currencyCode}"
         }
-        return "\n\n" + getString(
-            R.string.check_found_transaction_info,
-            formatDraftDate(candidate.date),
-            amountText,
-            candidate.description,
-            candidate.sourceName.orEmpty(),
-            candidate.destinationName.orEmpty(),
+        val lines = mutableListOf(
+            "${getString(R.string.test_match_label_date)} ${formatDraftDate(candidate.date)}",
+            "${getString(R.string.test_match_label_amount)} $amountText",
+            "${getString(R.string.test_match_label_description)} ${candidate.description}",
         )
+        candidate.sourceName?.let { lines += "${getString(R.string.test_match_label_source)} $it" }
+        candidate.destinationName?.let { lines += "${getString(R.string.test_match_label_destination)} $it" }
+        return "\n\n" + lines.joinToString("\n")
     }
 
     /** Records both dedup hash variants on success - see `CreatedTransactionsDb`'s KDoc for why
@@ -707,7 +710,7 @@ class MessagesFragment : Fragment() {
                         description = resolved.description,
                         includeDescription = effectiveIncludeDescription,
                     ).orEmpty()
-                    showSearchNotFoundDialog(context, query, r.rawCandidates)
+                    showSearchNotFoundDialog(context, query, r.rawCandidates, message)
                 }
                 is DuplicateCheckResult.Found ->
                     showDuplicateConfirmDialog(
@@ -762,27 +765,43 @@ class MessagesFragment : Fragment() {
      * different, more useful signal than "found literally nothing", and seeing the candidate's
      * real date/amount/account/description next to what was searched for is what actually shows
      * *why* the match failed (case, whitespace, a stale date, ...) instead of needing another
-     * debug round-trip to find out. */
-    private fun showSearchNotFoundDialog(context: Context, query: String, rawCandidates: List<RemoteTransactionCandidate>) {
-        val message = if (rawCandidates.isNotEmpty()) {
+     * debug round-trip to find out. When exactly one candidate came back, a "Use anyway" button
+     * (neutral slot - between the search-in-Firefly action and Cancel, which stays last per the
+     * house convention) links [message] to it directly - the user's own call: with only one
+     * candidate, the client-side rejection is more likely a field-comparison quirk than a genuine
+     * different transaction, so skip the round trip through Firefly's own search UI. */
+    private fun showSearchNotFoundDialog(
+        context: Context,
+        query: String,
+        rawCandidates: List<RemoteTransactionCandidate>,
+        message: CapturedMessage,
+    ) {
+        val dialogMessage = if (rawCandidates.isNotEmpty()) {
             val candidateLines = rawCandidates.joinToString("\n") {
-                "#${it.groupId} ${it.date} ${it.amount} ${it.currencyCode} \"${it.description}\" " +
-                    "src=${it.sourceId}/${it.sourceName} dst=${it.destinationId}/${it.destinationName}"
+                "id=${it.groupId} date=${it.date} amount=${it.amount.setScale(2, RoundingMode.HALF_UP)} ${it.currencyCode} " +
+                    "desc=\"${it.description}\" src=${it.sourceId}/${it.sourceName} dst=${it.destinationId}/${it.destinationName}"
             }
             getString(R.string.check_not_found_message_with_candidates, query, rawCandidates.size, candidateLines)
         } else {
             getString(R.string.check_not_found_message, query)
         }
+        val onlyCandidate = rawCandidates.singleOrNull()
         // Cancel always rightmost/last (house convention, AGENTS.md).
-        AlertDialog.Builder(context)
+        val builder = AlertDialog.Builder(context)
             .setTitle(R.string.check_not_found_title)
-            .setMessage(message)
+            .setMessage(dialogMessage)
             .setNegativeButton(R.string.check_open_search_in_firefly) { _, _ ->
                 val baseUrl = FireflyPrefs(context).getBaseUrl()
                 startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(searchUrl(baseUrl, query))))
             }
             .setPositiveButton(android.R.string.cancel, null)
-            .show()
+        if (onlyCandidate != null) {
+            builder.setNeutralButton(R.string.check_use_anyway) { _, _ ->
+                MessageStore.shared.setTransactionId(message, onlyCandidate.groupId)
+                Toast.makeText(context, getString(R.string.create_already_created_linked, onlyCandidate.groupId), Toast.LENGTH_SHORT).show()
+            }
+        }
+        builder.show()
     }
 
     private fun confirmDeleteSelected() {
