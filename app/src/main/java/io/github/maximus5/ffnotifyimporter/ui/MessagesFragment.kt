@@ -24,6 +24,7 @@ import io.github.maximus5.ffnotifyimporter.databinding.FragmentMessagesBinding
 import io.github.maximus5.ffnotifyimporter.network.ExchangeRateClient
 import io.github.maximus5.ffnotifyimporter.network.FireflyApiClient
 import io.github.maximus5.ffnotifyimporter.network.FireflyTransactionRequest
+import io.github.maximus5.ffnotifyimporter.network.dedupSearchQuery
 import io.github.maximus5.ffnotifyimporter.network.transactionUrl
 import io.github.maximus5.ffnotifyimporter.prefs.FireflyPrefs
 import io.github.maximus5.ffnotifyimporter.rules.CreatedTransactionsDb
@@ -220,7 +221,7 @@ class MessagesFragment : Fragment() {
     }
 
     /** Local dedup log first (`CreatedTransactionsDb`, this app's own log); only if *that* comes
-     * up empty does it also ask Firefly itself (`FireflyApiClient.searchNearbyTransactions`) - a
+     * up empty does it also ask Firefly itself (`FireflyApiClient.searchTransactionsByQuery`) - a
      * second device/app notifying about the same real payment wouldn't be in this app's own log
      * at all, so a clean local lookup alone can't rule that out. Shared between the preemptive
      * check above (fresh create) and [startCreate] below ("Create Again"). */
@@ -235,14 +236,24 @@ class MessagesFragment : Fragment() {
             .findWithinWindow(hash, includeDescription, draft.date.toEpochMilli(), windowMinutes)
         if (localFoundId != null) return DuplicateCheckResult.Found(localFoundId)
 
-        // Only an asset account has a Firefly id on this app's side (see FireflyAccount's KDoc) -
-        // without one there's no account to scope the remote query to, so it's skipped entirely
-        // rather than searching unscoped (same amount/date could coincidentally match an unrelated
-        // transaction on a different account).
-        val accountId = draft.sourceAccountId ?: draft.destinationAccountId ?: return DuplicateCheckResult.None
+        // A name, not a Firefly id - this app frequently only has a name for an account that was
+        // typed rather than picked from FireflyApiClient.listAssetAccounts, and posting by name
+        // alone is already fully supported, so dedup searching by name only is too (see
+        // dedupSearchQuery's KDoc - null here means neither side has a name at all, nothing to
+        // search on, so the remote check is skipped rather than searching unscoped).
+        val query = dedupSearchQuery(
+            amount = draft.amount,
+            currencyCode = draft.currencyCode,
+            centerDate = draft.date,
+            windowMinutes = windowMinutes,
+            sourceName = draft.sourceName,
+            destinationName = draft.destinationName,
+            description = draft.description,
+            includeDescription = includeDescription,
+        ) ?: return DuplicateCheckResult.None
 
         val client = FireflyApiClient(prefs.getBaseUrl(), prefs.getToken())
-        return when (val result = client.searchNearbyTransactions(accountId, draft.date, windowMinutes)) {
+        return when (val result = client.searchTransactionsByQuery(query)) {
             is FireflyApiClient.Result.Success -> {
                 val matches = result.value
                     .map {

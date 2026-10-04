@@ -146,24 +146,28 @@ work.
       same real payment never touches `CreatedTransactionsDb` at all.
       `checkForDuplicate` (shared by the fresh-create and "Create Again"
       paths - see the preemptive-dialog item below) now also asks
-      Firefly itself (`FireflyApiClient.searchNearbyTransactions`, `GET
-      /v1/accounts/{id}/transactions?start=...&end=...` - account-
-      scoped, confirmed against `Account/ListController::transactions()`'s
-      source rather than assumed) once the local lookup comes up empty,
-      scoped to whichever side of the draft has a Firefly account id
-      (skipped entirely if neither side does - nothing to scope the
-      query to). **Real on-device gap found this way**: a rule whose
-      asset-side account was typed as free text instead of picked via
-      `RuleEditFragment.showAccountPicker` has neither id, so the
-      remote check never runs for it at all - confirmed against the
-      user's own real rule (debug build dump: `sourceAccountId=null
-      destinationAccountId=null`). Not yet fixed - would need either
-      nudging the user to re-pick the account from the list, or falling
-      back to Firefly's free-text `/v1/search/transactions` endpoint
-      (not yet verified - its query syntax wasn't pinned down when
-      `searchNearbyTransactions` was first built, which is why the
-      account-scoped endpoint was chosen instead) when no account id is
-      available on either side. `rules.remoteCandidateMatches` (pure, unit tested -
+      Firefly itself (`FireflyApiClient.searchTransactionsByQuery`, `GET
+      /v1/search/transactions?query=...` - Firefly's own operator-search
+      syntax, `network.dedupSearchQuery` builds the query string) once
+      the local lookup comes up empty, scoped by whichever side of the
+      draft has a name (**not** a Firefly account id - a first version
+      of this used the account-id-scoped `GET
+      /v1/accounts/{id}/transactions?start=...&end=...` instead, and the
+      user caught a real bug directly: a rule whose account was typed as
+      free text rather than picked via `RuleEditFragment.
+      showAccountPicker` has no id, so that version's remote check never
+      ran for it at all - confirmed against the user's own real rule via
+      a debug build dump (`sourceAccountId=null destinationAccountId=null`)
+      - even though posting a transaction by name alone works fine and
+      always has. Fixed by switching to the free-text search endpoint,
+      scoped by name instead - its query syntax was deliberately left
+      unverified/avoided the first time this was built; properly
+      verified this time against `OperatorQuerySearch`'s current source
+      for the operator names (`amount_is`/`currency_is`/`date_after`/
+      `date_before`/`source_account_is`/`destination_account_is`/
+      `description_is`) and the `gdbots/query-parser` composer
+      dependency's own docs for the quoting syntax, not guessed).
+      `rules.remoteCandidateMatches` (pure, unit tested -
       `TransactionDedupTest`) does the exact-match check client-side
       (date window, amount, currency, description-if-the-toggle-says-so,
       account by id-or-name) by reshaping the candidate into a throwaway

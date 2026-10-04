@@ -5,7 +5,7 @@ import kotlinx.coroutines.withContext
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
-import java.time.Instant
+import java.net.URLEncoder
 
 /**
  * Thin wrapper over Firefly III's REST API - plain [HttpURLConnection] + `org.json`
@@ -90,24 +90,25 @@ class FireflyApiClient(baseUrl: String, private val token: String) {
         }
     }
 
-    /** `GET /v1/accounts/{accountId}/transactions?start=...&end=...` - every transaction split
-     * touching [accountId] within a `±windowMinutes` window around [centerDate] (confirmed
-     * against `Account/ListController::transactions()`'s source, not assumed - `start`/`end` are
-     * whole calendar days, `dedupSearchDateRange` rounds generously to cover the real window).
-     * Used by `MessagesFragment`'s remote duplicate check (see TODO.md's dedup history) once the
-     * local dedup log already came up empty - a second device/app notifying about the same real
-     * payment wouldn't be in *this* app's own log at all. Follows `meta.pagination` the same way
-     * [listAssetAccounts] does, though a single-account date-windowed query is unlikely to need
-     * more than one page in practice. */
-    suspend fun searchNearbyTransactions(accountId: String, centerDate: Instant, windowMinutes: Int): Result<List<FireflyTransactionCandidate>> =
+    /** `GET /v1/search/transactions?query=...` - Firefly's own operator-trigger search (see
+     * [dedupSearchQuery]'s KDoc), *not* scoped to an account id - this app frequently only has an
+     * account *name* (typed rather than picked from [listAssetAccounts]), and that's already
+     * enough to post a transaction, so it's enough to search for one too. Used by
+     * `MessagesFragment`'s remote duplicate check (see TODO.md's dedup history) once the local
+     * dedup log already came up empty - a second device/app notifying about the same real payment
+     * wouldn't be in *this* app's own log at all. Follows `meta.pagination` the same way
+     * [listAssetAccounts] does. Response shape is identical to [listAssetAccounts]'s sibling
+     * account-transactions endpoint (both go through the same `TransactionGroupTransformer`
+     * server-side), so [parseTransactionList] is reused unchanged. */
+    suspend fun searchTransactionsByQuery(query: String): Result<List<FireflyTransactionCandidate>> =
         withContext(Dispatchers.IO) {
             try {
-                val (start, end) = dedupSearchDateRange(centerDate, windowMinutes)
+                val encodedQuery = URLEncoder.encode(query, "UTF-8")
                 val candidates = mutableListOf<FireflyTransactionCandidate>()
                 var page = 1
                 var totalPagesSeen: Int
                 do {
-                    val connection = openConnection("/api/v1/accounts/$accountId/transactions?start=$start&end=$end&page=$page", "GET")
+                    val connection = openConnection("/api/v1/search/transactions?query=$encodedQuery&page=$page", "GET")
                     val code = connection.responseCode
                     if (code !in 200..299) return@withContext Result.Failure(errorMessage(connection, code))
                     val body = connection.inputStream.bufferedReader().use { it.readText() }

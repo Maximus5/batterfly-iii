@@ -5,6 +5,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.math.BigDecimal
 import java.time.Instant
 
 class FireflyUrlTest {
@@ -76,5 +77,113 @@ class FireflyUrlTest {
         val (start, end) = dedupSearchDateRange(Instant.parse("2026-03-01T00:02:00Z"), 5)
         assertEquals("2026-02-28", start)
         assertEquals("2026-03-01", end)
+    }
+
+    private val searchDate = Instant.parse("2026-03-01T12:00:00Z")
+
+    @Test
+    fun `dedupSearchQuery builds every term when everything is known`() {
+        val query = dedupSearchQuery(
+            amount = BigDecimal("12.5"),
+            currencyCode = "EUR",
+            centerDate = searchDate,
+            windowMinutes = 5,
+            sourceName = "Bank Account A",
+            destinationName = "Shop1234",
+            description = "Shop1234 City",
+            includeDescription = true,
+        )
+
+        assertEquals(
+            "amount_is:12.50 currency_is:EUR date_after:2026-03-01 date_before:2026-03-01 " +
+                "source_account_is:\"Bank Account A\" destination_account_is:Shop1234 description_is:\"Shop1234 City\"",
+            query,
+        )
+    }
+
+    @Test
+    fun `dedupSearchQuery canonicalizes the amount to two decimal places`() {
+        val query = dedupSearchQuery(
+            amount = BigDecimal("12.5"),
+            currencyCode = "EUR",
+            centerDate = searchDate,
+            windowMinutes = 5,
+            sourceName = "Bank Account A",
+            destinationName = null,
+            description = "x",
+            includeDescription = false,
+        )
+
+        assertTrue(query!!.contains("amount_is:12.50"))
+    }
+
+    @Test
+    fun `dedupSearchQuery omits description_is when includeDescription is false`() {
+        val query = dedupSearchQuery(
+            amount = BigDecimal("12.50"),
+            currencyCode = "EUR",
+            centerDate = searchDate,
+            windowMinutes = 5,
+            sourceName = "Bank Account A",
+            destinationName = null,
+            description = "Shop1234 City",
+            includeDescription = false,
+        )
+
+        assertFalse(query!!.contains("description_is"))
+    }
+
+    @Test
+    fun `dedupSearchQuery only includes whichever side's name is known`() {
+        val sourceOnly = dedupSearchQuery(
+            amount = BigDecimal("12.50"), currencyCode = "EUR", centerDate = searchDate, windowMinutes = 5,
+            sourceName = "Bank Account A", destinationName = null, description = "x", includeDescription = false,
+        )
+        assertTrue(sourceOnly!!.contains("source_account_is"))
+        assertFalse(sourceOnly.contains("destination_account_is"))
+
+        val destinationOnly = dedupSearchQuery(
+            amount = BigDecimal("12.50"), currencyCode = "EUR", centerDate = searchDate, windowMinutes = 5,
+            sourceName = null, destinationName = "Shop1234", description = "x", includeDescription = false,
+        )
+        assertFalse(destinationOnly!!.contains("source_account_is"))
+        assertTrue(destinationOnly.contains("destination_account_is"))
+    }
+
+    @Test
+    fun `dedupSearchQuery is null when neither account name nor the amount is known`() {
+        assertNull(
+            dedupSearchQuery(
+                amount = BigDecimal("12.50"), currencyCode = "EUR", centerDate = searchDate, windowMinutes = 5,
+                sourceName = null, destinationName = null, description = "x", includeDescription = false,
+            ),
+        )
+        assertNull(
+            dedupSearchQuery(
+                amount = null, currencyCode = "EUR", centerDate = searchDate, windowMinutes = 5,
+                sourceName = "Bank Account A", destinationName = null, description = "x", includeDescription = false,
+            ),
+        )
+    }
+
+    @Test
+    fun `dedupSearchQuery quotes a value containing whitespace, leaves a bare token alone`() {
+        val query = dedupSearchQuery(
+            amount = BigDecimal("12.50"), currencyCode = "EUR", centerDate = searchDate, windowMinutes = 5,
+            sourceName = "Loyalty Program A", destinationName = "Shop1234", description = "x", includeDescription = false,
+        )
+
+        assertTrue(query!!.contains("source_account_is:\"Loyalty Program A\""))
+        assertTrue(query.contains("destination_account_is:Shop1234"))
+    }
+
+    @Test
+    fun `dedupSearchQuery escapes an embedded double quote in a value`() {
+        val query = dedupSearchQuery(
+            amount = BigDecimal("12.50"), currencyCode = "EUR", centerDate = searchDate, windowMinutes = 5,
+            sourceName = "The \"Best\" Cafe", destinationName = null, description = "x", includeDescription = false,
+        )
+
+        assertTrue(query!!.contains("source_account_is:\"The \\\"Best\\\" Cafe\""))
     }
 }

@@ -459,13 +459,28 @@ Single `:app` module, packages under
     route itself was checked against Firefly's current `routes/web.php`
     on GitHub, not assumed; see `MessagesFragment`'s "Open Transaction"
     button below). `dedupSearchDateRange(centerDate, windowMinutes)` -
-    the `start`/`end` (plain `yyyy-MM-dd`, Firefly's own date-only
-    filter granularity - confirmed against `Account/
-    ListController::transactions()`'s source) that generously cover a
-    ±window around a transaction's date, for `searchNearbyTransactions`
-    below; the precise minute-level check happens client-side afterwards
-    (`rules.remoteCandidateMatches`), this just avoids pulling an
-    account's entire history over the network.
+    the `date_after`/`date_before` values (plain `yyyy-MM-dd`) that
+    generously cover a ±window around a transaction's date, for
+    `dedupSearchQuery` below; the precise minute-level check happens
+    client-side afterwards (`rules.remoteCandidateMatches`), this just
+    avoids pulling unrelated history over the network.
+    `dedupSearchQuery(amount, currencyCode, centerDate, windowMinutes,
+    sourceName, destinationName, description, includeDescription)` -
+    builds the query string for `FireflyApiClient.
+    searchTransactionsByQuery` (`FireflyUrlTest`): Firefly's own
+    operator-trigger search syntax (`field:value`/`field:"quoted
+    value"`, built on the `gdbots/query-parser` composer dependency -
+    confirmed both the operator names
+    (`amount_is`/`currency_is`/`date_after`/`date_before`/
+    `source_account_is`/`destination_account_is`/`description_is`)
+    against `OperatorQuerySearch`'s current source and the quoting
+    syntax against `gdbots/query-parser`'s own docs, not guessed).
+    Deliberately scoped by *name*, not a Firefly account id - see
+    `FireflyApiClient.searchTransactionsByQuery`'s KDoc below for why
+    that's a deliberate fix, not the original design. Null (skip the
+    remote check entirely) when the amount is unresolved or neither
+    account side has a name to search on - searching on amount+date
+    alone could coincidentally match an unrelated transaction.
   - `FireflyApiClient` - plain `HttpURLConnection` + `org.json`, not
     OkHttp/Retrofit - same "avoid a new dependency when the framework
     already covers it" reasoning as the planned rules export/import
@@ -497,20 +512,32 @@ Single `:app` module, packages under
     a free extra safety net on top of this app's own planned dedup
     check (see TODO.md), since Firefly rejects the request outright if
     *it* also thinks this is a duplicate.
-    `searchNearbyTransactions(accountId, centerDate, windowMinutes)` -
-    `GET /v1/accounts/{id}/transactions?start=...&end=...`
-    (account-scoped, not the free-text `/v1/search/transactions`
-    endpoint - that one's query syntax wasn't worth depending on when
-    an exact date/account filter plus client-side matching is both
-    simpler and more precise; confirmed the chosen endpoint exists and
-    reads `start`/`end`/`type`/`limit`/`page` against
-    `routes/api.php`/`Account/ListController`'s current source, not
-    assumed), paginated the same way `listAssetAccounts` is. Response
-    parsing (`FireflyJson.parseTransactionList`) flattens every
-    returned group's splits into one list, each keeping its own
-    group's id - this app's own transactions never split, but a real
-    one in Firefly might; field names (`date` as Carbon's
-    `toAtomString()`, `amount`, `currency_code`, `description`,
+    `searchTransactionsByQuery(query)` - `GET
+    /v1/search/transactions?query=...` (the free-text operator-search
+    endpoint, `query` built by `dedupSearchQuery` above and
+    URL-encoded), paginated the same way `listAssetAccounts` is.
+    **Replaced an earlier account-id-scoped version** (`GET
+    /v1/accounts/{id}/transactions?start=...&end=...`) that required a
+    Firefly account id on at least one side of the draft to even run -
+    a real on-device bug the user caught directly: this app frequently
+    only has an account *name* (a rule's source/destination typed as
+    free text rather than picked from `listAssetAccounts`), and posting
+    a transaction by name alone is already fully supported
+    (`FireflyTransactionRequest`), so the remote dedup check silently
+    never ran at all for exactly the rules most likely to need it,
+    while creation itself worked fine. The free-text endpoint's query
+    syntax was deliberately avoided the first time this was built
+    (not verified, judged not worth the risk) - properly verified this
+    time against `OperatorQuerySearch`'s current source (the operator
+    names) and `gdbots/query-parser`'s own docs (the quoting syntax),
+    see `dedupSearchQuery`'s KDoc. Response parsing
+    (`FireflyJson.parseTransactionList`) is unchanged - both endpoints
+    return the identical shape (same `TransactionGroupTransformer`
+    server-side) - flattens every returned group's splits into one
+    list, each keeping its own group's id - this app's own transactions
+    never split, but a real one in Firefly might; field names (`date`
+    as Carbon's `toAtomString()`, `amount`, `currency_code`,
+    `description`,
     `source_id`/`source_name`/`destination_id`/`destination_name`)
     confirmed against `TransactionGroupTransformer`'s current source.
     Used by `MessagesFragment`'s remote duplicate check below once the
@@ -769,18 +796,18 @@ Single `:app` module, packages under
     whichever of the two stored hash columns matches the setting right
     now (see `CreatedTransactionsDb`'s own KDoc for why both are always
     written). Only if *that* comes up empty does it also ask Firefly
-    itself (`FireflyApiClient.searchNearbyTransactions`, see the
+    itself (`FireflyApiClient.searchTransactionsByQuery`, see the
     `network` section above) - the local log alone can't catch a
     duplicate a second device or app's own integration created, since
-    it never touches this app's log at all. Scoped to whichever of
-    `draft`'s source/destination has a Firefly account id - **a real
-    on-device gap, not yet fixed**: a rule whose asset-side account was
-    typed as free text rather than picked from `showAccountPicker`
-    (see the `RuleEditFragment` notes below) has neither id, so the
-    remote check is skipped entirely and only the local log can ever
-    catch anything for it; confirmed via a debug build the user ran
-    against a real rule shaped exactly like this. Filtered client-side
-    via `rules.remoteCandidateMatches` (see the `rules` section above).
+    it never touches this app's log at all. Scoped by whichever of
+    `draft`'s source/destination *name* is known - deliberately not a
+    Firefly account id (see `FireflyApiClient.searchTransactionsByQuery`'s
+    KDoc for the real on-device gap this fixed: a rule whose account was
+    typed as free text rather than picked from `showAccountPicker`, see
+    the `RuleEditFragment` notes below, has no id at all, so an
+    id-scoped search used to skip it entirely even though posting by
+    name works fine). Filtered client-side via
+    `rules.remoteCandidateMatches` (see the `rules` section above).
     Zero remote matches -> `None`; exactly one -> `Found`; more than one
     -> `FoundMultiple`, which both call sites turn into an *additional*
     Toast warning (`create_remote_duplicates_found`) on top of the same
