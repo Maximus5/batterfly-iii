@@ -1,8 +1,6 @@
 package io.github.maximus5.ffnotifyimporter.ui
 
 import android.Manifest
-import android.content.pm.PackageManager
-import android.os.Build
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
@@ -11,13 +9,13 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import io.github.maximus5.ffnotifyimporter.R
 import io.github.maximus5.ffnotifyimporter.databinding.FragmentFireflySettingsBinding
 import io.github.maximus5.ffnotifyimporter.network.FireflyApiClient
 import io.github.maximus5.ffnotifyimporter.network.isCleartextUrl
+import io.github.maximus5.ffnotifyimporter.posting.isNotificationPermissionGranted
 import io.github.maximus5.ffnotifyimporter.prefs.FireflyPrefs
 import kotlinx.coroutines.launch
 
@@ -30,10 +28,12 @@ class FireflySettingsFragment : Fragment() {
     private var binding: FragmentFireflySettingsBinding? = null
     private lateinit var prefs: FireflyPrefs
 
-    /** Requested the moment the user turns auto-create on, not at app startup - API 33+ only
-     * (`POST_NOTIFICATIONS` didn't exist as a runtime permission before that; a notification just
-     * showed unconditionally). Declining it doesn't block the switch itself - auto-create still
-     * works without it, the user just won't see `posting.AutoCreateNotifications`' outcome
+    /** Requested the moment the user turns auto-create on, and also on opening this screen while
+     * it's already on (the user's own catch: a switch already enabled from a build before this
+     * check existed, or opening this screen is as good a moment as any to notice a later-revoked
+     * permission - `ui.MainActivity` separately re-checks at every app start too, for a user who
+     * never opens this screen again). Declining it doesn't block the switch itself - auto-create
+     * still works without it, the user just won't see `posting.AutoCreateNotifications`' outcome
      * notifications (same as `BankNotificationListenerService`'s own "go grant this in system
      * settings yourself" permission, no in-app gate on functioning without it). */
     private val notificationPermissionLauncher =
@@ -69,15 +69,14 @@ class FireflySettingsFragment : Fragment() {
         })
 
         binding.autoCreateSwitch.setOnCheckedChangeListener { _, isChecked -> if (isChecked) requestNotificationPermissionIfNeeded() }
+        if (binding.autoCreateSwitch.isChecked) requestNotificationPermissionIfNeeded()
 
         binding.testConnectionButton.setOnClickListener { testConnection() }
         binding.saveButton.setOnClickListener { save() }
     }
 
     private fun requestNotificationPermissionIfNeeded() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
-        val context = requireContext()
-        if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) return
+        if (isNotificationPermissionGranted(requireContext())) return
         notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
     }
 

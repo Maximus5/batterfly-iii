@@ -852,14 +852,25 @@ Single `:app` module, packages under
     that transaction, not the app's own message list) - so getting
     there doesn't need going through the app first, without changing
     what a plain tap on the body does. Requires `POST_NOTIFICATIONS` on
-    API 33+
-    (declared in the manifest, requested from `FireflySettingsFragment`
-    the moment the user turns the "Auto-create" switch on, not at app
-    startup) - a declined/missing permission is caught as a
-    `SecurityException` around `NotificationManagerCompat.notify` and
-    silently skipped, same "doesn't block the feature from working,
-    just from being visible" shape `BankNotificationListenerService`'s
-    own notification-listener access already has.
+    API 33+ (declared in the manifest; `posting.
+    isNotificationPermissionGranted(context)` is the one shared check,
+    always true below API 33 where the permission doesn't exist) - a
+    declined/missing permission is caught as a `SecurityException`
+    around `NotificationManagerCompat.notify` and silently skipped, same
+    "doesn't block the feature from working, just from being visible"
+    shape `BankNotificationListenerService`'s own notification-listener
+    access already has. Requested from three places, not just one -
+    **fixed a real "the user has no idea this is silently broken" gap**:
+    requesting only when `FireflySettingsFragment`'s switch is actually
+    toggled on missed the case where it was already on (enabled in a
+    build before this permission check existed, or the permission later
+    revoked by hand in system settings) - that user would never see the
+    permission dialog again and would never know auto-create's own
+    notifications had gone silent. Now requested (a) from
+    `FireflySettingsFragment` when the switch is toggled on, (b) from
+    that same screen's `onViewCreated` if it's already on when the
+    screen opens, and (c) from `MainActivity.onCreate`, every app start,
+    for a user who never opens Firefly III settings again at all.
     **Needs real-device verification** (not yet done, see TODO.md):
     nothing here can be exercised by a JVM unit test (WorkManager,
     system notifications, and the notification-listener path itself all

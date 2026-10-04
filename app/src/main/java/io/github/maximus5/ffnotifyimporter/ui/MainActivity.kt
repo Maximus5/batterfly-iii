@@ -1,13 +1,17 @@
 package io.github.maximus5.ffnotifyimporter.ui
 
+import android.Manifest
 import android.content.Intent
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
 import androidx.activity.OnBackPressedCallback
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import io.github.maximus5.ffnotifyimporter.R
 import io.github.maximus5.ffnotifyimporter.databinding.ActivityMainBinding
+import io.github.maximus5.ffnotifyimporter.posting.isNotificationPermissionGranted
+import io.github.maximus5.ffnotifyimporter.prefs.FireflyPrefs
 
 /** Home screen: just the captured-messages list. Everything else lives behind the settings icon. */
 class MainActivity : AppCompatActivity() {
@@ -15,6 +19,14 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private var onSelectionDelete: (() -> Unit)? = null
     private var onSelectionCancel: (() -> Unit)? = null
+
+    /** Catches the case `FireflySettingsFragment`'s own request (when the switch is actually
+     * toggled on) can't: auto-create already enabled from before this permission check existed,
+     * or the permission later revoked by hand in system settings, with the user never opening
+     * Firefly III settings again to re-trigger it there. Checked on every app start, not just
+     * first install, for the same "could have changed since last time" reason. */
+    private val notificationPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { /* no-op either way */ }
 
     // Starts disabled (falls through to the default back behavior - exit) and is only enabled
     // while a selection is active, so system back (button or gesture, not just the toolbar's own
@@ -38,6 +50,10 @@ class MainActivity : AppCompatActivity() {
             supportFragmentManager.beginTransaction()
                 .replace(R.id.fragmentContainer, MessagesFragment())
                 .commit()
+        }
+
+        if (FireflyPrefs(this).isAutoCreateEnabled() && !isNotificationPermissionGranted(this)) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
     }
 
