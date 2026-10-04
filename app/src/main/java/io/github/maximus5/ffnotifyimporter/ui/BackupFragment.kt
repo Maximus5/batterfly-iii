@@ -134,11 +134,13 @@ class BackupFragment : Fragment() {
      * user first, the same "ask before a destructive/hard-to-reverse action" instinct that was
      * missing from this app's old SQLite onUpgrade pattern (see ARCHITECTURE.md's Known bugs). */
     private fun confirmRestoreFrom(uri: Uri) {
+        // Cancel always rightmost/last (house convention, see AGENTS.md) - the action sits in the
+        // negative slot instead of positive so Cancel can take the positive (rightmost) one.
         AlertDialog.Builder(requireContext())
             .setTitle(R.string.backup_restore_confirm_title)
             .setMessage(R.string.backup_restore_confirm_message)
-            .setPositiveButton(R.string.backup_restore_confirm_button) { _, _ -> restoreFrom(uri) }
-            .setNegativeButton(android.R.string.cancel, null)
+            .setNegativeButton(R.string.backup_restore_confirm_button) { _, _ -> restoreFrom(uri) }
+            .setPositiveButton(android.R.string.cancel, null)
             .show()
     }
 

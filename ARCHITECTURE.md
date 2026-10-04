@@ -754,11 +754,12 @@ Single `:app` module, packages under
       `search.index`/`SearchController::index` reading a `search` GET
       parameter, not assumed). Found: the same
       `showDuplicateConfirmDialog` the create flow uses, with
-      `showCreateAnyway = false` - drops the "Create anyway" row
-      entirely (`dialog_duplicate_confirm.xml`'s button just
-      `View.GONE`) and swaps in check-specific title/message strings,
-      since "post one anyway" isn't a meaningful option for a pure
-      lookup.
+      `showCreateAnyway = false` - inflates `dialog_duplicate_confirm_3.xml`
+      (three actions in one row) instead of `dialog_duplicate_confirm_4.xml`
+      (the 2x2 grid, used when `showCreateAnyway` is true - see its own
+      entry below) rather than toggling a fourth button's visibility, and
+      swaps in check-specific title/message strings, since "post one
+      anyway" isn't a meaningful option for a pure lookup.
       **Fixed a real "the app is lying to me" bug**: `DuplicateCheckResult`
       used to collapse "genuinely zero matches" and "the remote search's
       HTTP call itself failed" into the same `None` case (deliberate for
@@ -927,10 +928,12 @@ Single `:app` module, packages under
     deliberate answer the user gave directly when asked, not assumed.
     Four is more than `AlertDialog.Builder`'s positive/negative/neutral
     slots can hold, so `showDuplicateConfirmDialog` builds it as a
-    plain custom view (`dialog_duplicate_confirm.xml`, one full-width
-    borderless button per row - same "native combo doesn't do what's
-    needed" reasoning as the rule editor's "Test results" dialog)
-    instead of the native button bar: "Use Created" (links the *found*
+    plain custom view (`dialog_duplicate_confirm_4.xml`, a 2x2 grid of
+    borderless buttons - same "native combo doesn't do what's needed"
+    reasoning as the rule editor's "Test results" dialog; a stack of
+    four full-width rows, tried first, left too much dead vertical
+    space for such short labels) instead of the native button bar:
+    "Use Created" (links the *found*
     id - `findWithinWindow`'s return value, not a fresh post - to this
     message via `MessageStore.setTransactionId`, since the dedup check
     already did the work of locating it), "Open" (right after Use

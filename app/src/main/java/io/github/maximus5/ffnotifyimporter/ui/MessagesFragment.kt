@@ -334,19 +334,20 @@ class MessagesFragment : Fragment() {
         }
     }
 
-    /** Four actions, not three ("Use Created"/"Open"/"Create anyway"/"Cancel", Cancel always
-     * last) - more than `AlertDialog.Builder`'s positive/negative/neutral slots can hold, so this
-     * is a plain custom view (`dialog_duplicate_confirm.xml`, same reasoning as the rule editor's
-     * "Test results" dialog) instead of the native button bar. "Open" deliberately doesn't
-     * dismiss - it's "let me go check first", not a decision, so the dialog is still there to act
-     * on once the user comes back from Firefly. "Use Created" links the *found* transaction's id
-     * to [message] instead of posting a new one - the dedup check already did the work of finding
-     * it, no reason to make the user go dig it up by hand in Firefly.
+    /** Four actions ("Use Created"/"Open"/"Create anyway"/"Cancel", Cancel always last) - more
+     * than `AlertDialog.Builder`'s positive/negative/neutral slots can hold, so this is a plain
+     * custom view (same reasoning as the rule editor's "Test results" dialog) instead of the
+     * native button bar: `dialog_duplicate_confirm_4.xml`, a 2x2 grid (not four stacked full-width
+     * rows - that left a lot of dead vertical space for four short labels). "Open" deliberately
+     * doesn't dismiss - it's "let me go check first", not a decision, so the dialog is still there
+     * to act on once the user comes back from Firefly. "Use Created" links the *found*
+     * transaction's id to [message] instead of posting a new one - the dedup check already did the
+     * work of finding it, no reason to make the user go dig it up by hand in Firefly.
      *
-     * [showCreateAnyway] drops to three actions (no "Create anyway" row at all) for
-     * [checkIfCreated] - that flow is an explicit "just tell me" search, not a step on the way to
-     * posting a transaction, so "post one anyway" isn't a meaningful option there; title/message
-     * also switch to the check-specific wording in that case. */
+     * [showCreateAnyway] drops to three actions - `dialog_duplicate_confirm_3.xml`, one row
+     * instead of a grid - for [checkIfCreated]: that flow is an explicit "just tell me" search,
+     * not a step on the way to posting a transaction, so "post one anyway" isn't a meaningful
+     * option there; title/message also switch to the check-specific wording in that case. */
     private fun showDuplicateConfirmDialog(
         context: Context,
         foundId: String,
@@ -354,7 +355,8 @@ class MessagesFragment : Fragment() {
         message: CapturedMessage,
         showCreateAnyway: Boolean = true,
     ) {
-        val view = LayoutInflater.from(context).inflate(R.layout.dialog_duplicate_confirm, null, false)
+        val layoutRes = if (showCreateAnyway) R.layout.dialog_duplicate_confirm_4 else R.layout.dialog_duplicate_confirm_3
+        val view = LayoutInflater.from(context).inflate(layoutRes, null, false)
         val dialog = AlertDialog.Builder(context)
             .setTitle(if (showCreateAnyway) R.string.create_duplicate_confirm_title else R.string.check_found_title)
             .setMessage(
@@ -373,14 +375,11 @@ class MessagesFragment : Fragment() {
             dialog.dismiss()
         }
         view.findViewById<View>(R.id.openDuplicateButton).setOnClickListener { openTransaction(context, foundId) }
-        val createAnywayButton = view.findViewById<View>(R.id.createAnywayButton)
         if (showCreateAnyway) {
-            createAnywayButton.setOnClickListener {
+            view.findViewById<View>(R.id.createAnywayButton).setOnClickListener {
                 postTransaction(draft, message)
                 dialog.dismiss()
             }
-        } else {
-            createAnywayButton.visibility = View.GONE
         }
         view.findViewById<View>(R.id.cancelDuplicateButton).setOnClickListener { dialog.dismiss() }
 
@@ -563,11 +562,12 @@ class MessagesFragment : Fragment() {
     }
 
     private fun confirmDeleteSingle(message: CapturedMessage) {
+        // Cancel always rightmost/last (house convention, AGENTS.md).
         AlertDialog.Builder(requireContext())
             .setTitle(R.string.delete_messages_confirm_title)
             .setMessage(R.string.delete_messages_confirm_message)
-            .setPositiveButton(R.string.action_delete) { _, _ -> MessageStore.shared.remove(message) }
-            .setNegativeButton(android.R.string.cancel, null)
+            .setNegativeButton(R.string.action_delete) { _, _ -> MessageStore.shared.remove(message) }
+            .setPositiveButton(android.R.string.cancel, null)
             .show()
     }
 
@@ -671,27 +671,29 @@ class MessagesFragment : Fragment() {
         } else {
             getString(R.string.check_not_found_message, query)
         }
+        // Cancel always rightmost/last (house convention, AGENTS.md).
         AlertDialog.Builder(context)
             .setTitle(R.string.check_not_found_title)
             .setMessage(message)
-            .setPositiveButton(R.string.check_open_search_in_firefly) { _, _ ->
+            .setNegativeButton(R.string.check_open_search_in_firefly) { _, _ ->
                 val baseUrl = FireflyPrefs(context).getBaseUrl()
                 startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(searchUrl(baseUrl, query))))
             }
-            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(android.R.string.cancel, null)
             .show()
     }
 
     private fun confirmDeleteSelected() {
         val toDelete = adapter.selectedMessages()
+        // Cancel always rightmost/last (house convention, AGENTS.md).
         AlertDialog.Builder(requireContext())
             .setTitle(R.string.delete_messages_confirm_title)
             .setMessage(R.string.delete_messages_confirm_message)
-            .setPositiveButton(R.string.action_delete) { _, _ ->
+            .setNegativeButton(R.string.action_delete) { _, _ ->
                 toDelete.forEach { MessageStore.shared.remove(it) }
                 clearSelectionAndExit()
             }
-            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(android.R.string.cancel, null)
             .show()
     }
 

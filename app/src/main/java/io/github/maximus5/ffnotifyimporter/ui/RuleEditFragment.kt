@@ -546,13 +546,14 @@ class RuleEditFragment : Fragment() {
 
     private fun confirmDelete() {
         val id = existingRule?.id ?: return
+        // Cancel always rightmost/last (house convention, AGENTS.md).
         AlertDialog.Builder(requireContext())
             .setTitle(R.string.rule_delete_confirm_title)
-            .setPositiveButton(R.string.action_delete) { _, _ ->
+            .setNegativeButton(R.string.action_delete) { _, _ ->
                 rulesDb.delete(id)
                 parentFragmentManager.popBackStack()
             }
-            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(android.R.string.cancel, null)
             .show()
     }
 
@@ -563,11 +564,12 @@ class RuleEditFragment : Fragment() {
 
     private fun handleBackPressed() {
         if (hasUnsavedChanges()) {
+            // Cancel always rightmost/last (house convention, AGENTS.md).
             AlertDialog.Builder(requireContext())
                 .setTitle(R.string.rule_discard_changes_title)
                 .setMessage(R.string.rule_discard_changes_message)
-                .setPositiveButton(R.string.rule_discard_changes_discard) { _, _ -> parentFragmentManager.popBackStack() }
-                .setNegativeButton(android.R.string.cancel, null)
+                .setNegativeButton(R.string.rule_discard_changes_discard) { _, _ -> parentFragmentManager.popBackStack() }
+                .setPositiveButton(android.R.string.cancel, null)
                 .show()
         } else {
             parentFragmentManager.popBackStack()

@@ -44,6 +44,16 @@ Read both before making non-trivial changes, once they exist.
   post test notifications) and confirm it actually fires on a live
   notification and creates the expected Firefly III transaction.
 
+## UI conventions
+
+- In any dialog with a Cancel/dismiss action alongside one or more real
+  actions, Cancel is always the last button - rightmost in a horizontal
+  row, bottom-most/last in a vertical stack or grid. For a plain
+  `AlertDialog.Builder` with exactly one real action plus Cancel, that
+  means the real action goes in `setNegativeButton` (left) and Cancel in
+  `setPositiveButton` (right) - inverted from the usual positive/negative
+  meaning, deliberately, so Cancel lands in the rightmost slot.
+
 ## Git conventions
 
 - Commit author for this repo is set locally to `Claude <ConEmu.Maximus5@gmail.com>`

@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Four actions - AlertDialog.Builder's positive/negative/neutral slots max out at three, so
+     this is a plain custom view (same reasoning as dialog_test_results.xml), 2x2 instead of one
+     full-width row per button - that left a lot of dead vertical space for four short labels.
+     Top row: Use Created + Open, one group - acting on the found transaction (link or inspect
+     it). Bottom row: Create anyway + Cancel, always last (bottom-right - the last cell reading
+     left-to-right, top-to-bottom). -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingTop="4dp"
+    android:paddingBottom="4dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/useCreatedButton"
+            style="?attr/borderlessButtonStyle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:minHeight="40dp"
+            android:paddingStart="2dp"
+            android:paddingEnd="2dp"
+            android:textAllCaps="false"
+            android:textSize="13sp"
+            android:text="@string/create_duplicate_use_created" />
+
+        <Button
+            android:id="@+id/openDuplicateButton"
+            style="?attr/borderlessButtonStyle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:minHeight="40dp"
+            android:paddingStart="2dp"
+            android:paddingEnd="2dp"
+            android:textAllCaps="false"
+            android:textSize="13sp"
+            android:text="@string/create_duplicate_open" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/createAnywayButton"
+            style="?attr/borderlessButtonStyle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:minHeight="40dp"
+            android:paddingStart="2dp"
+            android:paddingEnd="2dp"
+            android:textAllCaps="false"
+            android:textSize="13sp"
+            android:text="@string/create_duplicate_confirm_button" />
+
+        <Button
+            android:id="@+id/cancelDuplicateButton"
+            style="?attr/borderlessButtonStyle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:minHeight="40dp"
+            android:paddingStart="2dp"
+            android:paddingEnd="2dp"
+            android:textAllCaps="false"
+            android:textSize="13sp"
+            android:text="@android:string/cancel" />
+
+    </LinearLayout>
+
+</LinearLayout>

@@ -56,15 +56,17 @@ class CurrenciesFragment : Fragment() {
         dialogBinding.currencyCodeInput.setText(existing?.code.orEmpty())
         dialogBinding.currencySymbolInput.setText(existing?.symbol.orEmpty())
 
+        // Cancel always rightmost/last (house convention, AGENTS.md) - Save sits in the negative
+        // slot instead of positive so Cancel can take the positive (rightmost) one.
         AlertDialog.Builder(requireContext())
             .setTitle(if (existing != null) R.string.currency_edit_title else R.string.currency_add)
             .setView(dialogBinding.root)
-            .setPositiveButton(R.string.action_save) { _, _ ->
+            .setNegativeButton(R.string.action_save) { _, _ ->
                 val code = dialogBinding.currencyCodeInput.text?.toString()?.trim().orEmpty().uppercase()
                 val symbol = dialogBinding.currencySymbolInput.text?.toString()?.trim().orEmpty()
                 if (code.isEmpty()) {
                     Toast.makeText(requireContext(), R.string.currency_code_required, Toast.LENGTH_SHORT).show()
-                    return@setPositiveButton
+                    return@setNegativeButton
                 }
                 // Renaming the code (not just editing symbol) - drop the old row first so it
                 // doesn't linger as a stale duplicate alongside the new one.
@@ -72,7 +74,7 @@ class CurrenciesFragment : Fragment() {
                 currenciesDb.add(CurrencyEntry(code, symbol))
                 reload()
             }
-            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(android.R.string.cancel, null)
             .show()
     }
 
@@ -94,13 +96,14 @@ class CurrenciesFragment : Fragment() {
     }
 
     private fun confirmDelete(entry: CurrencyEntry) {
+        // Cancel always rightmost/last (house convention, AGENTS.md).
         AlertDialog.Builder(requireContext())
             .setTitle(getString(R.string.currency_delete_confirm_title, entry.code))
-            .setPositiveButton(R.string.action_delete) { _, _ ->
+            .setNegativeButton(R.string.action_delete) { _, _ ->
                 currenciesDb.delete(entry.code)
                 reload()
             }
-            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(android.R.string.cancel, null)
             .show()
     }
 
