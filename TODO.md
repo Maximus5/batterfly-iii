@@ -505,10 +505,80 @@ work.
   currency symbol that appears sometimes before the amount, sometimes
   after, *within one bank's notification format*, can't be captured by
   one `(?<currency>...)` group placed in two spots or two alternation
-  branches. Hasn't come up for real yet (a given bank is consistent).
-  If it does: would need named-group aliases (e.g. `currencyBefore`/
-  `currencyAfter`, both treated as `Groups.CURRENCY` by `RuleEngine`)
-  rather than forcing the user to pick one position.
+  branches. Hasn't come up for a *user-authored* rule yet (a given bank
+  is consistent). **Decided** (the user's own call, for the built-in
+  fallback rules below, where it genuinely does come up - "amount
+  before the symbol" vs "after" can't be known in advance for a
+  generic catch-all): separate rules per position, not named-group
+  aliases - simpler, and consistent with how every other format
+  difference in this app already gets its own rule rather than one
+  clever combined pattern.
+- **Raised by the user, not started - built-in fallback rule(s)**: a
+  genuinely blank Rules list (or one where nothing matched) currently
+  means the user has to hand-author a regex themselves, which the user
+  judged "practically impossible without Googling/AI" for a typical
+  user. Proposed design:
+  - One or more hardcoded `ParseRule` instances, defined as Kotlin
+    constants (not `RulesDb` rows) - the user's own call, since this
+    guarantees they can't be edited/duplicated/deleted/reordered
+    *structurally* (they're simply not in the editable table at all),
+    rather than relying on UI guards over an `isBuiltIn` DB column.
+    Only persisted bit: an enabled/disabled flag (a new small prefs
+    key, not a `RulesDb` row). Shown at the very bottom of
+    `RulesListFragment`'s list, visually distinct, with only that one
+    toggle - no edit/duplicate/delete/move controls.
+  - `packageNames = emptySet()` (matches any app) - free at the
+    `RuleEngine` level already (`packageNames.isEmpty()` already means
+    "any app", confirmed in current code) - no engine change needed
+    for the built-in rules specifically.
+  - Placed after every user-defined rule in the effective match order
+    (`RuleEngine`'s own "first rule in list order that matches and
+    yields a parsable amount wins" already gives "only used if nothing
+    user-defined matched" for free, zero new logic - just append them
+    after `RulesDb.loadAllOrdered()`'s own list, before constructing
+    `RuleEngine`).
+  - **A built-in-rule match always routes to manual review, never
+    auto-create, regardless of `FireflyPrefs.isAutoCreateEnabled()`** -
+    the user's own explicit safety call: a generic catch-all regex is
+    inherently less reliable than a per-app, user-authored rule (easy
+    to misjudge withdrawal vs. deposit, or grab the wrong number out
+    of the text), and `kind` can't be changed on the review screen
+    once matched (it's read-only there, "a property of which rule
+    matched") - so a wrong auto-post from a low-confidence guess isn't
+    recoverable the way a wrong *review-screen* guess is (the user can
+    just not submit, or fix fields by hand first).
+  - Blank `sourceAccountName`/`destinationAccountName` on these rules
+    is expected, not a bug to fix - a built-in rule can't know which
+    real Firefly account any given app's money should land in, so the
+    review screen's own existing required-field validation already
+    makes the user fill that in by hand before they can submit.
+  - Regex design, sketched with the user, not finalized: separate
+    rules per currency position (symbol-before vs. symbol-after, see
+    the item above for why one pattern can't cover both) crossed with
+    direction (withdrawal vs. deposit keywords, e.g. "spent/paid/
+    charged/debited/withdrawn/списан/оплачен" vs. "received/credited/
+    refund/поступление/зачислен") - up to 4 small patterns to start.
+    Direction detection is inherently language-limited (English/
+    Russian keyword sets only, realistically) - explicitly a
+    last-resort fallback, not a replacement for per-app rules, and
+    starting with just the withdrawal variants (the dominant real-world
+    case) rather than all 4 at once is a reasonable first cut. Amount
+    capture itself can stay fairly generic since `parser.parseAmount`
+    already auto-detects the decimal separator (comma/dot/apostrophe/
+    space) - the regex just needs to anchor on a currency symbol/code
+    adjacent to a digit run, not fully solve amount parsing itself.
+  - Separately raised, not decided: whether to also let *user-defined*
+    rules match "any app" (not just the built-in ones, which get this
+    for free since they're not edited through the UI at all).
+    `RuleEngine` already supports it (`packageNames.isEmpty()`); what's
+    missing is UI/validation - `RuleEditFragment` only offers a
+    single-app spinner today (not a multi-select), and
+    `RuleValidation` currently requires picking one ("Pick an app").
+    Would need either a multi-select or an explicit "Any app" option,
+    plus relaxing that validation to allow it as a deliberate choice,
+    not just "forgot to pick" - a real, if small, UI task, not a
+    one-line change. Worth doing as its own follow-up if wanted,
+    independent of the built-in rules above.
 - **Done**: no way to write a literal `{word}` in a template field
   (description/notes/category/tags/account names) when it isn't meant
   as a macro - e.g. a real Firefly tag named `{User}`. (The save-time
