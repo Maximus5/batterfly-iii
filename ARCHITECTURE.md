@@ -1726,7 +1726,18 @@ Single `:app` module, packages under
     own exact format, no app-added header/separator/timestamp.
     `android.content.ClipboardManager`/`ClipData.newPlainText`, not
     `Intent.ACTION_SEND` - a plain clipboard copy was the explicit ask,
-    not a share sheet. The toolbar action ends the selection afterward
+    not a share sheet. **Fixed a real "icons don't match" catch, the
+    user's own screenshot**: `action_delete_selected` used the stock
+    framework `@android:drawable/ic_menu_delete` - a visibly different,
+    older style sitting right next to `ic_copy`'s own clean Material
+    glyph in the same toolbar. New `ic_delete.xml` (same template as
+    `ic_copy.xml` - 24dp, `?attr/colorOnSurface` tint, the standard
+    Material "delete" glyph) replaces it; `menu_rules_selection.xml`'s
+    own Delete has no drawable to match at all (text-only, `🗑️`
+    emoji prefix, buried in the overflow rather than shown directly in
+    that toolbar - a deliberate, separate, earlier decision, "keep the
+    one irreversible action furthest from the rest" - not touched by
+    this). The toolbar action ends the selection afterward
     (`clearSelectionAndExit`) - the user's own follow-up call: copy is
     a one-shot "got what I needed" action here, unlike
     `RulesListFragment`'s own enable/disable/duplicate, which stay in
