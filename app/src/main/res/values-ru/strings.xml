@@ -152,7 +152,6 @@
     <string name="create_duplicate_confirm_message">В пределах окна дедупликации уже создана транзакция (№%1$s) с теми же счетами, суммой и валютой. Всё равно создать эту?</string>
     <string name="create_duplicate_confirm_button">Всё равно создать</string>
     <string name="create_duplicate_use_created">Использовать созданную</string>
-    <string name="create_duplicate_open">Открыть</string>
     <string name="create_already_created_linked">Привязано к транзакции Firefly №%1$s.</string>
     <string name="create_success_message">Транзакция Firefly №%1$s.</string>
     <string name="create_open_transaction">Открыть транзакцию</string>

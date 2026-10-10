@@ -888,3 +888,9 @@ work.
   `EXTRA_EXISTING_TRANSACTION_ID`) - previously dropped entirely when
   crossing into this screen, since nothing on that side needed it before
   now.
+- **Done**, the user's own request: `showDuplicateConfirmDialog`'s
+  "Open" button ("Check if created"/the duplicate-confirm dialogs) is
+  now labeled "Open transaction" - same text `showMatchedDialog`'s own
+  neutral button already used, for consistency between the two dialogs.
+  `create_duplicate_open` (the old, now-unused string) removed from
+  both locales.

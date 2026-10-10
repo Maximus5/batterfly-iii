@@ -41,7 +41,7 @@
             android:paddingEnd="2dp"
             android:textAllCaps="false"
             android:textSize="13sp"
-            android:text="@string/create_duplicate_open" />
+            android:text="@string/create_open_transaction" />
 
     </LinearLayout>
 
