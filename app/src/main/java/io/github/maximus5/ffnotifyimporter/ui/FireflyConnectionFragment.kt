@@ -94,7 +94,7 @@ class FireflyConnectionFragment : Fragment() {
         binding.protectScreenshotsSwitch.setOnCheckedChangeListener { _, isChecked -> setSecure(isChecked) }
 
         binding.testConnectionButton.setOnClickListener { testConnection() }
-        binding.saveButton.setOnClickListener { save() }
+        addSaveMenu(::save)
 
         initialSnapshot = buildSnapshot()
         (activity as? SettingsActivity)?.setBackGuard { handleBackPressed() }
@@ -183,7 +183,12 @@ class FireflyConnectionFragment : Fragment() {
         if (notes.isNotEmpty()) Toast.makeText(context, notes.joinToString("\n"), Toast.LENGTH_LONG).show()
     }
 
+    /** True from the moment Save succeeds until the screen closes (the autofill lookup runs in
+     * between) - a second tap on the toolbar action must not save/autofill again. */
+    private var saving = false
+
     private fun save() {
+        if (saving) return
         val binding = binding ?: return
         val url = binding.urlInput.text?.toString().orEmpty().trim()
         val typedToken = binding.tokenInput.text?.toString().orEmpty().trim()
@@ -210,7 +215,7 @@ class FireflyConnectionFragment : Fragment() {
         // first, then leave (a failed/slow lookup just leaves them blank).
         val context = requireContext()
         val settings = activity as? SettingsActivity
-        binding.saveButton.isEnabled = false
+        saving = true
         viewLifecycleOwner.lifecycleScope.launch {
             showAutofillToast(context, autofillDefaults(prefs, FireflyApiClient(url, prefs.getToken())))
             settings?.leaveScreen()

@@ -131,7 +131,7 @@ class TransactionCreationFragment : Fragment() {
         initialSnapshot = buildSnapshot()
         (activity as? SettingsActivity)?.setBackGuard { handleBackPressed() }
 
-        binding.saveButton.setOnClickListener { save() }
+        addSaveMenu(::save)
     }
 
     private fun buildSnapshot(): SettingsSnapshot? {
