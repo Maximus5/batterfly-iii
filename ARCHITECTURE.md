@@ -1377,10 +1377,15 @@ Single `:app` module, packages under
     place in the UI that surfaces the link without having to reopen the
     test-match dialog. Each row also has an overflow (⋮) `PopupMenu`
     now, same shape as `RulesListFragment`'s (see its own notes below
-    for why that's the reference pattern) - "Open in Firefly III",
-    "Check if created", "Forget linked transaction", "Copy to
-    clipboard" (below), and "Delete notification" (the user's own
-    rename - `action_delete`'s plain
+    for why that's the reference pattern) - "Create transaction"
+    (`ID_CREATE_TRANSACTION`, the user's own request: a direct shortcut
+    into the exact same flow a plain tap on the row already runs
+    [`showTestMatch`] - disabled whenever `fireflyTransactionId` is
+    already set, since a tap there opens the *editor* instead, so this
+    item's own "Create transaction" label would be misleading), "Open
+    in Firefly III", "Check if created", "Forget linked transaction",
+    "Copy to clipboard" (below), and "Delete notification" (the user's
+    own rename - `action_delete`'s plain
     "Delete" risked reading as deleting the *Firefly transaction*
     rather than this app's own captured-notification entry; a dedicated
     `messages_action_delete` string replaces the shared `action_delete`
@@ -1882,21 +1887,49 @@ Single `:app` module, packages under
       without review. `CreateTransactionFragment.loadForCreate`
       re-matches the message fresh (`RuleEngine.match`) and populates
       the form from the resulting `TransactionDraft`
-      (`populateFields`). `kindText` is made clickable here only
-      (`showKindPicker`, an `AlertDialog.setSingleChoiceItems` over
-      `RuleKind.entries`, labeled via `ui.RuleKindDisplay.labelRes()`) -
-      the user's own call: a fresh match's guessed `kind` can genuinely
-      be wrong (real bank notifications don't reliably carry a
-      withdrawal/deposit keyword a rule could detect from - see the
-      "built-in fallback rules" history below for the evidence that
-      surfaced this), and changing kind on an *existing* Firefly
-      transaction isn't supported, so the correction only ever makes
-      sense before posting. Picking a different kind re-runs
-      `updateAccountFieldModes` (which side of source/destination is the
-      asset account depends on it) and appends a "▾" to the displayed
-      text as the only visual affordance that it's tappable - edit
-      mode's `kindText` (below) is left in its XML default state, no
-      listener, not clickable, no "▾". `staleLinkedId`, when present
+      (`populateFields`). **`kindText` is plain, non-interactive text in
+      both modes - a tap-to-pick design (an `AlertDialog.
+      setSingleChoiceItems` over `RuleKind.entries`) shipped first,
+      then was reverted after the user tried it on a real device and
+      judged it unintuitive ("нифига пользователю не уперлось")**. In
+      its place: both account fields are always pickers in create mode
+      (`enableAccountPickersForCreate`, unlike edit mode's
+      `updateAccountFieldModes`, which still only makes the one side
+      implied by the already-fixed `kind` a picker), and whichever
+      side(s) the user actually fills in with a real Firefly asset
+      account - picked from the dropdown, or typed by hand and matched
+      against the cached list - is what determines `kind`
+      (`inferKindFromAccounts`: source-only -> WITHDRAWAL,
+      destination-only -> DEPOSIT, both -> TRANSFER), not the other way
+      around. Re-runs live, on every account-field change
+      (`addTextChangedListener` plus the picker's own `onPicked`
+      callback), updating `kindText`'s label whenever the result is
+      unambiguous; an indeterminate result (neither side resolved yet)
+      just leaves the last-known `kind` showing rather than guessing.
+      `buildDraft` re-resolves it one final time at submit and refuses
+      to save (`create_tx_no_asset_account_error` on both account
+      fields) if it's still indeterminate then - the "ругаться" the
+      user asked for, but only once, at submit, not on every keystroke.
+      `isAssetAccountName` treats a *picked* account as asset
+      regardless of whether `assetAccounts` has loaded yet (the picker
+      dialog itself is only ever built from `FireflyApiClient.
+      listAssetAccounts`, so picking one is self-evidently true); typed
+      text needs the list already cached, which `loadForCreate` now
+      prefetches eagerly (`prefetchAssetAccountsForInference`, silent
+      best-effort - the on-tap lazy fetch the picker already had is
+      the fallback if this races or fails) instead of waiting for the
+      picker's own first tap, purely so this inference also works for
+      an account name a rule's own template already filled in, or one
+      the user types without ever opening a picker. This is **also**
+      what makes a single `WITHDRAWAL`-only default safe for
+      `rules.BuiltInRules`'s generic fallback rules (see the "built-in
+      fallback rules" history below) - the user corrects it just by
+      putting the real account on whichever side it actually
+      belongs, no separate kind-correction step needed at all.
+      Edit mode's `kindText` is never touched by any of this - `kind`
+      stays fixed to the real transaction's own type, the user's own
+      explicit call (changing kind on a transaction Firefly already
+      has isn't supported). `staleLinkedId`, when present
       (`CreateTransactionActivity.intent`'s own parameter, *not* folded
       into `message.fireflyTransactionId` - see below for why), shows
       `alreadyLinkedWarningText` (red/`?attr/colorError`, bold,
@@ -2001,14 +2034,51 @@ Single `:app` module, packages under
     `posting.AutoCreateWorker` already uses for the identical reason.
     Every `TransactionDraft` field is editable - the user's own explicit
     scope call, not just category: amount, currency, foreign amount/
-    currency, date/time (chained `DatePickerDialog`+`TimePickerDialog`,
-    same pattern `AddTestMessageFragment` already has), source/
-    destination account, description, notes, category, tags, in both
-    modes. `kind`
-    itself stays fixed/read-only (shown as plain text, not a field) -
-    it's a property of which rule matched (create) or of the real
-    transaction's own type (edit), not something this screen lets you
-    reassign. Visual style and the asset-account picker itself
+    currency, date/time, source/destination account, description,
+    notes, category, tags, in both modes. `kind` itself is never a
+    field you set directly in either mode - see the entry above
+    (`inferKindFromAccounts`/the account pickers it's derived from, in
+    create mode; fixed to the real transaction's own type in edit
+    mode) for the full history, including the earlier tap-to-pick
+    design this replaced.
+    **Two separate date/time fields, not one combined button, the
+    user's own design call**: `transactionDateInput`/
+    `transactionTimeInput` (both non-focusable `TextInputEditText`s,
+    `inputType="none"` - a picker trigger, not free text) replace the
+    old single borderless `dateTimeButton` - visually inconsistent
+    with every other field on this screen being a boxed
+    `TextInputLayout`, the user's own catch.
+    `showDatePicker`/`showTimePicker` each only ever update their own
+    half of `selectedTimestampMillis` (picking a new date keeps the
+    already-chosen time of day and vice versa) - `updateDateTimeFields`
+    writes both fields' text after either one changes.
+    `AddTestMessageFragment`'s own combined `dateTimeButton` is
+    unrelated and unchanged - this redesign is scoped to this screen
+    only.
+    **Both currency fields (home and foreign) now pick from a list
+    too, the user's own request**: `currencyCodeLayout`/
+    `foreignCurrencyCodeLayout` get the same end-icon `AlertDialog`
+    picker `TransactionCreationFragment`'s "Default account currency"
+    field already has, sourced from `FireflyApiClient.listCurrencies()`
+    filtered to `enabled` (not this app's own `CurrenciesDb` table) -
+    same reasoning as that field's own KDoc. Both stay freely typeable
+    too, the picker is a shortcut, not a lock, same as every other
+    Firefly-sourced picker in this app.
+    **Fixed a real "orphaned foreign currency" gap, the user's own
+    catch**: `buildDraft` used to save whatever was typed in the
+    foreign-currency field even after the foreign-amount field was
+    cleared back to blank - a foreign currency code with no foreign
+    amount to describe. `foreignCurrencyCode` is now forced to `null`
+    whenever `foreignAmount` doesn't parse, regardless of what's still
+    typed in that field.
+    **"Rule: <label>" row, create mode only**: `ruleLabelText`, right
+    below `alreadyLinkedWarningText`'s own slot at the top of the
+    screen (hidden/`gone` in edit mode - there's no "which rule
+    matched" concept once the fields come from Firefly's own live
+    data instead) - the user's own request, so it's visible at a
+    glance which rule fired before trusting (or correcting) what it
+    filled in.
+    Visual style and the asset-account picker itself
     are deliberately copied from `RuleEditFragment` (the user's own
     suggested starting point): an end-icon `TextInputLayout` opening an
     `AlertDialog.setSingleChoiceItems` picker, `FireflyApiClient.
@@ -2496,20 +2566,41 @@ Single `:app` module, packages under
       checks the real-rules list alone, not the combined one - the
       built-in rows always being present would otherwise mean that hint
       can never show again. `RulesAdapter.bind` branches on `rule.id in
-      BuiltInRules.IDS`: a built-in row gets a light background tint
-      (`0x14000000`, the "visually distinct" ask) instead of the normal
-      selected-row highlight, no overflow button at all (nothing to
-      move/duplicate/delete - they're Kotlin constants, not DB rows),
-      swallows long-press (`{ true }`, no call into `onLongClick` -
-      can't be multi-selected alongside real rules), and a tap calls a
-      new `onToggleBuiltIn(rule)` callback instead of `onClick` -
-      `RulesListFragment.toggleBuiltInRules` just flips
-      `FireflyPrefs.isBuiltInRulesEnabled()` and reloads, ignoring which
-      of the two rows was actually tapped (one shared flag, not a
-      per-rule one - see `rules.BuiltInRules`'s own KDoc for why there
-      are two rules at all). **Needs real-device verification too** -
-      same reasoning as the multi-select feature above, nothing here is
-      exercised by a JVM test either.
+      BuiltInRules.IDS` only for the background tint (`0x14000000`, the
+      "visually distinct" ask) and to swallow long-press (`{ true }`,
+      no call into `onLongClick` - can't be multi-selected alongside
+      real rules) - `onClick`/`onOverflowClick` otherwise fire exactly
+      the same as a real row; it's `RulesListFragment`'s own job to
+      branch on the id inside those callbacks, not the adapter's.
+      **Fixed a real "tap silently flips a setting" bug, the user's own
+      catch, on-device**: the first shipped version had a built-in
+      row's tap call a dedicated `onToggleBuiltIn` callback straight
+      into `FireflyPrefs.setBuiltInRulesEnabled` - easy to trigger by
+      accident while just browsing the list (which is exactly what
+      happened - the user toggled it off without meaning to, then
+      separately couldn't figure out why a message that should have
+      hit a built-in rule wasn't auto-creating). `onToggleBuiltIn` is
+      gone entirely now: `handleClick` opens `showBuiltInRuleDetails`
+      instead of `openEditor` for a built-in id (read-only - pattern/
+      description/notes template fields all `enabled="false"` in
+      `dialog_built_in_rule.xml`, no Save/Delete at all) *except* its
+      one `builtInEnabledSwitch`, which writes straight to
+      `FireflyPrefs.isBuiltInRulesEnabled()` and reloads the instant
+      it's toggled - no Save button needed since that's the only
+      actually-mutable thing about a built-in "rule" to begin with.
+      `showOverflowMenu` similarly branches to
+      `showBuiltInOverflowMenu` for a built-in id - just one item,
+      "Duplicate" (the user's own explicit call: move/enable/disable/
+      delete don't apply, so don't show them disabled, just leave them
+      out) - `duplicateBuiltInRule` clones the built-in's fields into a
+      brand-new `RulesDb` row via the ordinary `RulesDb.add` (ignores
+      the id it's given, appends at the end, same as any other "new
+      rule") with " (copy)" appended to the label, then opens that new
+      row straight in the editor - this is how a built-in rule becomes
+      a real, customizable starting point, since it was never a
+      database row to begin with. **Needs real-device verification
+      too** - same reasoning as the multi-select feature above,
+      nothing here is exercised by a JVM test either.
     - `RuleEditFragment` - one form for both create (`ruleId == null`)
       and edit, via `RuleEditFragment.newInstance(ruleId)`. Leaving the
       screen with unsaved edits (toolbar's up arrow *or* system

@@ -11,6 +11,7 @@ import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
+import androidx.core.widget.addTextChangedListener
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.textfield.TextInputLayout
@@ -22,6 +23,7 @@ import io.github.maximus5.ffnotifyimporter.network.ExchangeRateClient
 import io.github.maximus5.ffnotifyimporter.network.FireflyAccount
 import io.github.maximus5.ffnotifyimporter.network.FireflyApiClient
 import io.github.maximus5.ffnotifyimporter.network.FireflyCategory
+import io.github.maximus5.ffnotifyimporter.network.FireflyCurrency
 import io.github.maximus5.ffnotifyimporter.network.FireflyTransactionRequest
 import io.github.maximus5.ffnotifyimporter.posting.DuplicateCheckResult
 import io.github.maximus5.ffnotifyimporter.posting.LinkedTransactionCheck
@@ -56,7 +58,12 @@ import java.util.Date
  *   dialog for a *fresh* match, per the user's own request (see TODO.md's dedup history) - every
  *   field editable before posting, re-parsed via [RuleEngine.match] the same way
  *   `posting.AutoCreateWorker` reconstructs a draft from `WorkManager.Data` (plain fields across
- *   the Activity boundary, not a serialized `TransactionDraft`).
+ *   the Activity boundary, not a serialized `TransactionDraft`). [kind] isn't a field you set
+ *   directly here - both account fields are always pickers in this mode
+ *   ([enableAccountPickersForCreate]), and whichever one(s) actually resolve to a real asset
+ *   account determines it ([inferKindFromAccounts]) - a plain non-interactive label, reverted
+ *   from an earlier tap-to-pick design the user judged unintuitive once it existed on a real
+ *   screen.
  * - **Edit**: the user's own request - editing a transaction Firefly already has, fields
  *   populated from its *real* current data (`posting.verifyLinkedTransaction`), not a rule-derived
  *   guess, and saved via `FireflyApiClient.updateTransaction` (`PUT`) instead of `createTransaction`
@@ -77,6 +84,7 @@ class CreateTransactionFragment : Fragment() {
     private var binding: FragmentCreateTransactionBinding? = null
     private lateinit var message: CapturedMessage
     private lateinit var kind: RuleKind
+    private var isEditMode = false
     private var selectedTimestampMillis: Long = 0L
 
     private data class PickedAccount(val id: String, val name: String)
@@ -89,6 +97,7 @@ class CreateTransactionFragment : Fragment() {
      * the network on every picker tap. */
     private var assetAccounts: List<FireflyAccount>? = null
     private var categories: List<FireflyCategory>? = null
+    private var enabledCurrencies: List<FireflyCurrency>? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -105,8 +114,17 @@ class CreateTransactionFragment : Fragment() {
         val context = requireContext()
 
         message = CreateTransactionActivity.messageFrom(requireActivity().intent)
-        binding.dateTimeButton.setOnClickListener { showDateTimePicker() }
+        binding.transactionDateInput.setOnClickListener { showDatePicker() }
+        binding.transactionTimeInput.setOnClickListener { showTimePicker() }
         binding.categoryLayout.setEndIconOnClickListener { showCategoryPicker(binding.categoryInput) }
+        binding.currencyCodeLayout.setEndIconOnClickListener { showCurrencyPicker(binding.currencyCodeInput) }
+        binding.foreignCurrencyCodeLayout.setEndIconOnClickListener { showCurrencyPicker(binding.foreignCurrencyCodeInput) }
+
+        // A no-op in edit mode (inferKindFromAccounts returns immediately there) - registered
+        // unconditionally rather than only in create mode, since which mode this is isn't known
+        // yet this early in onViewCreated (loadForCreate/loadForEdit haven't run).
+        binding.sourceAccountInput.addTextChangedListener(afterTextChanged = { inferKindFromAccounts() })
+        binding.destinationAccountInput.addTextChangedListener(afterTextChanged = { inferKindFromAccounts() })
 
         val editId = CreateTransactionActivity.editTransactionIdFrom(requireActivity().intent)
         if (editId != null) {
@@ -121,9 +139,8 @@ class CreateTransactionFragment : Fragment() {
         val fireflyPrefs = FireflyPrefs(context)
         val rules = RulesDb.getInstance(context).loadAllOrdered().withBuiltIns(fireflyPrefs.isBuiltInRulesEnabled())
         val currencySymbols = CurrenciesDb.getInstance(context).symbolToCodeMap()
-        val outcome = RuleEngine(rules, currencySymbols, fireflyPrefs.getAllTransactionsTags(), fireflyPrefs.getDefaultAccountCurrency()).match(message)
-        val draft = (outcome as? ParseOutcome.Matched)?.draft
-        if (draft == null) {
+        val matched = RuleEngine(rules, currencySymbols, fireflyPrefs.getAllTransactionsTags(), fireflyPrefs.getDefaultAccountCurrency()).match(message) as? ParseOutcome.Matched
+        if (matched == null) {
             // Shouldn't happen in practice - this screen is only ever launched right after a
             // successful match - but the message could in theory have been edited away from under
             // it (it can't be, there's no edit feature for the *notification* itself) or a rule
@@ -132,17 +149,28 @@ class CreateTransactionFragment : Fragment() {
             requireActivity().finish()
             return
         }
+        val draft = matched.draft
+
+        // Create mode only - edit mode has no "which rule matched" concept at all, the fields
+        // come from Firefly's own live data instead of a fresh RuleEngine.match (see this
+        // class's own KDoc). The user's own request, so it's clear at a glance which rule fired
+        // before trusting (or correcting) what it filled in.
+        binding.ruleLabelText.text = getString(R.string.create_tx_rule_label, matched.rule.label)
+        binding.ruleLabelText.visibility = View.VISIBLE
 
         kind = draft.kind
         populateFields(draft)
-        updateAccountFieldModes()
-
-        // Create mode only - see showKindPicker's own KDoc for why. Edit mode's binding.kindText
-        // (loadForEdit) is left in its XML default state: no listener, not clickable, no ▾.
-        binding.kindText.isClickable = true
-        binding.kindText.isFocusable = true
-        binding.kindText.setOnClickListener { showKindPicker() }
+        enableAccountPickersForCreate()
         updateKindText()
+
+        // Best-effort, silent - [inferKindFromAccounts] can already resolve kind from whichever
+        // side the user explicitly *picks* via the dropdown without this (the picked account is
+        // self-evidently an asset account), but resolving it from *typed* text (an account name
+        // the rule's own template already filled in, or the user types by hand without ever
+        // opening the picker) needs the list loaded first. A failure here just means that
+        // specific convenience doesn't kick in until the user taps a picker icon once - not worth
+        // a retry loop or an error toast for a background prefetch the user never asked for.
+        prefetchAssetAccountsForInference(context)
 
         // The user's own follow-up catch: falling through here because a previously-linked id
         // was just confirmed gone (MessagesFragment.verifyLinkedThenShow) used to show no warning
@@ -174,6 +202,7 @@ class CreateTransactionFragment : Fragment() {
      * `CreateTransactionActivity.intent` (the fresh-match path) isn't the right fallback either,
      * since there's no [TransactionDraft] here to fall back to showing. */
     private fun loadForEdit(context: Context, transactionId: String) {
+        isEditMode = true
         viewLifecycleOwner.lifecycleScope.launch {
             when (val result = verifyLinkedTransaction(FireflyPrefs(context), transactionId)) {
                 is LinkedTransactionCheck.Found -> {
@@ -210,7 +239,7 @@ class CreateTransactionFragment : Fragment() {
         binding.foreignCurrencyCodeInput.setText(draft.foreignCurrencyCode.orEmpty())
 
         selectedTimestampMillis = draft.date.toEpochMilli()
-        updateDateTimeButtonText(context)
+        updateDateTimeFields(context)
 
         binding.sourceAccountInput.setText(draft.sourceName.orEmpty())
         binding.destinationAccountInput.setText(draft.destinationName.orEmpty())
@@ -243,7 +272,7 @@ class CreateTransactionFragment : Fragment() {
         binding.foreignCurrencyCodeInput.setText(candidate.foreignCurrencyCode.orEmpty())
 
         selectedTimestampMillis = candidate.date.toEpochMilli()
-        updateDateTimeButtonText(context)
+        updateDateTimeFields(context)
 
         binding.sourceAccountInput.setText(candidate.sourceName.orEmpty())
         binding.destinationAccountInput.setText(candidate.destinationName.orEmpty())
@@ -258,37 +287,15 @@ class CreateTransactionFragment : Fragment() {
 
     private fun updateKindText() {
         val binding = binding ?: return
-        val affordance = if (binding.kindText.isClickable) " ▾" else ""
-        binding.kindText.text = getString(kind.labelRes()) + " · " + message.appLabel + affordance
+        binding.kindText.text = getString(kind.labelRes()) + " · " + message.appLabel
     }
 
-    /** Create mode only (see [loadForCreate] - [binding.kindText] is only ever made clickable
-     * there, never in [loadForEdit]): changing the kind of a transaction Firefly already has
-     * isn't supported, but a *fresh* match's guessed kind can genuinely be wrong and needs to be
-     * human-correctable before posting - the user's own call, driven by real evidence that bank
-     * notifications don't reliably carry a withdrawal/deposit keyword a rule could detect from
-     * (see TODO.md's built-in-rules history). Re-runs [updateAccountFieldModes] on change, same
-     * as the initial kind assignment does, since which side of source/destination is the asset
-     * account depends on it. */
-    private fun showKindPicker() {
-        val kinds = RuleKind.entries
-        val selectedIndex = kinds.indexOf(kind)
-        AlertDialog.Builder(requireContext())
-            .setTitle(R.string.create_tx_pick_kind)
-            .setSingleChoiceItems(kinds.map { getString(it.labelRes()) }.toTypedArray(), selectedIndex) { dialog, which ->
-                kind = kinds[which]
-                updateAccountFieldModes()
-                updateKindText()
-                dialog.dismiss()
-            }
-            .show()
-    }
-
-    /** Only the asset side of the pair gets the account picker (`FireflyApiClient.
-     * listAssetAccounts`, same end-icon shape as `RuleEditFragment`'s) - the counterparty side
-     * Firefly auto-creates by name, so it's always plain free text here, no picker, unlike
-     * `RuleEditFragment`'s own macro-insert icon on that side (there's no template/macro concept
-     * once a message has already matched and produced concrete values). */
+    /** Edit mode only - `kind` is fixed to the real transaction's own type and never recomputed
+     * (the user's own explicit call: changing kind on a transaction Firefly already has isn't
+     * supported), so only the one side (or both, for TRANSFER) that's actually the asset side
+     * gets the account picker (`FireflyApiClient.listAssetAccounts`, same end-icon shape as
+     * `RuleEditFragment`'s) - the counterparty side Firefly auto-creates by name, so it's always
+     * plain free text here, no picker. */
     private fun updateAccountFieldModes() {
         val binding = binding ?: return
         val (sourceIsAsset, destinationIsAsset) = when (kind) {
@@ -298,6 +305,85 @@ class CreateTransactionFragment : Fragment() {
         }
         setAccountFieldMode(binding.sourceAccountLayout, binding.sourceAccountInput, sourceIsAsset) { sourceAccountPick = it }
         setAccountFieldMode(binding.destinationAccountLayout, binding.destinationAccountInput, destinationIsAsset) { destinationAccountPick = it }
+    }
+
+    /** Create mode only: both sides always offer the account picker here, unlike edit mode's
+     * [updateAccountFieldModes] - `kind` isn't fixed yet in create mode, so there's no "the" asset
+     * side to single out in advance. It's the other way around: whichever account(s) the user
+     * actually ends up filling in with a real asset account name (picked or typed) IS what
+     * determines `kind` ([inferKindFromAccounts]), the user's own explicit design - a plain,
+     * non-interactive `kindText` label (reverted from an earlier tap-to-pick design the user
+     * judged unintuitive) just reflects whatever that resolves to. */
+    private fun enableAccountPickersForCreate() {
+        val binding = binding ?: return
+        setAccountFieldMode(binding.sourceAccountLayout, binding.sourceAccountInput, true) {
+            sourceAccountPick = it
+            inferKindFromAccounts()
+        }
+        setAccountFieldMode(binding.destinationAccountLayout, binding.destinationAccountInput, true) {
+            destinationAccountPick = it
+            inferKindFromAccounts()
+        }
+    }
+
+    /** Create mode only (a no-op in edit mode - `kind` is fixed there, never recomputed). Re-runs
+     * on every account-field change (the `addTextChangedListener` calls in [onViewCreated], and
+     * [enableAccountPickersForCreate]'s own `onPicked` callbacks) to decide which of
+     * WITHDRAWAL/DEPOSIT/TRANSFER actually matches what's in the two account fields *right now*:
+     * an asset account on the source side only means WITHDRAWAL, destination side only means
+     * DEPOSIT, both sides means TRANSFER. Only updates [kind]/the label when that comes out
+     * unambiguous - neither side resolving yet (e.g. mid-typing, or a built-in rule match that
+     * left both blank) leaves the last-known `kind` showing rather than flickering to an
+     * arbitrary default; [buildDraft] re-resolves it one final time at submit and refuses to save
+     * if it's still ambiguous then. */
+    private fun inferKindFromAccounts() {
+        if (isEditMode) return
+        val binding = binding ?: return
+        val sourceIsAsset = isAssetAccountName(binding.sourceAccountInput.text?.toString().orEmpty(), sourceAccountPick)
+        val destinationIsAsset = isAssetAccountName(binding.destinationAccountInput.text?.toString().orEmpty(), destinationAccountPick)
+        val inferred = resolveKindFromAssetSides(sourceIsAsset, destinationIsAsset) ?: return
+        if (inferred != kind) {
+            kind = inferred
+            updateKindText()
+        }
+    }
+
+    private fun resolveKindFromAssetSides(sourceIsAsset: Boolean, destinationIsAsset: Boolean): RuleKind? = when {
+        sourceIsAsset && destinationIsAsset -> RuleKind.TRANSFER
+        sourceIsAsset -> RuleKind.WITHDRAWAL
+        destinationIsAsset -> RuleKind.DEPOSIT
+        else -> null
+    }
+
+    /** True once [text] (trimmed) is known to name a real Firefly asset account - either because
+     * it's exactly what [pick] (set by [enableAccountPickersForCreate]'s own `onPicked`) already
+     * names, which is self-evidently true regardless of whether [assetAccounts] has loaded yet
+     * (the picker dialog it came from is itself built from [FireflyApiClient.listAssetAccounts]),
+     * or because it matches a name in the cached list - which only ever covers free-typed text,
+     * not a pick. */
+    private fun isAssetAccountName(text: String, pick: PickedAccount?): Boolean {
+        val trimmed = text.trim()
+        if (trimmed.isEmpty()) return false
+        if (pick?.name == trimmed) return true
+        return assetAccounts?.any { it.name == trimmed } == true
+    }
+
+    /** Create mode only - loads [assetAccounts] right away instead of waiting for the account
+     * picker's own first tap (its usual lazy-fetch-on-first-use shape, still there as a fallback
+     * for when this fails), purely so [isAssetAccountName] can resolve *typed* account names
+     * (not just picked ones) without the user ever having to open a picker dialog once. Silent on
+     * failure - see the call site's own comment for why. */
+    private fun prefetchAssetAccountsForInference(context: Context) {
+        if (assetAccounts != null) return
+        val prefs = FireflyPrefs(context)
+        if (!prefs.isConfigured()) return
+        viewLifecycleOwner.lifecycleScope.launch {
+            val result = FireflyApiClient(prefs.getBaseUrl(), prefs.getToken()).listAssetAccounts()
+            if (result is FireflyApiClient.Result.Success) {
+                assetAccounts = result.value
+                inferKindFromAccounts()
+            }
+        }
     }
 
     private fun setAccountFieldMode(layout: TextInputLayout, input: EditText, isAsset: Boolean, onPicked: (PickedAccount) -> Unit) {
@@ -397,40 +483,101 @@ class CreateTransactionFragment : Fragment() {
             .show()
     }
 
-    private fun updateDateTimeButtonText(context: Context) {
+    private fun updateDateTimeFields(context: Context) {
         val binding = binding ?: return
         val date = Date(selectedTimestampMillis)
-        binding.dateTimeButton.text = "${DateFormat.getDateFormat(context).format(date)} ${DateFormat.getTimeFormat(context).format(date)}"
+        binding.transactionDateInput.setText(DateFormat.getDateFormat(context).format(date))
+        binding.transactionTimeInput.setText(DateFormat.getTimeFormat(context).format(date))
     }
 
-    /** Date picker, then time picker, chained - same pattern `AddTestMessageFragment` already
-     * uses, the standard two-step Android shape for picking one date-time with only platform
-     * dialogs. */
-    private fun showDateTimePicker() {
+    /** Two separate tap-to-open fields, not one combined button - the user's own call, after
+     * judging the old single borderless `Button` ("12/31/25 11:59 PM") visually inconsistent
+     * with every other field on this screen being a boxed `TextInputLayout`. Each field only ever
+     * changes its own half of [selectedTimestampMillis] - picking a new date keeps today's
+     * already-chosen time of day, and vice versa, same as the old combined picker already did via
+     * its own `calendar` carrying both forward between the two dialogs. Not focusable/no
+     * keyboard (`android:focusable="false"`/`inputType="none"` in the layout) - this is a picker
+     * trigger, not free text, same convention `kindText` already uses for its own tap-to-open
+     * `AlertDialog`. */
+    private fun showDatePicker() {
         val context = requireContext()
         val calendar = Calendar.getInstance().apply { timeInMillis = selectedTimestampMillis }
         DatePickerDialog(
             context,
             { _, year, month, dayOfMonth ->
                 calendar.set(year, month, dayOfMonth)
-                TimePickerDialog(
-                    context,
-                    { _, hourOfDay, minute ->
-                        calendar.set(Calendar.HOUR_OF_DAY, hourOfDay)
-                        calendar.set(Calendar.MINUTE, minute)
-                        calendar.set(Calendar.SECOND, 0)
-                        selectedTimestampMillis = calendar.timeInMillis
-                        updateDateTimeButtonText(context)
-                    },
-                    calendar.get(Calendar.HOUR_OF_DAY),
-                    calendar.get(Calendar.MINUTE),
-                    DateFormat.is24HourFormat(context),
-                ).show()
+                selectedTimestampMillis = calendar.timeInMillis
+                updateDateTimeFields(context)
             },
             calendar.get(Calendar.YEAR),
             calendar.get(Calendar.MONTH),
             calendar.get(Calendar.DAY_OF_MONTH),
         ).show()
+    }
+
+    private fun showTimePicker() {
+        val context = requireContext()
+        val calendar = Calendar.getInstance().apply { timeInMillis = selectedTimestampMillis }
+        TimePickerDialog(
+            context,
+            { _, hourOfDay, minute ->
+                calendar.set(Calendar.HOUR_OF_DAY, hourOfDay)
+                calendar.set(Calendar.MINUTE, minute)
+                calendar.set(Calendar.SECOND, 0)
+                selectedTimestampMillis = calendar.timeInMillis
+                updateDateTimeFields(context)
+            },
+            calendar.get(Calendar.HOUR_OF_DAY),
+            calendar.get(Calendar.MINUTE),
+            DateFormat.is24HourFormat(context),
+        ).show()
+    }
+
+    /** Both currency fields (home and foreign) pick from the currencies actually *enabled* in the
+     * user's own Firefly instance - the user's own request, same data source and caching shape
+     * `TransactionCreationFragment.showCurrencyPicker`'s "Default account currency" picker already
+     * uses (`FireflyApiClient.listCurrencies`, client-side filtered to `enabled`). Both fields stay
+     * freely typeable too, same as every other Firefly-sourced picker in this app - the picker is
+     * a shortcut, not a lock. */
+    private fun showCurrencyPicker(target: EditText) {
+        val context = requireContext()
+        val prefs = FireflyPrefs(context)
+        if (!prefs.isConfigured()) {
+            Toast.makeText(context, R.string.rule_firefly_not_configured, Toast.LENGTH_LONG).show()
+            return
+        }
+        val cached = enabledCurrencies
+        if (cached != null) {
+            showCurrencyPickerDialog(target, cached)
+            return
+        }
+        viewLifecycleOwner.lifecycleScope.launch {
+            when (val result = FireflyApiClient(prefs.getBaseUrl(), prefs.getToken()).listCurrencies()) {
+                is FireflyApiClient.Result.Success -> {
+                    val enabled = result.value.filter { it.enabled }
+                    enabledCurrencies = enabled
+                    showCurrencyPickerDialog(target, enabled)
+                }
+                is FireflyApiClient.Result.Failure ->
+                    Toast.makeText(context, getString(R.string.firefly_pick_currency_failed, result.message), Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    private fun showCurrencyPickerDialog(target: EditText, currencies: List<FireflyCurrency>) {
+        if (currencies.isEmpty()) {
+            Toast.makeText(requireContext(), R.string.firefly_no_currencies, Toast.LENGTH_LONG).show()
+            return
+        }
+        val currentCode = target.text?.toString()?.trim()
+        val selectedIndex = currencies.indexOfFirst { it.code == currentCode }
+        AlertDialog.Builder(requireContext())
+            .setTitle(R.string.rule_pick_currency)
+            .setSingleChoiceItems(currencies.map { it.code }.toTypedArray(), selectedIndex) { dialog, which ->
+                target.setText(currencies[which].code)
+                dialog.dismiss()
+            }
+            .show()
     }
 
     /** Same exchange-rate resolution `MessagesFragment.resolveAmountQuietly` does - but only fills
@@ -579,14 +726,17 @@ class CreateTransactionFragment : Fragment() {
     }
 
     /** Builds the final [TransactionDraft] from the current field values, validating as it goes -
-     * [message] carries over from the original match/fetch unchanged; [kind] is read as whatever
-     * it currently is (the original match's guess, or [showKindPicker]'s correction in create
-     * mode - never user-editable in edit mode, see that function's own KDoc), everything else is
-     * read fresh from the form. `issues` is always empty - the two [DraftIssue] flags were about
-     * automated-parse uncertainty, which no longer applies once a human has directly
-     * reviewed/filled in the fields (true in edit mode from the start - there was never a parse
-     * to begin with). Returns null (after showing the relevant field's error) on the first
-     * validation failure - same "stop at the first problem" shape `FireflyConnectionFragment.save`/
+     * [message] carries over from the original match/fetch unchanged. In create mode, [kind] is
+     * re-resolved one final time from the account fields right here ([resolveKindFromAssetSides],
+     * same as [inferKindFromAccounts]'s own live updates, but refusing to save at all if it's
+     * still ambiguous - the user's own explicit call) rather than trusted as whatever
+     * [inferKindFromAccounts] last left it showing; in edit mode `kind` is never touched, it stays
+     * fixed to the real transaction's own type. Everything else is read fresh from the form.
+     * `issues` is always empty - the two [DraftIssue] flags were about automated-parse
+     * uncertainty, which no longer applies once a human has directly reviewed/filled in the
+     * fields (true in edit mode from the start - there was never a parse to begin with). Returns
+     * null (after showing the relevant field's error) on the first validation failure - same
+     * "stop at the first problem" shape `FireflyConnectionFragment.save`/
      * `TransactionCreationFragment.save` already use. */
     private fun buildDraft(): TransactionDraft? {
         val binding = binding ?: return null
@@ -606,6 +756,21 @@ class CreateTransactionFragment : Fragment() {
 
         val sourceName = binding.sourceAccountInput.text?.toString()?.trim().orEmpty()
         val destinationName = binding.destinationAccountInput.text?.toString()?.trim().orEmpty()
+
+        if (!isEditMode) {
+            val resolved = resolveKindFromAssetSides(
+                isAssetAccountName(sourceName, sourceAccountPick),
+                isAssetAccountName(destinationName, destinationAccountPick),
+            )
+            if (resolved == null) {
+                binding.sourceAccountInput.error = getString(R.string.create_tx_no_asset_account_error)
+                binding.destinationAccountInput.error = getString(R.string.create_tx_no_asset_account_error)
+                return null
+            }
+            kind = resolved
+            updateKindText()
+        }
+
         if (kind != RuleKind.DEPOSIT && sourceName.isBlank()) {
             binding.sourceAccountInput.error = getString(R.string.create_tx_source_required)
             return null
@@ -617,7 +782,16 @@ class CreateTransactionFragment : Fragment() {
 
         val currencyCode = binding.currencyCodeInput.text?.toString()?.trim().orEmpty()
         val foreignAmountText = binding.foreignAmountInput.text?.toString()?.trim().orEmpty()
-        val foreignCurrencyCode = binding.foreignCurrencyCodeInput.text?.toString()?.trim().orEmpty()
+        val foreignAmount = foreignAmountText.toBigDecimalOrNull()
+        // The user's own call: a typed-but-then-cleared foreign amount used to leave a stale
+        // foreign currency code behind in the saved/created transaction - there's no foreign
+        // amount for it to describe any more, so it's cleared alongside it rather than kept as an
+        // orphaned field.
+        val foreignCurrencyCode = if (foreignAmount == null) {
+            null
+        } else {
+            binding.foreignCurrencyCodeInput.text?.toString()?.trim().orEmpty().takeIf { it.isNotBlank() }
+        }
         val tags = binding.tagsInput.text?.toString().orEmpty()
             .split(",").map { it.trim() }.filter { it.isNotBlank() }
         val category = binding.categoryInput.text?.toString()?.trim().orEmpty().takeIf { it.isNotBlank() }
@@ -627,8 +801,8 @@ class CreateTransactionFragment : Fragment() {
             date = Instant.ofEpochMilli(selectedTimestampMillis),
             amount = amount,
             currencyCode = currencyCode,
-            foreignAmount = foreignAmountText.toBigDecimalOrNull(),
-            foreignCurrencyCode = foreignCurrencyCode.takeIf { it.isNotBlank() },
+            foreignAmount = foreignAmount,
+            foreignCurrencyCode = foreignCurrencyCode,
             sourceName = sourceName.takeIf { it.isNotBlank() },
             sourceAccountId = sourceAccountPick?.takeIf { it.name == sourceName }?.id,
             destinationName = destinationName.takeIf { it.isNotBlank() },

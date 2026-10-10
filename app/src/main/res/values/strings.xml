@@ -93,6 +93,7 @@
     <string name="rule_action_delete">🗑️ Delete</string>
     <string name="rule_apps_any">any monitored app</string>
     <string name="rule_disabled_label">disabled</string>
+    <string name="built_in_rule_enabled_switch">Enabled</string>
     <string name="rule_account_no_name">(no name)</string>
     <string name="rule_default_label">Rule #%1$d</string>
     <string name="rule_enable_selected">✅ Enable</string>
@@ -181,7 +182,9 @@
     <string name="create_tx_field_amount">Amount</string>
     <string name="create_tx_field_currency">Currency</string>
     <string name="create_tx_field_foreign_amount">Foreign amount (optional)</string>
-    <string name="create_tx_field_datetime">Date &amp; time</string>
+    <string name="create_tx_field_date">Date</string>
+    <string name="create_tx_field_time">Time</string>
+    <string name="create_tx_rule_label">Rule: %1$s</string>
     <string name="create_tx_field_source_account">Source account</string>
     <string name="create_tx_field_destination_account">Destination account</string>
     <string name="create_tx_field_description">Description</string>
@@ -189,13 +192,13 @@
     <string name="create_tx_field_category">Category</string>
     <string name="create_tx_field_tags">Tags (comma-separated)</string>
     <string name="create_tx_pick_category">Pick category</string>
-    <string name="create_tx_pick_kind">Transaction type</string>
     <string name="create_tx_categories_failed">Couldn\'t load categories: %1$s</string>
     <string name="create_tx_no_categories">No categories found in Firefly.</string>
     <string name="create_tx_amount_invalid">Enter a valid amount.</string>
     <string name="create_tx_description_required">Description can\'t be empty.</string>
     <string name="create_tx_source_required">Source account can\'t be empty.</string>
     <string name="create_tx_destination_required">Destination account can\'t be empty.</string>
+    <string name="create_tx_no_asset_account_error">Pick or enter an account that matches one of your Firefly asset accounts, on at least one side.</string>
     <string name="create_tx_no_rule_matched">No rule matched this message.</string>
     <string name="create_tx_stale_linked_warning">⚠ Previously linked transaction #%1$s was not found in Firefly - it may have been deleted.</string>
 

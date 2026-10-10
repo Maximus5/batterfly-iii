@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="24dp">
+
+        <TextView
+            android:id="@+id/builtInKindText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            android:textSize="14sp" />
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            android:hint="@string/rule_field_pattern"
+            app:expandedHintEnabled="false">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/builtInPatternInput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:enabled="false"
+                android:fontFamily="monospace"
+                android:inputType="textMultiLine" />
+
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            android:hint="@string/rule_field_description_template"
+            app:expandedHintEnabled="false">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/builtInDescriptionInput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:enabled="false" />
+
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:hint="@string/rule_field_notes_template"
+            app:expandedHintEnabled="false">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/builtInNotesInput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:enabled="false" />
+
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <com.google.android.material.switchmaterial.SwitchMaterial
+            android:id="@+id/builtInEnabledSwitch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/built_in_rule_enabled_switch" />
+
+    </LinearLayout>
+
+</ScrollView>

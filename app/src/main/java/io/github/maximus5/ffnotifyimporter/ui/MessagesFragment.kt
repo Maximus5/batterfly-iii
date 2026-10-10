@@ -516,18 +516,28 @@ class MessagesFragment : Fragment() {
         (activity as? MainActivity)?.exitSelectionMode()
     }
 
+    /** "Create transaction" (`ID_CREATE_TRANSACTION`) - the user's own request: a direct shortcut
+     * to the same flow a plain tap on the row already runs ([showTestMatch]), for someone who'd
+     * rather reach it from this menu than tap the row itself. Disabled whenever
+     * [CapturedMessage.fireflyTransactionId] is already set - the user's own explicit call: a tap
+     * on an already-linked row opens the *editor* instead ([verifyLinkedThenShow]'s `Found`
+     * branch, inside [showTestMatch]), so "Create transaction" here would be misleading - there's
+     * already one linked, nothing new to create from this menu item's own label. */
     private fun showMessageOverflowMenu(message: CapturedMessage, anchor: View) {
         val context = requireContext()
         val popup = PopupMenu(context, anchor)
-        popup.menu.add(0, ID_OPEN_IN_FIREFLY, 0, R.string.messages_action_open_in_firefly)
+        popup.menu.add(0, ID_CREATE_TRANSACTION, 0, R.string.test_match_create)
+            .isEnabled = message.fireflyTransactionId == null
+        popup.menu.add(0, ID_OPEN_IN_FIREFLY, 1, R.string.messages_action_open_in_firefly)
             .isEnabled = message.fireflyTransactionId != null
-        popup.menu.add(0, ID_CHECK_IF_CREATED, 1, R.string.messages_check_if_created)
-        popup.menu.add(0, ID_FORGET_TRANSACTION, 2, R.string.messages_action_forget_transaction)
+        popup.menu.add(0, ID_CHECK_IF_CREATED, 2, R.string.messages_check_if_created)
+        popup.menu.add(0, ID_FORGET_TRANSACTION, 3, R.string.messages_action_forget_transaction)
             .isEnabled = message.fireflyTransactionId != null
-        popup.menu.add(0, ID_COPY_SINGLE, 3, R.string.messages_action_copy)
-        popup.menu.add(0, ID_DELETE_SINGLE, 4, R.string.messages_action_delete)
+        popup.menu.add(0, ID_COPY_SINGLE, 4, R.string.messages_action_copy)
+        popup.menu.add(0, ID_DELETE_SINGLE, 5, R.string.messages_action_delete)
         popup.setOnMenuItemClickListener { item ->
             when (item.itemId) {
+                ID_CREATE_TRANSACTION -> showTestMatch(message)
                 ID_OPEN_IN_FIREFLY -> message.fireflyTransactionId?.let { id ->
                     viewLifecycleOwner.lifecycleScope.launch { verifyThenOpenTransaction(context, id) }
                 }
@@ -872,10 +882,11 @@ class MessagesFragment : Fragment() {
     }
 
     private companion object {
-        const val ID_OPEN_IN_FIREFLY = 1
-        const val ID_CHECK_IF_CREATED = 2
-        const val ID_FORGET_TRANSACTION = 3
-        const val ID_COPY_SINGLE = 4
-        const val ID_DELETE_SINGLE = 5
+        const val ID_CREATE_TRANSACTION = 1
+        const val ID_OPEN_IN_FIREFLY = 2
+        const val ID_CHECK_IF_CREATED = 3
+        const val ID_FORGET_TRANSACTION = 4
+        const val ID_COPY_SINGLE = 5
+        const val ID_DELETE_SINGLE = 6
     }
 }

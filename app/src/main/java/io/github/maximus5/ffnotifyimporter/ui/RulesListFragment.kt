@@ -8,8 +8,11 @@ import android.view.MenuInflater
 import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
+import android.widget.EditText
 import android.widget.PopupMenu
+import android.widget.TextView
 import android.widget.Toast
+import com.google.android.material.switchmaterial.SwitchMaterial
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.core.view.MenuProvider
@@ -75,7 +78,6 @@ class RulesListFragment : Fragment() {
             onClick = ::handleClick,
             onLongClick = ::handleLongClick,
             onOverflowClick = ::showOverflowMenu,
-            onToggleBuiltIn = ::toggleBuiltInRules,
         )
         binding.rulesRecyclerView.layoutManager = LinearLayoutManager(requireContext())
         binding.rulesRecyclerView.adapter = adapter
@@ -128,6 +130,13 @@ class RulesListFragment : Fragment() {
     }
 
     private fun handleClick(rule: ParseRule) {
+        // Built-in rows can't be multi-selected (RulesAdapter swallows their own long-press), so
+        // a tap here always means "show details", regardless of inSelectionMode - there's no
+        // selection state for this row to join/leave either way.
+        if (rule.id in BuiltInRules.IDS) {
+            showBuiltInRuleDetails(rule)
+            return
+        }
         if (inSelectionMode) {
             adapter.toggleSelection(rule)
             if (adapter.selectedCount() == 0) clearSelectionAndExit() else updateSelectionCountDisplay()
@@ -297,14 +306,6 @@ class RulesListFragment : Fragment() {
         binding.rulesEmptyText.visibility = if (userRules.isEmpty()) View.VISIBLE else View.GONE
     }
 
-    /** The one shared flag both built-in rules move together under (`FireflyPrefs.
-     * isBuiltInRulesEnabled`) - which specific row was tapped doesn't matter, toggling either one
-     * flips the same setting for both. */
-    private fun toggleBuiltInRules(@Suppress("UNUSED_PARAMETER") rule: ParseRule) {
-        fireflyPrefs.setBuiltInRulesEnabled(!fireflyPrefs.isBuiltInRulesEnabled())
-        reload()
-    }
-
     private fun defaultExportFileName(): String {
         val date = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
         return "ffnotifyimporter-rules-$date.json"
@@ -373,6 +374,10 @@ class RulesListFragment : Fragment() {
      * applies - the user's own choice, for exact parity with the selection menu, which can't
      * single out one state anyway once more than one rule with mixed states is selected. */
     private fun showOverflowMenu(rule: ParseRule, anchor: View) {
+        if (rule.id in BuiltInRules.IDS) {
+            showBuiltInOverflowMenu(rule, anchor)
+            return
+        }
         val popup = PopupMenu(requireContext(), anchor)
         popup.menu.add(0, ID_MOVE_UP, 0, R.string.rule_move_up)
         popup.menu.add(0, ID_MOVE_DOWN, 1, R.string.rule_move_down)
@@ -394,6 +399,65 @@ class RulesListFragment : Fragment() {
             true
         }
         popup.show()
+    }
+
+    /** Built-in rows only - the user's own explicit call: move/enable/disable/delete don't apply
+     * (they're Kotlin constants, not `RulesDb` rows - see `rules.BuiltInRules`'s own KDoc), so
+     * only "Duplicate" is offered here, rather than showing the full menu with most items
+     * pointlessly disabled. */
+    private fun showBuiltInOverflowMenu(rule: ParseRule, anchor: View) {
+        val popup = PopupMenu(requireContext(), anchor)
+        popup.menu.add(0, ID_DUPLICATE, 0, R.string.rule_duplicate)
+        popup.setOnMenuItemClickListener { item ->
+            when (item.itemId) {
+                ID_DUPLICATE -> duplicateBuiltInRule(rule)
+                else -> return@setOnMenuItemClickListener false
+            }
+            true
+        }
+        popup.show()
+    }
+
+    /** Clones [rule]'s fields into a brand-new, fully-editable `RulesDb` row (`RulesDb.add`
+     * always ignores the id it's given and assigns a fresh one, appended at the end) - the user's
+     * own request: this is how a built-in rule becomes a real starting point for a customized
+     * one, since it can't be edited in place (it's not a database row at all). Opens the new
+     * row's editor right away rather than just reloading the list - there's usually at least one
+     * thing to fill in immediately (most obviously the app, since the built-in's own
+     * `packageNames` is empty - "any app" - and `RuleEditFragment.populateFields` will default it
+     * to the first monitored app instead, same as a genuinely new rule). */
+    private fun duplicateBuiltInRule(rule: ParseRule) {
+        // Same " (copy)" suffix convention RulesDb.duplicate already uses for a real row.
+        val copy = rulesDb.add(rule.copy(label = "${rule.label} (copy)"))
+        reload()
+        openEditor(copy)
+    }
+
+    /** Built-in rows only - read-only (no Save/Delete, every field disabled) except for
+     * [FireflyPrefs.isBuiltInRulesEnabled]'s own switch, which saves immediately on toggle rather
+     * than needing a Save button at all - the one actually-mutable thing about a built-in rule.
+     * The user's own explicit call, after an earlier version made tapping the row itself flip
+     * that flag with no confirmation at all (easy to trigger by accident) - toggling now only
+     * ever happens deliberately, inside this view. */
+    private fun showBuiltInRuleDetails(rule: ParseRule) {
+        val context = requireContext()
+        val view = LayoutInflater.from(context).inflate(R.layout.dialog_built_in_rule, null, false)
+        view.findViewById<TextView>(R.id.builtInKindText).text = getString(rule.kind.labelRes())
+        view.findViewById<EditText>(R.id.builtInPatternInput).setText(rule.pattern)
+        view.findViewById<EditText>(R.id.builtInDescriptionInput).setText(rule.descriptionTemplate)
+        view.findViewById<EditText>(R.id.builtInNotesInput).setText(rule.notesTemplate)
+        view.findViewById<SwitchMaterial>(R.id.builtInEnabledSwitch).apply {
+            isChecked = fireflyPrefs.isBuiltInRulesEnabled()
+            setOnCheckedChangeListener { _, checked ->
+                fireflyPrefs.setBuiltInRulesEnabled(checked)
+                reload()
+            }
+        }
+        AlertDialog.Builder(context)
+            .setTitle(rule.label)
+            .setView(view)
+            .setPositiveButton(android.R.string.ok, null)
+            .show()
     }
 
     override fun onDestroyView() {

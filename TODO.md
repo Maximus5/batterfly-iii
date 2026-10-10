@@ -558,20 +558,40 @@ work.
   - Shown at the bottom of `RulesListFragment`'s list, always (even
     when disabled - dimmed instead, same convention a disabled real
     rule already gets), visually distinct (light background tint),
-    with only one control: tapping either row flips the shared flag.
-    No edit/duplicate/delete/move controls, no overflow button, not
-    selectable (long-press is swallowed) - `RulesAdapter.bind`
-    branches on `rule.id in BuiltInRules.IDS`.
+    not selectable (long-press is swallowed) - `RulesAdapter.bind`
+    branches on `rule.id in BuiltInRules.IDS`. **Revised after a real
+    "tap silently flips a setting" bug, the user's own catch on-device**:
+    a tap used to toggle the shared enabled flag directly, no
+    confirmation - easy to trigger by accident while just browsing
+    (which is exactly what happened, and broke auto-create for a
+    message that should have hit a built-in rule, with no visible
+    cause). A tap now opens a read-only details view instead (pattern/
+    templates disabled, no Save/Delete - the one `builtInEnabledSwitch`
+    saves immediately on toggle, no Save button needed); the overflow
+    menu offers only "Duplicate" (clones the built-in's fields into a
+    real, editable `RulesDb` row via the ordinary `RulesDb.add`, then
+    opens it in the editor) - move/enable/disable/delete don't apply
+    and aren't shown at all, rather than shown disabled.
   - No forced-review restriction - considered, then dropped as the
     user's own follow-up call once `kind` became correctable on the
     create screen made the main risk recoverable anyway. A built-in
     match flows through the exact same auto-create/review dispatch
     every other rule already uses.
-  - `kind` is now editable on `CreateTransactionFragment`'s create
-    screen only (`showKindPicker`, tapping `kindText`) - for *any*
-    match, not just a built-in one; edit mode's `kindText` stays
-    exactly as before. This is what makes a single `WITHDRAWAL`-only
-    default safe: the user corrects it by hand when it's actually a
+  - `kind` is correctable on `CreateTransactionFragment`'s create
+    screen, for *any* match, not just a built-in one - but **not** via
+    a tap-to-pick `kindText` any more. That shipped first
+    (`showKindPicker`), then the user tried it on a real device and
+    called it out directly: "нифига пользователю не уперлось.
+    неинтуитивно" - reverted in favor of inferring `kind` from the
+    account fields instead (`inferKindFromAccounts`): both account
+    fields are always pickers in create mode, and whichever one(s)
+    the user fills in with a real Firefly asset account determines
+    `kind` live, with `kindText` back to a plain label. Refuses to
+    save at all if neither side resolves to a real asset account by
+    submit time. Edit mode's `kindText` stays exactly as before either
+    way - fixed, never recomputed. This is still what makes a single
+    `WITHDRAWAL`-only default safe: the user corrects it just by
+    putting the real account on the correct side when it's actually a
     deposit, instead of this app trying (and likely failing, per the
     evidence above) to guess direction from text.
   - "Default account currency" on `TransactionCreationFragment`

@@ -22,19 +22,21 @@ import io.github.maximus5.ffnotifyimporter.rules.ParseRule
  * `RulesDb` call in this fragment already addresses a rule - by id, never by value.
  *
  * A row whose id is in [BuiltInRules.IDS] (always the last 1-2 rows, appended by
- * `RulesListFragment.reload` - never a real [RulesDb] row) renders differently and ignores most
- * of the above: no overflow button (nothing to move/duplicate/delete - they're Kotlin constants,
- * not DB rows), long-press is swallowed rather than starting multi-select (they can't be acted on
- * as a group with real rules), and a tap calls [onToggleBuiltIn] instead of [onClick] - the one
- * shared enabled/disabled flag (`FireflyPrefs.isBuiltInRulesEnabled`) is the only thing about them
- * that's actually editable. A light tint on the row (not just the selected-row highlight) is the
- * "visually distinct" cue the user asked for, since the label text ("Default: ...") alone was
- * judged not enough to read as structurally different from an ordinary rule at a glance. */
+ * `RulesListFragment.reload` - never a real [RulesDb] row) gets a light background tint (not just
+ * the selected-row highlight) as its "visually distinct" cue, and swallows long-press (can't be
+ * multi-selected alongside real rules - there's nothing for a bulk move/enable/disable/delete to
+ * act on). Otherwise it's deliberately homogeneous with a real row - **fixed a real "tap toggles
+ * a setting" surprise, the user's own catch**: an earlier version made a tap on these rows itself
+ * flip `FireflyPrefs.isBuiltInRulesEnabled` directly, no confirmation, nothing else in this list
+ * behaving that way - easy to trigger by accident while just browsing the list, exactly what
+ * happened to the user. [onClick]/[onOverflowClick] now fire for every row the same way; it's
+ * `RulesListFragment`'s own job to branch on `rule.id in BuiltInRules.IDS` inside those callbacks
+ * (opening a read-only details view instead of the editor, and a cut-down "Duplicate only"
+ * overflow menu) rather than the adapter special-casing the interaction itself. */
 class RulesAdapter(
     private val onClick: (ParseRule) -> Unit,
     private val onLongClick: (ParseRule) -> Boolean,
     private val onOverflowClick: (ParseRule, View) -> Unit,
-    private val onToggleBuiltIn: (ParseRule) -> Unit,
 ) : RecyclerView.Adapter<RulesAdapter.ViewHolder>() {
 
     private var items: List<ParseRule> = emptyList()
@@ -117,18 +119,17 @@ class RulesAdapter(
             binding.root.alpha = if (rule.enabled) 1f else 0.5f
 
             val isBuiltIn = rule.id in BuiltInRules.IDS
-            if (isBuiltIn) {
-                binding.root.setBackgroundColor(BUILT_IN_BACKGROUND)
-                binding.ruleRowContent.setOnClickListener { onToggleBuiltIn(rule) }
-                binding.ruleRowContent.setOnLongClickListener { true }
-                binding.ruleOverflowButton.visibility = View.GONE
-            } else {
-                binding.root.setBackgroundColor(if (rule.id in selected) SELECTED_BACKGROUND else Color.TRANSPARENT)
-                binding.ruleRowContent.setOnClickListener { onClick(rule) }
-                binding.ruleRowContent.setOnLongClickListener { onLongClick(rule) }
-                binding.ruleOverflowButton.visibility = if (selectionMode) View.GONE else View.VISIBLE
-                binding.ruleOverflowButton.setOnClickListener { onOverflowClick(rule, it) }
-            }
+            binding.root.setBackgroundColor(
+                when {
+                    isBuiltIn -> BUILT_IN_BACKGROUND
+                    rule.id in selected -> SELECTED_BACKGROUND
+                    else -> Color.TRANSPARENT
+                },
+            )
+            binding.ruleRowContent.setOnClickListener { onClick(rule) }
+            binding.ruleRowContent.setOnLongClickListener { if (isBuiltIn) true else onLongClick(rule) }
+            binding.ruleOverflowButton.visibility = if (selectionMode) View.GONE else View.VISIBLE
+            binding.ruleOverflowButton.setOnClickListener { onOverflowClick(rule, it) }
         }
     }
 

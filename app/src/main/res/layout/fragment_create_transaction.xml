@@ -11,6 +11,15 @@
         android:padding="16dp">
 
         <TextView
+            android:id="@+id/ruleLabelText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            android:textColor="#888888"
+            android:textSize="13sp"
+            android:visibility="gone" />
+
+        <TextView
             android:id="@+id/alreadyLinkedWarningText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -25,8 +34,6 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="16dp"
-            android:background="?attr/selectableItemBackground"
-            android:paddingVertical="4dp"
             android:textColor="#888888"
             android:textSize="13sp" />
 
@@ -53,11 +60,15 @@
             </com.google.android.material.textfield.TextInputLayout>
 
             <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/currencyCodeLayout"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:hint="@string/create_tx_field_currency"
-                app:expandedHintEnabled="false">
+                app:expandedHintEnabled="false"
+                app:endIconMode="custom"
+                app:endIconDrawable="@drawable/ic_dropdown"
+                app:endIconContentDescription="@string/rule_pick_currency">
 
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/currencyCodeInput"
@@ -93,11 +104,15 @@
             </com.google.android.material.textfield.TextInputLayout>
 
             <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/foreignCurrencyCodeLayout"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:hint="@string/create_tx_field_currency"
-                app:expandedHintEnabled="false">
+                app:expandedHintEnabled="false"
+                app:endIconMode="custom"
+                app:endIconDrawable="@drawable/ic_dropdown"
+                app:endIconContentDescription="@string/rule_pick_currency">
 
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/foreignCurrencyCodeInput"
@@ -110,21 +125,48 @@
 
         </LinearLayout>
 
-        <TextView
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/create_tx_field_datetime"
-            android:textSize="13sp" />
-
-        <Button
-            android:id="@+id/dateTimeButton"
-            style="?attr/borderlessButtonStyle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
             android:layout_marginBottom="12dp"
-            android:minWidth="0dp"
-            android:paddingStart="0dp"
-            android:textAllCaps="false" />
+            android:orientation="horizontal">
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:layout_weight="1"
+                android:hint="@string/create_tx_field_date"
+                app:expandedHintEnabled="false">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/transactionDateInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:cursorVisible="false"
+                    android:focusable="false"
+                    android:inputType="none" />
+
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:hint="@string/create_tx_field_time"
+                app:expandedHintEnabled="false">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/transactionTimeInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:cursorVisible="false"
+                    android:focusable="false"
+                    android:inputType="none" />
+
+            </com.google.android.material.textfield.TextInputLayout>
+
+        </LinearLayout>
 
         <com.google.android.material.textfield.TextInputLayout
             android:id="@+id/sourceAccountLayout"
