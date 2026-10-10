@@ -60,13 +60,27 @@
                 android:id="@+id/stepDefaults"
                 layout="@layout/item_setup_step" />
 
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginTop="8dp"
+                android:background="#E0E0E0" />
+
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="@string/setup_hint"
+                android:layout_marginTop="12dp"
+                android:text="@string/setup_optional_title"
                 android:textColor="?attr/colorOnSurfaceVariant"
                 android:textSize="14sp" />
+
+            <include
+                android:id="@+id/stepNotifications"
+                layout="@layout/item_setup_step" />
+
+            <include
+                android:id="@+id/stepTestMessage"
+                layout="@layout/item_setup_step" />
 
             <Button
                 android:id="@+id/setupChecklistHide"

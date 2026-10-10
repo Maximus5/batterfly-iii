@@ -3030,7 +3030,14 @@ Single `:app` module, packages under
     Firefly connected, a monitored app chosen, default
     currency + default source account set) with a done/not-done icon,
     recomputed on every `onResume` so returning from a settings screen
-    updates it. Tapping a row starts `SettingsActivity` with its
+    updates it. Below a divider, an "Optional" group of two more rows:
+    *Show notifications* (done = `POST_NOTIFICATIONS` granted + system
+    notifications on + the in-app switch on; a tap requests the permission,
+    falling back to the system app-notification settings once the dialog no
+    longer appears, since the permission is otherwise only requested when
+    auto-create is switched on and review notifications were silently dropped
+    with the defaults) and *Add a test message* (opens `AddTestMessageFragment`;
+    never shows as done - the checklist is retired as soon as a message exists). Tapping a row starts `SettingsActivity` with its
     `EXTRA_SCREEN` (`SettingsActivity.SetupScreen`), which opens that one
     screen as the activity's root with no back-stack entry, so back lands
     on Messages. The checklist is *retired for good* (`SetupChecklistPrefs

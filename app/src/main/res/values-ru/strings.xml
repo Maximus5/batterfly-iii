@@ -309,6 +309,10 @@
     <string name="setup_step_apps_sub">Отметьте приложение вашего банка</string>
     <string name="setup_step_defaults">Задайте валюту и счёт по умолчанию</string>
     <string name="setup_step_defaults_sub">Используются, если правило их не задаёт</string>
-    <string name="setup_hint">Затем дождитесь уведомления от приложения или добавьте тестовое сообщение: Настройки → История сообщений.</string>
+    <string name="setup_optional_title">Необязательно</string>
+    <string name="setup_step_notifications">Показывать уведомления</string>
+    <string name="setup_step_notifications_sub">Получать уведомление в шторке, когда банковское сообщение подошло под правило</string>
+    <string name="setup_step_test_message">Добавьте тестовое сообщение</string>
+    <string name="setup_step_test_message_sub">Проверьте настройку, не дожидаясь настоящего банковского уведомления</string>
     <string name="setup_hide">Скрыть подсказку</string>
 </resources>

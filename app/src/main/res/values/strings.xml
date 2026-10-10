@@ -309,6 +309,10 @@
     <string name="setup_step_apps_sub">Pick your bank\'s app</string>
     <string name="setup_step_defaults">Set default currency and account</string>
     <string name="setup_step_defaults_sub">Used when a rule doesn\'t specify them</string>
-    <string name="setup_hint">Then wait for a notification from the app, or add a test message in Settings → Message history.</string>
+    <string name="setup_optional_title">Optional</string>
+    <string name="setup_step_notifications">Show notifications</string>
+    <string name="setup_step_notifications_sub">Get a notification in the shade when a bank message matches a rule</string>
+    <string name="setup_step_test_message">Add a test message</string>
+    <string name="setup_step_test_message_sub">Try the setup without waiting for a real bank notification</string>
     <string name="setup_hide">Hide this guide</string>
 </resources>

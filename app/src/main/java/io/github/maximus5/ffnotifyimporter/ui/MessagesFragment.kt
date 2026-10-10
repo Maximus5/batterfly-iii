@@ -1,5 +1,6 @@
 package io.github.maximus5.ffnotifyimporter.ui
 
+import android.Manifest
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -7,6 +8,7 @@ import android.content.Intent
 import android.graphics.Typeface
 import android.net.Uri
 import android.os.Bundle
+import android.provider.Settings
 import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.text.format.DateFormat
@@ -16,7 +18,9 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.PopupMenu
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
+import androidx.core.app.NotificationManagerCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -33,10 +37,12 @@ import io.github.maximus5.ffnotifyimporter.posting.LinkedTransactionCheck
 import io.github.maximus5.ffnotifyimporter.posting.ReviewNotifications
 import io.github.maximus5.ffnotifyimporter.posting.checkForDuplicate
 import io.github.maximus5.ffnotifyimporter.posting.findDuplicate
+import io.github.maximus5.ffnotifyimporter.posting.isNotificationPermissionGranted
 import io.github.maximus5.ffnotifyimporter.posting.matchMessage
 import io.github.maximus5.ffnotifyimporter.posting.verifyLinkedTransaction
 import io.github.maximus5.ffnotifyimporter.prefs.FireflyPrefs
 import io.github.maximus5.ffnotifyimporter.prefs.MonitoredAppsPrefs
+import io.github.maximus5.ffnotifyimporter.prefs.NotificationPrefs
 import io.github.maximus5.ffnotifyimporter.prefs.SetupChecklistPrefs
 import io.github.maximus5.ffnotifyimporter.rules.DraftIssue
 import io.github.maximus5.ffnotifyimporter.rules.NoMatchReason
@@ -109,18 +115,70 @@ class MessagesFragment : Fragment() {
             subtitleRes = R.string.setup_step_defaults_sub,
             screen = SettingsActivity.SetupScreen.TRANSACTIONS,
         )
+        val notificationsReady = isNotificationPermissionGranted(context) &&
+            NotificationManagerCompat.from(context).areNotificationsEnabled() &&
+            NotificationPrefs(context).isNotificationsEnabled()
+        bindStep(
+            binding.stepNotifications.root,
+            done = notificationsReady,
+            titleRes = R.string.setup_step_notifications,
+            subtitleRes = R.string.setup_step_notifications_sub,
+            onClick = ::onNotificationsStepClicked,
+        )
+        bindStep(
+            binding.stepTestMessage.root,
+            done = false,
+            titleRes = R.string.setup_step_test_message,
+            subtitleRes = R.string.setup_step_test_message_sub,
+            screen = SettingsActivity.SetupScreen.ADD_TEST_MESSAGE,
+        )
         binding.setupChecklistHide.setOnClickListener {
             SetupChecklistPrefs(context).retire()
             updateEmptyState()
         }
     }
 
-    private fun bindStep(row: View, done: Boolean, titleRes: Int, subtitleRes: Int, screen: SettingsActivity.SetupScreen) {
+    private fun bindStep(row: View, done: Boolean, titleRes: Int, subtitleRes: Int, screen: SettingsActivity.SetupScreen) =
+        bindStep(row, done, titleRes, subtitleRes) { startActivity(SettingsActivity.intentFor(requireContext(), screen)) }
+
+    private fun bindStep(row: View, done: Boolean, titleRes: Int, subtitleRes: Int, onClick: () -> Unit) {
         row.findViewById<android.widget.ImageView>(R.id.stepIcon)
             .setImageResource(if (done) R.drawable.ic_check_circle else R.drawable.ic_circle_outline)
         row.findViewById<android.widget.TextView>(R.id.stepTitle).setText(titleRes)
         row.findViewById<android.widget.TextView>(R.id.stepSubtitle).setText(subtitleRes)
-        row.setOnClickListener { startActivity(SettingsActivity.intentFor(requireContext(), screen)) }
+        row.setOnClickListener { onClick() }
+    }
+
+    /** POST_NOTIFICATIONS is otherwise only ever requested when auto-create is switched on, so with
+     * the defaults (auto-create off, "show notifications" on) review notifications were silently
+     * dropped. Missing permission -> ask for it (the system dialog stops appearing after repeated
+     * denials; [onNotificationPermissionResult] then sends the user to the system settings);
+     * system-level notifications off -> system settings; otherwise the in-app Notifications screen. */
+    private fun onNotificationsStepClicked() {
+        val context = requireContext()
+        when {
+            !isNotificationPermissionGranted(context) -> notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            !NotificationManagerCompat.from(context).areNotificationsEnabled() -> openSystemNotificationSettings()
+            else -> startActivity(SettingsActivity.intentFor(context, SettingsActivity.SetupScreen.NOTIFICATIONS))
+        }
+    }
+
+    private val notificationPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted -> onNotificationPermissionResult(granted) }
+
+    private fun onNotificationPermissionResult(granted: Boolean) {
+        if (granted) {
+            updateEmptyState()
+        } else if (!shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS)) {
+            openSystemNotificationSettings()
+        }
+    }
+
+    private fun openSystemNotificationSettings() {
+        startActivity(
+            Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                .putExtra(Settings.EXTRA_APP_PACKAGE, requireContext().packageName),
+        )
     }
 
     override fun onResume() {

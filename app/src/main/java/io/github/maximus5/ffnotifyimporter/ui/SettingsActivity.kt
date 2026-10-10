@@ -124,6 +124,8 @@ class SettingsActivity : AppCompatActivity() {
         FIREFLY(R.string.settings_firefly_title, ::FireflyConnectionFragment),
         APPS(R.string.settings_monitored_apps_title, ::AppsFragment),
         TRANSACTIONS(R.string.settings_transaction_creation_title, ::TransactionCreationFragment),
+        NOTIFICATIONS(R.string.settings_notifications_title, ::NotificationSettingsFragment),
+        ADD_TEST_MESSAGE(R.string.settings_add_test_message_title, ::AddTestMessageFragment),
         ;
 
         companion object {
