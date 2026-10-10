@@ -158,11 +158,11 @@ class TransactionCreationFragment : Fragment() {
             AlertDialog.Builder(requireContext())
                 .setTitle(R.string.discard_changes_title)
                 .setMessage(R.string.discard_changes_message)
-                .setNegativeButton(R.string.discard_changes_discard) { _, _ -> parentFragmentManager.popBackStack() }
+                .setNegativeButton(R.string.discard_changes_discard) { _, _ -> (activity as? SettingsActivity)?.leaveScreen() }
                 .setPositiveButton(android.R.string.cancel, null)
                 .show()
         } else {
-            parentFragmentManager.popBackStack()
+            (activity as? SettingsActivity)?.leaveScreen()
         }
     }
 
@@ -284,6 +284,7 @@ class TransactionCreationFragment : Fragment() {
 
         initialSnapshot = buildSnapshot()
         Toast.makeText(requireContext(), R.string.firefly_settings_saved, Toast.LENGTH_SHORT).show()
+        (activity as? SettingsActivity)?.leaveScreen()
     }
 
     override fun onDestroyView() {

@@ -227,6 +227,7 @@
     <string name="firefly_test_connection_failure">Ошибка подключения: %1$s</string>
     <string name="firefly_url_required">Base URL не может быть пустым.</string>
     <string name="firefly_token_required">Personal access token не может быть пустым.</string>
+    <string name="firefly_connection_intro">Base URL — адрес, по которому вы открываете Firefly III в браузере, без /api (например, https://firefly.example.com). Токен: в Firefly III откройте Options → Profile → вкладка OAuth → Personal Access Tokens → Create new token и скопируйте его сюда — Firefly показывает токен только один раз.</string>
     <string name="firefly_settings_saved">Сохранено</string>
 
     <string name="settings_transaction_creation_title">Транзакции</string>

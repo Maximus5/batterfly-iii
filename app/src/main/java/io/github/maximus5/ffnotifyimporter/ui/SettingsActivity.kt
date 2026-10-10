@@ -105,6 +105,11 @@ class SettingsActivity : AppCompatActivity() {
         return true
     }
 
+    /** Closes the current screen: pops it if it was pushed on the back stack, otherwise (opened
+     * directly as the root, e.g. from the Messages setup checklist) finishes the activity. Plain
+     * `popBackStack()` does nothing in the second case, which is why screens use this instead. */
+    fun leaveScreen() = defaultBack()
+
     private fun defaultBack() {
         if (supportFragmentManager.backStackEntryCount > 0) {
             supportFragmentManager.popBackStack()

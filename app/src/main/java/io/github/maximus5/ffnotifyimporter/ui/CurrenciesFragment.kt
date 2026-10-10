@@ -71,24 +71,28 @@ class CurrenciesFragment : Fragment() {
 
         // Cancel always rightmost/last (house convention, AGENTS.md) - Save sits in the negative
         // slot instead of positive so Cancel can take the positive (rightmost) one.
-        AlertDialog.Builder(requireContext())
+        val dialog = AlertDialog.Builder(requireContext())
             .setTitle(if (existing != null) R.string.currency_edit_title else R.string.currency_add)
             .setView(dialogBinding.root)
-            .setNegativeButton(R.string.action_save) { _, _ ->
-                val code = dialogBinding.currencyCodeInput.text?.toString()?.trim().orEmpty().uppercase()
-                val symbol = dialogBinding.currencySymbolInput.text?.toString()?.trim().orEmpty()
-                if (code.isEmpty()) {
-                    Toast.makeText(requireContext(), R.string.currency_code_required, Toast.LENGTH_SHORT).show()
-                    return@setNegativeButton
-                }
-                // Renaming the code (not just editing symbol) - drop the old row first so it
-                // doesn't linger as a stale duplicate alongside the new one.
-                if (existing != null && existing.code != code) currenciesDb.delete(existing.code)
-                currenciesDb.add(CurrencyEntry(code, symbol))
-                reload()
-            }
+            .setNegativeButton(R.string.action_save, null)
             .setPositiveButton(android.R.string.cancel, null)
             .show()
+        // Listener set after show() so a validation failure keeps the dialog open (and the typed
+        // input intact) instead of AlertDialog's automatic dismiss-on-any-button.
+        dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setOnClickListener {
+            val code = dialogBinding.currencyCodeInput.text?.toString()?.trim().orEmpty().uppercase()
+            val symbol = dialogBinding.currencySymbolInput.text?.toString()?.trim().orEmpty()
+            if (code.isEmpty()) {
+                Toast.makeText(requireContext(), R.string.currency_code_required, Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            // Renaming the code (not just editing symbol) - drop the old row first so it
+            // doesn't linger as a stale duplicate alongside the new one.
+            if (existing != null && existing.code != code) currenciesDb.delete(existing.code)
+            currenciesDb.add(CurrencyEntry(code, symbol))
+            reload()
+            dialog.dismiss()
+        }
     }
 
     /** The code field stays freely typeable (the table also holds symbols for currencies Firefly

@@ -3038,6 +3038,13 @@ Single `:app` module, packages under
     a non-empty list (covers restore) - or when the user taps "Hide this
     guide"; an empty list alone isn't enough, since retention expiring
     every message also empties it and the guide must not come back then.
+  - `SettingsActivity.leaveScreen()` - the one way a settings screen closes
+    itself (back guards' "discard", and after a successful Save on
+    `FireflyConnectionFragment`/`TransactionCreationFragment`): pops the
+    back stack if the screen was pushed, otherwise finishes the activity.
+    Needed because a screen opened directly as the root (the Messages
+    setup checklist) has no back-stack entry, and a bare
+    `parentFragmentManager.popBackStack()` silently does nothing there.
   - `SystemBarInsets.kt` - `useClassicSystemBars(root)`, the shared
     edge-to-edge-but-padded-back-to-classic logic both activities call
     (see Known bugs/gotchas below for why it's done this way). Also
