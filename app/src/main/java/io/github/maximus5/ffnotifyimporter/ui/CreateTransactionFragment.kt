@@ -99,6 +99,8 @@ class CreateTransactionFragment : Fragment() {
     private var categories: List<FireflyCategory>? = null
     private var enabledCurrencies: List<FireflyCurrency>? = null
 
+    private var saveMenu: SaveMenuHandle? = null
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -127,6 +129,10 @@ class CreateTransactionFragment : Fragment() {
         binding.destinationAccountInput.addTextChangedListener(afterTextChanged = { inferKindFromAccounts() })
 
         val editId = CreateTransactionActivity.editTransactionIdFrom(requireActivity().intent)
+        saveMenu = addSaveMenu(onSave = { if (editId != null) onSaveClicked(editId) else onCreateClicked() }).also {
+            it.label = getString(if (editId != null) R.string.create_tx_save else R.string.create_tx_create)
+            it.enabled = false
+        }
         if (editId != null) {
             loadForEdit(context, editId)
         } else {
@@ -191,8 +197,7 @@ class CreateTransactionFragment : Fragment() {
             binding.alreadyLinkedWarningText.visibility = View.VISIBLE
         }
 
-        binding.createTransactionButton.text = getString(R.string.test_match_create)
-        binding.createTransactionButton.setOnClickListener { onCreateClicked() }
+        saveMenu?.enabled = true
 
         if (DraftIssue.LOCAL_AMOUNT_MISSING in draft.issues) {
             viewLifecycleOwner.lifecycleScope.launch { resolveApproxConversion(draft) }
@@ -218,8 +223,7 @@ class CreateTransactionFragment : Fragment() {
                     populateFieldsFromCandidate(result.candidate)
                     updateAccountFieldModes()
                     updateKindText()
-                    binding.createTransactionButton.text = getString(R.string.create_tx_save)
-                    binding.createTransactionButton.setOnClickListener { onSaveClicked(transactionId) }
+                    saveMenu?.enabled = true
                 }
                 is LinkedTransactionCheck.Gone -> {
                     Toast.makeText(context, getString(R.string.open_transaction_gone_message, transactionId), Toast.LENGTH_LONG).show()
@@ -636,16 +640,15 @@ class CreateTransactionFragment : Fragment() {
     }
 
     private fun onCreateClicked() {
-        val binding = binding ?: return
         val draft = buildDraft() ?: return
         val context = requireContext()
 
         viewLifecycleOwner.lifecycleScope.launch {
-            binding.createTransactionButton.isEnabled = false
+            saveMenu?.enabled = false
             when (val result = checkForDuplicate(context, draft)) {
                 is DuplicateCheckResult.None -> post(draft)
                 is DuplicateCheckResult.SearchFailed -> {
-                    binding.createTransactionButton.isEnabled = true
+                    saveMenu?.enabled = true
                     AlertDialog.Builder(context)
                         .setTitle(R.string.check_search_failed_title)
                         .setMessage(result.message)
@@ -653,11 +656,11 @@ class CreateTransactionFragment : Fragment() {
                         .show()
                 }
                 is DuplicateCheckResult.Found -> {
-                    binding.createTransactionButton.isEnabled = true
+                    saveMenu?.enabled = true
                     confirmCreateAnyway(draft, result.id)
                 }
                 is DuplicateCheckResult.FoundMultiple -> {
-                    binding.createTransactionButton.isEnabled = true
+                    saveMenu?.enabled = true
                     Toast.makeText(context, getString(R.string.create_remote_duplicates_found, result.count), Toast.LENGTH_LONG).show()
                     confirmCreateAnyway(draft, result.mostRecentId)
                 }
@@ -688,7 +691,7 @@ class CreateTransactionFragment : Fragment() {
         val client = FireflyApiClient(prefs.getBaseUrl(), prefs.getToken())
         when (val result = client.createTransaction(request)) {
             is FireflyApiClient.Result.Success -> onSaveSuccess(context, draft, result.value)
-            is FireflyApiClient.Result.Failure -> onSaveFailure(context, binding, result.message)
+            is FireflyApiClient.Result.Failure -> onSaveFailure(context, result.message)
         }
     }
 
@@ -696,9 +699,8 @@ class CreateTransactionFragment : Fragment() {
      * "might this already exist" question when the whole point is editing a transaction already
      * confirmed to exist. */
     private fun onSaveClicked(transactionId: String) {
-        val binding = binding ?: return
         val draft = buildDraft() ?: return
-        binding.createTransactionButton.isEnabled = false
+        saveMenu?.enabled = false
         viewLifecycleOwner.lifecycleScope.launch { save(draft, transactionId) }
     }
 
@@ -711,7 +713,7 @@ class CreateTransactionFragment : Fragment() {
         val client = FireflyApiClient(prefs.getBaseUrl(), prefs.getToken())
         when (val result = client.updateTransaction(transactionId, request)) {
             is FireflyApiClient.Result.Success -> onSaveSuccess(context, draft, result.value)
-            is FireflyApiClient.Result.Failure -> onSaveFailure(context, binding, result.message)
+            is FireflyApiClient.Result.Failure -> onSaveFailure(context, result.message)
         }
     }
 
@@ -751,8 +753,8 @@ class CreateTransactionFragment : Fragment() {
         requireActivity().finish()
     }
 
-    private fun onSaveFailure(context: Context, binding: FragmentCreateTransactionBinding, message: String) {
-        binding.createTransactionButton.isEnabled = true
+    private fun onSaveFailure(context: Context, message: String) {
+        saveMenu?.enabled = true
         AlertDialog.Builder(context)
             .setTitle(R.string.create_failed_title)
             .setMessage(message)

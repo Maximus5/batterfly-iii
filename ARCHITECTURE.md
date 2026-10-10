@@ -3059,10 +3059,15 @@ Single `:app` module, packages under
     on any failure. `chooseDefaults` is the pure part, unit-tested. On the
     Transactions screen the currency + source account fields now sit at
     the top, above the switches.
-  - Save on `FireflyConnectionFragment`, `TransactionCreationFragment` and
-    `RuleEditFragment` is a filled button in the toolbar (`Fragment.addSaveMenu`,
+  - Save on `FireflyConnectionFragment`, `TransactionCreationFragment`,
+    `RuleEditFragment` and Create/Save on `CreateTransactionFragment` is a
+    filled button in the toolbar (`Fragment.addSaveMenu`, which returns a
+    `SaveMenuHandle` for the label and enabled state - the create/edit
+    transaction screen disables it while posting and until the form is
+    loaded; it deliberately has no trash icon, deleting a transaction is
+    left to the Firefly UI. The button is
     `menu_save.xml` + `action_save_button.xml` as an action layout - its view
-    takes the click, it never reaches `onMenuItemSelected`), not a button at
+    takes the click, it never reaches `onMenuItemSelected` - not a button at
     the bottom of the scroll view - on the long forms the bottom button was
     off-screen and easy to miss. `RuleEditFragment` also gets a trash icon
     there (existing rules only), and its Enabled switch is the first field.

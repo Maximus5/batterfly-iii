@@ -180,6 +180,7 @@
     <string name="create_tx_title">Создание транзакции</string>
     <string name="create_tx_edit_title">Редактирование транзакции</string>
     <string name="create_tx_save">Сохранить</string>
+    <string name="create_tx_create">Создать</string>
     <string name="create_tx_field_amount">Сумма</string>
     <string name="create_tx_field_currency">Валюта</string>
     <string name="create_tx_field_foreign_amount">Сумма в валюте платежа (опционально)</string>
