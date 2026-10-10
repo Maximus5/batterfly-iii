@@ -178,6 +178,26 @@ class RuleEngineTest {
     }
 
     @Test
+    fun `defaultAccountCurrency fills in currencyCode when the rule's own homeCurrency is blank`() {
+        val r = rule(homeCurrency = "", pattern = """spent (?<amount>[\d,]+)""")
+        val outcome = RuleEngine(listOf(r), defaultAccountCurrency = "USD").match(message()) as ParseOutcome.Matched
+
+        assertEquals("USD", outcome.draft.currencyCode)
+    }
+
+    @Test
+    fun `defaultAccountCurrency is used for the foreign-amount comparison too, not just currencyCode`() {
+        // Captured currency matches the *fallback*, not any currency written in the rule itself
+        // (there is none) - should be treated as home, not foreign.
+        val r = rule(homeCurrency = "", pattern = """spent (?<amount>[\d,]+) (?<currency>[A-Z]{3})""")
+        val outcome = RuleEngine(listOf(r), defaultAccountCurrency = "USD")
+            .match(message(text = "You spent 12,50 USD at Shop1234")) as ParseOutcome.Matched
+
+        assertEquals(BigDecimal("12.50"), outcome.draft.amount)
+        assertTrue(outcome.draft.issues.isEmpty())
+    }
+
+    @Test
     fun `allTransactionsTags is appended to every draft's own tags`() {
         val r = rule(pattern = """spent (?<amount>[\d,]+) EUR""", tagsTemplate = "recurring")
         val outcome = RuleEngine(listOf(r), allTransactionsTags = "firefly-importer").match(message()) as ParseOutcome.Matched

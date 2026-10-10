@@ -31,11 +31,18 @@ private val whitespaceRun = Regex("\\s+")
  * not a `FireflyPrefs`/`Context` reference - same "external config injected as data" shape
  * [currencySymbols] already uses, so `rules` stays free of any Android/Firefly dependency. Defaults
  * to blank (no-op) for the same "callers that don't care can ignore it" reason.
+ *
+ * [defaultAccountCurrency] (`FireflyPrefs.getDefaultAccountCurrency()`) - substituted for
+ * [ParseRule.homeCurrency] in [buildDraft] whenever a rule leaves its own blank, the user's own
+ * request: a rule isn't always scoped to one real account the way most user-authored ones are -
+ * most notably [BuiltInRules]'s generic fallback rules, which have no account (and so no known
+ * currency) to inherit from at all. Same plain-`String` injection shape as [allTransactionsTags].
  */
 class RuleEngine(
     private val rules: List<ParseRule>,
     private val currencySymbols: Map<String, String> = emptyMap(),
     private val allTransactionsTags: String = "",
+    private val defaultAccountCurrency: String = "",
 ) {
 
     fun match(message: CapturedMessage): ParseOutcome {
@@ -69,8 +76,9 @@ class RuleEngine(
         var foreignCurrency = groups[Groups.FOREIGN_CURRENCY]?.let { normalizeCurrency(it, currencySymbols) }
         var localAmount: BigDecimal? = amount
         val issues = mutableSetOf<DraftIssue>()
+        val homeCurrency = rule.homeCurrency.ifBlank { defaultAccountCurrency }
 
-        if (currency != null && !currency.equals(rule.homeCurrency, ignoreCase = true) && foreignAmount == null) {
+        if (currency != null && !currency.equals(homeCurrency, ignoreCase = true) && foreignAmount == null) {
             // Only a non-home-currency amount is known: keep it as foreign, the home-currency
             // amount has to be entered manually (or fixed later from the bank statement).
             foreignAmount = amount
@@ -112,7 +120,7 @@ class RuleEngine(
             kind = rule.kind,
             date = date,
             amount = localAmount,
-            currencyCode = rule.homeCurrency,
+            currencyCode = homeCurrency,
             foreignAmount = foreignAmount,
             foreignCurrencyCode = foreignCurrency,
             sourceName = renderOptional(rule.sourceAccountName),

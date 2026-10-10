@@ -488,6 +488,19 @@ Single `:app` module, packages under
     preview (that dialog only ever reads the matched
     `outcome.groups`, never the draft's own `tags`, so passing it there
     would have had no visible effect).
+    `RuleEngine` similarly takes an optional `defaultAccountCurrency:
+    String` (same plain-injection shape) - substituted for
+    `ParseRule.homeCurrency` in `buildDraft` (both for the foreign-
+    amount comparison and the draft's own `currencyCode`) whenever a
+    rule leaves its own blank. **Fixed a real gap this exposed, the
+    user's own catch**: `rules.validateRule` used to unconditionally
+    require `homeCurrency` on *every* rule (`"Currency can't be
+    empty"`), which would have silently blocked this fallback from
+    ever actually being reachable for a user-authored rule - that
+    check is gone now, a blank `homeCurrency` is a deliberate choice to
+    lean on the fallback, not something forgotten. Every real caller
+    that constructs a `RuleEngine` also now passes `FireflyPrefs.
+    getDefaultAccountCurrency()` alongside `getAllTransactionsTags()`.
   - `CurrencyEntry`/`CurrenciesDb` - another user-maintained
     placeholder table (code<->symbol, e.g. `EUR`<->`€`), same idea and
     same "plain SQLite, no ORM, `getInstance(context)` singleton"
@@ -590,10 +603,10 @@ Single `:app` module, packages under
     settings, one prefs class for both even though its UI is now split
     across two screens (`ui.FireflyConnectionFragment` - base URL,
     personal access token; `ui.TransactionCreationFragment` - the
-    all-transactions tags, approximate-conversion tag name, auto-create
-    toggle, dedup toggle + include-description toggle + window
-    (minutes, default 5) - see the `ui` section below for why they're
-    separate screens now). Base URL
+    default account currency, all-transactions tags, approximate-
+    conversion tag name, auto-create toggle, dedup toggle + include-
+    description toggle + window (minutes, default 5) - see the `ui`
+    section below for why they're separate screens now). Base URL
     and token are the only genuinely secret values in this app
     (AGENTS.md's Secrets section) - encrypted through `KeystoreCipher`
     before being stored, in an otherwise plain `SharedPreferences`
@@ -2073,17 +2086,31 @@ Single `:app` module, packages under
         fields someone actually opens this screen to edit.
       `TransactionCreationFragment` (row title shortened to
       "Transactions", the user's own call - auto-create, dedup, the
-      all-transactions tags, approx tag) carries no such protection,
-      same explicit Save-button shape as before, not autosave-per-field
-      like `MessageHistoryFragment`'s radio group, since several of
-      these fields are text the user is still typing/correcting rather
-      than a single tap choice. Field order: auto-create, a divider,
-      the three dedup fields, a second divider, then the
-      all-transactions tags field and approx tag together (see the
-      `rules` section above for what each actually does) - the user's
-      own layout call, grouping the two tag fields together at the
-      bottom rather than splitting one off at the top the way the
-      original combined screen had it. **Fixed a real "field got too
+      default account currency, all-transactions tags, approx tag)
+      carries no such protection, same explicit Save-button shape as
+      before, not autosave-per-field like `MessageHistoryFragment`'s
+      radio group, since several of these fields are text the user is
+      still typing/correcting rather than a single tap choice. Field
+      order: auto-create, a divider, the three dedup fields, a second
+      divider, then the default account currency field, then a third
+      divider, then the all-transactions tags field and approx tag
+      together (see the `rules` section above for what each actually
+      does) - the user's own layout call, grouping the two tag fields
+      together at the bottom rather than splitting one off at the top
+      the way the original combined screen had it.
+      "Default account currency" (`FireflyPrefs.getDefaultAccountCurrency`,
+      see its own KDoc) picks from `FireflyApiClient.listCurrencies()`'s
+      own `enabled` currencies, same end-icon `TextInputLayout` +
+      `AlertDialog.setSingleChoiceItems` shape every other Firefly-
+      sourced picker in this app uses (asset accounts, categories) -
+      field stays freely typeable either way, same as those. Own
+      caption below it explains it's used whenever a rule leaves its
+      own currency blank - deliberately a *different* `FireflyCurrency`
+      data source from `RuleEditFragment`'s own currency picker
+      (`rules.CurrenciesDb`, this app's locally-maintained symbol<->code
+      table) - that one's for typing a rule's `homeCurrency` by hand
+      without a typo, this one's "what's actually switched on in my
+      real Firefly instance right now". **Fixed a real "field got too
       tall" layout bug, the user's own catch**: both tag fields' own
       explanatory text used to be the `TextInputEditText`'s own inline
       `android:hint` (an example value shown inside the box when

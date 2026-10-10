@@ -231,6 +231,10 @@
     <string name="firefly_dedup_include_description">Также сравнивать description</string>
     <string name="firefly_field_dedup_window">Окно дедупликации (минут)</string>
     <string name="firefly_dedup_window_invalid">Окно дедупликации должно быть положительным числом минут.</string>
+    <string name="firefly_field_default_account_currency">Валюта счёта по умолчанию</string>
+    <string name="firefly_field_default_account_currency_hint">Используется, если правило не указывает свою валюту.</string>
+    <string name="firefly_pick_currency_failed">Не удалось загрузить валюты из Firefly: %1$s</string>
+    <string name="firefly_no_currencies">В Firefly не найдено включённых валют.</string>
     <string name="firefly_field_all_transactions_tags">Добавить теги для всех транзакций (через запятую)</string>
     <string name="firefly_field_all_transactions_tags_hint">напр. firefly-importer, bank-import — добавляются ко всем создаваемым приложением транзакциям, независимо от правила</string>
 

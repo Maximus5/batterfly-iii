@@ -119,8 +119,8 @@ class CreateTransactionFragment : Fragment() {
         val binding = binding ?: return
         val rules = RulesDb.getInstance(context).loadAllOrdered()
         val currencySymbols = CurrenciesDb.getInstance(context).symbolToCodeMap()
-        val allTransactionsTags = FireflyPrefs(context).getAllTransactionsTags()
-        val outcome = RuleEngine(rules, currencySymbols, allTransactionsTags).match(message)
+        val fireflyPrefs = FireflyPrefs(context)
+        val outcome = RuleEngine(rules, currencySymbols, fireflyPrefs.getAllTransactionsTags(), fireflyPrefs.getDefaultAccountCurrency()).match(message)
         val draft = (outcome as? ParseOutcome.Matched)?.draft
         if (draft == null) {
             // Shouldn't happen in practice - this screen is only ever launched right after a

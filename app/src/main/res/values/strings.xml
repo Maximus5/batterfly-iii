@@ -231,6 +231,10 @@
     <string name="firefly_dedup_include_description">Also compare description</string>
     <string name="firefly_field_dedup_window">Dedup window (minutes)</string>
     <string name="firefly_dedup_window_invalid">Dedup window must be a positive number of minutes.</string>
+    <string name="firefly_field_default_account_currency">Default account currency</string>
+    <string name="firefly_field_default_account_currency_hint">Used when a rule doesn\'t specify its own currency.</string>
+    <string name="firefly_pick_currency_failed">Couldn\'t load currencies from Firefly: %1$s</string>
+    <string name="firefly_no_currencies">No enabled currencies found in Firefly.</string>
     <string name="firefly_field_all_transactions_tags">Add tags for all transactions (comma separated)</string>
     <string name="firefly_field_all_transactions_tags_hint">e.g. firefly-importer, bank-import - added to every transaction this app creates, regardless of which rule matched</string>
 

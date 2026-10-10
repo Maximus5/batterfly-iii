@@ -8,7 +8,10 @@ fun validateRule(rule: ParseRule): List<String> {
     val errors = mutableListOf<String>()
     if (rule.label.isBlank()) errors += "Label can't be empty"
     if (rule.packageNames.isEmpty()) errors += "Pick an app"
-    if (rule.homeCurrency.isBlank()) errors += "Currency can't be empty"
+    // Deliberately *not* required - the user's own call: a blank homeCurrency now means "fall
+    // back to FireflyPrefs.getDefaultAccountCurrency()" (see RuleEngine.buildDraft), a genuine,
+    // intentional choice for a rule that doesn't need its own fixed currency, not just something
+    // forgotten. Used to be mandatory here before that fallback existed.
 
     when (rule.kind) {
         RuleKind.WITHDRAWAL ->

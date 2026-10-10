@@ -27,6 +27,19 @@ class FireflyPrefs(context: Context) {
     fun getApproxConversionTag(): String = prefs.getString(KEY_APPROX_TAG, "").orEmpty()
     fun setApproxConversionTag(tag: String) = prefs.edit().putString(KEY_APPROX_TAG, tag).apply()
 
+    /** Used as `ParseRule.homeCurrency` whenever a rule's *own* currency is left blank - the
+     * user's own request. A user-authored rule is still free to set its own `homeCurrency`
+     * (unchanged, still the common case - most rules are scoped to one real account, already in a
+     * known currency); this exists for the case where it can't be known in advance, most notably
+     * `rules.BuiltInRules`'s generic fallback rules, which aren't scoped to any one account at
+     * all. Merged in by [rules.RuleEngine] itself (a plain `String` constructor parameter, same
+     * "external config injected as data, not a `Context`/`FireflyPrefs` dependency" shape its own
+     * `currencySymbols`/`allTransactionsTags` already use) - `rules` stays free of any Android/
+     * Firefly dependency either way. */
+    fun getDefaultAccountCurrency(): String = prefs.getString(KEY_DEFAULT_ACCOUNT_CURRENCY, "").orEmpty()
+    fun setDefaultAccountCurrency(currencyCode: String) =
+        prefs.edit().putString(KEY_DEFAULT_ACCOUNT_CURRENCY, currencyCode).apply()
+
     /** Comma-separated - one or more tags appended to *every* transaction this app creates,
      * regardless of which rule matched - the user's own request, so tags wanted on everything
      * don't have to be repeated in every single rule's own `tagsTemplate`. Raw storage shape
@@ -75,6 +88,7 @@ class FireflyPrefs(context: Context) {
         private const val KEY_TOKEN = "token"
         private const val KEY_APPROX_TAG = "approx_conversion_tag"
         private const val KEY_ALL_TRANSACTIONS_TAGS = "all_transactions_tag"
+        private const val KEY_DEFAULT_ACCOUNT_CURRENCY = "default_account_currency"
         private const val KEY_AUTO_CREATE = "auto_create"
         private const val KEY_DEDUP_ENABLED = "dedup_enabled"
         private const val KEY_DEDUP_INCLUDE_DESCRIPTION = "dedup_include_description"
