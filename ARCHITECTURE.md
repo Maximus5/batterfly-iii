@@ -2344,6 +2344,16 @@ Single `:app` module, packages under
       (1/3/5), an adjacent one (1/2), and - the case that was actually
       broken - a selected run touching the list's own edge, through
       the full algorithm before writing this, not assumed.
+      `moveSelected` also calls `scrollToKeepSelectionVisible(up)`
+      right after `reload()` - the user's own request: repeated
+      move-up/move-down taps can walk a selection clean off the
+      visible screen with no scrolling to follow it. Scrolls (plain
+      `scrollToPosition`, not `smoothScrollToPosition` - this runs on
+      every tap including rapid repeated ones, where a queued
+      animation would lag rather than help) to whichever edge of the
+      selection is leading the move - the first selected row for "up",
+      the last for "down" - since that's the one steering toward the
+      edge the user is actually aiming for, not an arbitrary member.
       Enable/disable for a selection reuses the existing `RulesDb.
       update(rule)` (no new DB method) - `rulesDb.loadAllOrdered().
       filter { it.id in ids }.forEach { rulesDb.update(it.copy(enabled

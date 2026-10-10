@@ -206,6 +206,24 @@ class RulesListFragment : Fragment() {
             }
         }
         reload()
+        scrollToKeepSelectionVisible(up)
+    }
+
+    /** Keeps the moved selection in view - the user's own request, after noticing repeated
+     * move-up/move-down taps can walk a selection clean off the visible screen with no scrolling
+     * to follow it. Scrolls to whichever edge of the selection is leading the move - the first
+     * selected row (closest to the top) when moving up, the last (closest to the bottom) when
+     * moving down - since that's the row steering toward the edge the user is actually aiming
+     * for, not just an arbitrary member of the selection. Plain `scrollToPosition` (instant), not
+     * `smoothScrollToPosition` - this runs after every tap, including rapid repeated ones, where a
+     * queued-up animation would lag behind rather than help. */
+    private fun scrollToKeepSelectionVisible(up: Boolean) {
+        val binding = binding ?: return
+        val ids = adapter.selectedIds()
+        if (ids.isEmpty()) return
+        val ordered = rulesDb.loadAllOrdered()
+        val index = if (up) ordered.indexOfFirst { it.id in ids } else ordered.indexOfLast { it.id in ids }
+        if (index >= 0) binding.rulesRecyclerView.scrollToPosition(index)
     }
 
     /** Same per-rule behavior the per-row overflow's own "Duplicate" already has
