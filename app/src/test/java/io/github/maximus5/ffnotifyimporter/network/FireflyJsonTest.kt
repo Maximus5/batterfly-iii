@@ -58,6 +58,17 @@ class FireflyJsonTest {
     }
 
     @Test
+    fun `parseCurrencyList extracts name and symbol`() {
+        val body = """
+            {"data": [
+                {"id": "1", "attributes": {"code": "EUR", "name": "Euro", "symbol": "€", "enabled": true}}
+            ]}
+        """.trimIndent()
+
+        assertEquals(listOf(FireflyCurrency("EUR", true, "Euro", "€")), parseCurrencyList(body))
+    }
+
+    @Test
     fun `parseCurrencyList skips an entry missing a code rather than failing the whole list`() {
         val body = """
             {"data": [

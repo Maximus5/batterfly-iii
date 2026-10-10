@@ -10,11 +10,15 @@
     android:paddingBottom="8dp">
 
     <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/currencyCodeLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginBottom="12dp"
         android:hint="@string/currency_field_code"
-        app:expandedHintEnabled="false">
+        app:expandedHintEnabled="false"
+        app:endIconMode="custom"
+        app:endIconDrawable="@drawable/ic_dropdown"
+        app:endIconContentDescription="@string/rule_pick_currency">
 
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/currencyCodeInput"

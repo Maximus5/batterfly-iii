@@ -40,16 +40,36 @@ fun capturedMessageFrom(data: Data): CapturedMessage = CapturedMessage(
     timestampMillis = data.getLong(KEY_TIMESTAMP_MILLIS, 0L),
 )
 
-/** Parses [message] fresh via [RuleEngine.match] - null if no rule matched. Shared by
- * [AutoCreateWorker] and `ReviewNotificationWorker`, both of which only ever receive a message's
- * plain fields (see [capturedMessageFrom]) and have to re-derive the draft themselves. */
-fun matchRule(context: Context, message: CapturedMessage): TransactionDraft? {
-    val prefs = FireflyPrefs(context)
+private fun buildEngine(context: Context, prefs: FireflyPrefs): RuleEngine {
     val rules = RulesDb.getInstance(context).loadAllOrdered().withBuiltIns(prefs.isBuiltInRulesEnabled())
     val currencySymbols = CurrenciesDb.getInstance(context).symbolToCodeMap()
-    val outcome = RuleEngine(rules, currencySymbols, prefs.getAllTransactionsTags(), prefs.getDefaultAccountCurrency()).match(message)
-    return (outcome as? ParseOutcome.Matched)?.draft
+    return RuleEngine(rules, currencySymbols, prefs.getAllTransactionsTags(), prefs.getDefaultAccountCurrency())
 }
+
+/**
+ * The one place every real match goes through (both background workers and every UI entry point).
+ * Runs [RuleEngine.match]; if the matched draft still carries a currency *symbol* the local
+ * `CurrenciesDb` table didn't know (see [unresolvedCurrencySymbols]) and Firefly is configured,
+ * looks it up in Firefly ([learnCurrencySymbols]) and, only if that added something, matches once
+ * more so the draft comes out normalized. `CurrenciesDb` is a cache of Firefly's own currency
+ * table - the user's own framing - so this is its self-fill path. A failed/empty lookup leaves the
+ * first outcome untouched, exactly the pre-lookup behaviour. Suspends only when that lookup
+ * actually runs, so a caller on `Dispatchers.Main.immediate` still proceeds inline otherwise.
+ */
+suspend fun matchMessage(context: Context, message: CapturedMessage): ParseOutcome {
+    val prefs = FireflyPrefs(context)
+    val outcome = buildEngine(context, prefs).match(message)
+    val draft = (outcome as? ParseOutcome.Matched)?.draft ?: return outcome
+    if (!prefs.isConfigured()) return outcome
+    if (!learnCurrencySymbols(context, prefs, unresolvedCurrencySymbols(draft))) return outcome
+    return buildEngine(context, prefs).match(message)
+}
+
+/** [matchMessage], reduced to the draft - null if no rule matched. Shared by [AutoCreateWorker]
+ * and `ReviewNotificationWorker`, both of which only ever receive a message's plain fields (see
+ * [capturedMessageFrom]) and have to re-derive the draft themselves. */
+suspend fun matchRule(context: Context, message: CapturedMessage): TransactionDraft? =
+    (matchMessage(context, message) as? ParseOutcome.Matched)?.draft
 
 /** Same exchange-rate resolution `MessagesFragment.resolveAmountQuietly` does - no dialog/UI to
  * update along the way, since neither background worker using this has one. A failed lookup

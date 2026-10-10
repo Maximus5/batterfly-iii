@@ -567,6 +567,20 @@ Single `:app` module, packages under
     same "plain SQLite, no ORM, `getInstance(context)` singleton"
     shape as `RulesDb`/`MessageHistoryDb`. Seeded with EUR/USD/GBP on
     first creation; the user edits it from Settings -> Currencies.
+    Treated as a **local cache of Firefly's own currency table** (the
+    user's own framing), so it also fills itself: every real match goes
+    through `posting.matchMessage` (`RuleMatching.kt`, used by both
+    workers and every UI entry point), which - when the matched draft
+    still carries a currency *symbol* nobody translated
+    (`unresolvedCurrencySymbols`: not a 3-letter code) and Firefly is
+    configured - runs `learnCurrencySymbols`: one read-only
+    `listCurrencies()` crawl, then adds a row only when exactly one
+    *enabled* Firefly currency carries that symbol (a shared symbol like
+    "$" is left for the user to map by hand) and the table has no row
+    for that code yet (one symbol per code - never overwrite the user's
+    own mapping). Added something -> match again so the draft comes out
+    normalized; failed/empty lookup -> original outcome, unchanged.
+    Pure parts (`learnableSymbolEntry`) in `CurrencyLearningTest`.
   - `validateRule(rule)` (`RuleValidationTest`) - checks the pattern
     compiles and defines `amount`, at least one app is picked, and the
     right source/destination account is filled per kind (see the
@@ -2996,7 +3010,10 @@ Single `:app` module, packages under
       of labels", per user feedback). Save runs `validateRule` and
       shows every error in one dialog before writing anything.
     - `CurrenciesFragment`/`CurrenciesAdapter` - list + add/edit (one
-      `AlertDialog` with two fields: code, symbol) + delete over
+      `AlertDialog` with two fields: code, symbol - the code field is
+      still freely typeable but has a dropdown end icon listing Firefly's
+      *enabled* currencies ("EUR - Euro (€)"); picking one also fills
+      Symbol from Firefly's own record) + delete over
       `CurrenciesDb`. No separate full-screen editor like
       `RuleEditFragment` - two fields doesn't warrant one. Delete is
       behind the same overflow (⋮) `PopupMenu` `RulesListFragment`

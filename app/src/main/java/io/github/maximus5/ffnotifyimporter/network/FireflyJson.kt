@@ -72,7 +72,12 @@ fun parseCurrencyList(body: String): List<FireflyCurrency> = try {
             val entry = data.optJSONObject(i) ?: return@mapNotNull null
             val attributes = entry.optJSONObject("attributes") ?: return@mapNotNull null
             val code = attributes.optString("code").takeIf { it.isNotBlank() } ?: return@mapNotNull null
-            FireflyCurrency(code, attributes.optBoolean("enabled", false))
+            FireflyCurrency(
+                code,
+                attributes.optBoolean("enabled", false),
+                attributes.optString("name"),
+                attributes.optString("symbol"),
+            )
         }
     }
 } catch (e: JSONException) {

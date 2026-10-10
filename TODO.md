@@ -1362,3 +1362,16 @@ work.
   hint to a plain caption *below* the field, the user's own follow-up
   catch - a long inline hint visibly grew the field's own height for no
   benefit over a caption that only takes space when actually shown.
+- **Done**, the user's own request: `CurrenciesDb` is now a local cache of
+  Firefly's currency table - an unknown symbol met while matching is looked
+  up in Firefly and added (`posting.matchMessage`/`learnCurrencySymbols`,
+  see ARCHITECTURE.md), and the Currencies add/edit dialog's Code field is a
+  dropdown of Firefly's enabled currencies that also fills Symbol.
+  **Deferred**: the table holds one symbol per code (code is the primary
+  key), so a bank printing both "zł" and "PLN"-style variants, or a shared
+  symbol ("$" for several enabled dollars, which is deliberately *not*
+  auto-learned), can't be mapped at all beyond one row - allowing several
+  symbols per code needs a real `CurrenciesDb` migration (never the
+  existing drop-and-recreate `onUpgrade`) plus list/dialog changes; also
+  nothing tells the user when a symbol stays unresolved and Firefly rejects
+  the post for it.

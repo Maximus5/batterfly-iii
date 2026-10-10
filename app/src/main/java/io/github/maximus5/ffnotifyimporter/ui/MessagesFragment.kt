@@ -33,18 +33,15 @@ import io.github.maximus5.ffnotifyimporter.posting.LinkedTransactionCheck
 import io.github.maximus5.ffnotifyimporter.posting.ReviewNotifications
 import io.github.maximus5.ffnotifyimporter.posting.checkForDuplicate
 import io.github.maximus5.ffnotifyimporter.posting.findDuplicate
+import io.github.maximus5.ffnotifyimporter.posting.matchMessage
 import io.github.maximus5.ffnotifyimporter.posting.verifyLinkedTransaction
 import io.github.maximus5.ffnotifyimporter.prefs.FireflyPrefs
-import io.github.maximus5.ffnotifyimporter.rules.CurrenciesDb
 import io.github.maximus5.ffnotifyimporter.rules.DraftIssue
 import io.github.maximus5.ffnotifyimporter.rules.NoMatchReason
 import io.github.maximus5.ffnotifyimporter.rules.ParseOutcome
 import io.github.maximus5.ffnotifyimporter.rules.RemoteTransactionCandidate
-import io.github.maximus5.ffnotifyimporter.rules.RuleEngine
-import io.github.maximus5.ffnotifyimporter.rules.RulesDb
 import io.github.maximus5.ffnotifyimporter.rules.TransactionDraft
 import io.github.maximus5.ffnotifyimporter.rules.applyApproxConversion
-import io.github.maximus5.ffnotifyimporter.rules.withBuiltIns
 import java.math.RoundingMode
 import java.time.Instant
 import java.util.Date
@@ -128,25 +125,25 @@ class MessagesFragment : Fragment() {
     private fun showTestMatch(message: CapturedMessage) {
         val context = requireContext()
         val fireflyPrefs = FireflyPrefs(context)
-        val rules = RulesDb.getInstance(context).loadAllOrdered().withBuiltIns(fireflyPrefs.isBuiltInRulesEnabled())
-        val currencySymbols = CurrenciesDb.getInstance(context).symbolToCodeMap()
-        val outcome = RuleEngine(rules, currencySymbols, fireflyPrefs.getAllTransactionsTags(), fireflyPrefs.getDefaultAccountCurrency()).match(message)
-
-        when (outcome) {
-            is ParseOutcome.NoMatch -> {
-                AlertDialog.Builder(context)
-                    .setTitle(R.string.test_match_no_match_title)
-                    .setMessage(getString(reasonStringRes(outcome.reason)))
-                    .setPositiveButton(android.R.string.ok, null)
-                    .show()
-            }
-            is ParseOutcome.Matched -> {
-                val configured = fireflyPrefs.isConfigured()
-                val existingId = message.fireflyTransactionId
-                when {
-                    existingId == null && configured -> checkThenOpenCreateOrShowFound(context, outcome.draft, message)
-                    existingId != null && configured -> verifyLinkedThenShow(context, outcome, message, existingId)
-                    else -> showMatchedDialog(context, outcome)
+        // Launched (Main.immediate - runs inline unless matchMessage actually has to wait on a
+        // Firefly currency-symbol lookup, see posting.learnCurrencySymbols).
+        viewLifecycleOwner.lifecycleScope.launch {
+            when (val outcome = matchMessage(context, message)) {
+                is ParseOutcome.NoMatch -> {
+                    AlertDialog.Builder(context)
+                        .setTitle(R.string.test_match_no_match_title)
+                        .setMessage(getString(reasonStringRes(outcome.reason)))
+                        .setPositiveButton(android.R.string.ok, null)
+                        .show()
+                }
+                is ParseOutcome.Matched -> {
+                    val configured = fireflyPrefs.isConfigured()
+                    val existingId = message.fireflyTransactionId
+                    when {
+                        existingId == null && configured -> checkThenOpenCreateOrShowFound(context, outcome.draft, message)
+                        existingId != null && configured -> verifyLinkedThenShow(context, outcome, message, existingId)
+                        else -> showMatchedDialog(context, outcome)
+                    }
                 }
             }
         }
@@ -692,10 +689,7 @@ class MessagesFragment : Fragment() {
                 }
             }
 
-            val rules = RulesDb.getInstance(context).loadAllOrdered().withBuiltIns(prefs.isBuiltInRulesEnabled())
-            val currencySymbols = CurrenciesDb.getInstance(context).symbolToCodeMap()
-            val outcome = RuleEngine(rules, currencySymbols, prefs.getAllTransactionsTags(), prefs.getDefaultAccountCurrency()).match(message)
-            val draft = (outcome as? ParseOutcome.Matched)?.draft
+            val draft = (matchMessage(context, message) as? ParseOutcome.Matched)?.draft
             if (draft == null) {
                 Toast.makeText(context, R.string.messages_check_no_rule_matched, Toast.LENGTH_SHORT).show()
                 return@launch

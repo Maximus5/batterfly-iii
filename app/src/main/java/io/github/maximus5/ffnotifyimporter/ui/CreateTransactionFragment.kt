@@ -29,20 +29,18 @@ import io.github.maximus5.ffnotifyimporter.posting.DuplicateCheckResult
 import io.github.maximus5.ffnotifyimporter.posting.LinkedTransactionCheck
 import io.github.maximus5.ffnotifyimporter.posting.ReviewNotifications
 import io.github.maximus5.ffnotifyimporter.posting.checkForDuplicate
+import io.github.maximus5.ffnotifyimporter.posting.matchMessage
 import io.github.maximus5.ffnotifyimporter.posting.verifyLinkedTransaction
 import io.github.maximus5.ffnotifyimporter.prefs.FireflyPrefs
 import io.github.maximus5.ffnotifyimporter.rules.CreatedTransactionsDb
-import io.github.maximus5.ffnotifyimporter.rules.CurrenciesDb
 import io.github.maximus5.ffnotifyimporter.rules.DraftIssue
 import io.github.maximus5.ffnotifyimporter.rules.ParseOutcome
 import io.github.maximus5.ffnotifyimporter.rules.RemoteTransactionCandidate
 import io.github.maximus5.ffnotifyimporter.rules.RuleEngine
 import io.github.maximus5.ffnotifyimporter.rules.RuleKind
-import io.github.maximus5.ffnotifyimporter.rules.RulesDb
 import io.github.maximus5.ffnotifyimporter.rules.TransactionDraft
 import io.github.maximus5.ffnotifyimporter.rules.applyApproxConversion
 import io.github.maximus5.ffnotifyimporter.rules.transactionDedupHash
-import io.github.maximus5.ffnotifyimporter.rules.withBuiltIns
 import kotlinx.coroutines.launch
 import java.math.BigDecimal
 import java.math.RoundingMode
@@ -136,12 +134,18 @@ class CreateTransactionFragment : Fragment() {
         }
     }
 
+    /** Launched on `Dispatchers.Main.immediate`, so the form still fills in synchronously unless
+     * [matchMessage] has to wait on a Firefly currency-symbol lookup (an unknown symbol only). */
     private fun loadForCreate(context: Context) {
+        viewLifecycleOwner.lifecycleScope.launch {
+            val matched = matchMessage(context, message) as? ParseOutcome.Matched
+            showCreateForm(context, matched)
+        }
+    }
+
+    private fun showCreateForm(context: Context, matched: ParseOutcome.Matched?) {
         val binding = binding ?: return
         val fireflyPrefs = FireflyPrefs(context)
-        val rules = RulesDb.getInstance(context).loadAllOrdered().withBuiltIns(fireflyPrefs.isBuiltInRulesEnabled())
-        val currencySymbols = CurrenciesDb.getInstance(context).symbolToCodeMap()
-        val matched = RuleEngine(rules, currencySymbols, fireflyPrefs.getAllTransactionsTags(), fireflyPrefs.getDefaultAccountCurrency()).match(message) as? ParseOutcome.Matched
         if (matched == null) {
             // Shouldn't happen in practice - this screen is only ever launched right after a
             // successful match - but the message could in theory have been edited away from under
