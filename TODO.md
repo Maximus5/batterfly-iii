@@ -1129,3 +1129,21 @@ work.
   Also moved in the same pass: "Add test message" is no longer its own
   top-level Settings row - a button on `MessageHistoryFragment` now
   opens it instead, grouped with the one screen it most directly feeds.
+- **Fixed four more real gaps on the first real-device look, the
+  user's own catch**:
+  - The empty token field, on its own, looked indistinguishable from
+    "nothing saved yet" - no visible sign of write-once protection at
+    all, just emptiness. `FireflyConnectionFragment.updateTokenHint`
+    now sets the field's own inline hint to a masked placeholder
+    (literal •••• characters + "saved - leave blank to keep it") when a
+    token already exists, instead of a separate caption below the
+    field that was easy to miss.
+  - "Protect from screenshots" sat at the *top* of the connection
+    screen, ahead of the fields someone actually opens it to edit -
+    moved to the bottom, below Save and behind its own divider.
+  - `settings_transaction_creation_title` ("Transaction creation")
+    shortened to "Transactions".
+  - `settings_add_test_message_subtitle` ("Manually add a message, for
+    testing rules later") shortened to "Manually add a message for
+    testing purposes" - also the text now shown above the button on
+    `MessageHistoryFragment`.

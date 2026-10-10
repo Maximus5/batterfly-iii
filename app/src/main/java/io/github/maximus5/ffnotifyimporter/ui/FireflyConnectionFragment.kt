@@ -29,9 +29,14 @@ import kotlinx.coroutines.launch
  * - [FragmentFireflyConnectionBinding.tokenInput] is **write-once** - [onViewCreated] never loads
  *   the real saved token back into the field, so there is no "read it back by opening the screen"
  *   at all, reveal icon or not (the icon stays, for checking what's being *freshly typed* before
- *   saving - a much lower-stakes reveal than an old secret nobody asked to see again). A saved
- *   token shows [FragmentFireflyConnectionBinding.tokenSavedHint] instead ("Token saved - leave
- *   blank to keep it") and the field starts empty; [save] only calls `FireflyPrefs.setToken` when
+ *   saving - a much lower-stakes reveal than an old secret nobody asked to see again). The field
+ *   itself starts genuinely empty - what shows instead is its own `android:hint` (not the
+ *   `TextInputLayout`'s floating label, which stays the static "Personal access token" - the same
+ *   label-plus-inline-placeholder shape [urlInput]'s own hint/example pair already uses, enabled
+ *   by that field's `app:expandedHintEnabled="false"`), set here at runtime to a masked
+ *   placeholder (`firefly_field_token_saved_hint`, literal •••• characters plus "leave blank to
+ *   keep it") whenever a token is already saved - visually distinct from "nothing saved yet"
+ *   without ever displaying the real value. [save] only calls `FireflyPrefs.setToken` when
  *   something was actually typed, leaving the stored token untouched if the field is still blank -
  *   same "blank means don't touch it" convention [testConnection] also uses, so testing a
  *   URL-only change doesn't force retyping the token first.
@@ -64,7 +69,7 @@ class FireflyConnectionFragment : Fragment() {
         prefs = FireflyPrefs(requireContext())
 
         binding.urlInput.setText(prefs.getBaseUrl())
-        binding.tokenSavedHint.visibility = if (prefs.getToken().isNotBlank()) View.VISIBLE else View.GONE
+        updateTokenHint()
         updateCleartextWarning(prefs.getBaseUrl())
 
         binding.urlInput.addTextChangedListener(object : TextWatcher {
@@ -96,6 +101,10 @@ class FireflyConnectionFragment : Fragment() {
 
     private fun updateCleartextWarning(url: String) {
         binding?.cleartextWarning?.visibility = if (isCleartextUrl(url)) View.VISIBLE else View.GONE
+    }
+
+    private fun updateTokenHint() {
+        binding?.tokenInput?.hint = if (prefs.getToken().isNotBlank()) getString(R.string.firefly_field_token_saved_hint) else null
     }
 
     /** Falls back to the *saved* token when the field is blank - same "blank means don't touch it"
@@ -141,7 +150,7 @@ class FireflyConnectionFragment : Fragment() {
         if (typedToken.isNotBlank()) {
             prefs.setToken(typedToken)
             binding.tokenInput.text?.clear()
-            binding.tokenSavedHint.visibility = View.VISIBLE
+            updateTokenHint()
         }
 
         Toast.makeText(requireContext(), R.string.firefly_settings_saved, Toast.LENGTH_SHORT).show()

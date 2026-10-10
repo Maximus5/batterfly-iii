@@ -32,7 +32,7 @@
     <string name="message_history_option_30">Хранить 30 дней</string>
 
     <string name="settings_add_test_message_title">Добавить тестовое сообщение</string>
-    <string name="settings_add_test_message_subtitle">Вручную добавить сообщение — для тестирования правил</string>
+    <string name="settings_add_test_message_subtitle">Вручную добавить сообщение для тестовых целей</string>
     <string name="settings_add_test_message_button">Добавить тестовое сообщение…</string>
     <string name="add_test_message_explanation">Добавляет сообщение в историю точно так же, как это сделало бы реальное уведомление — удобно для тестирования обработки правил без ожидания настоящего уведомления.</string>
     <string name="add_test_message_no_apps">Нет приложений для мониторинга. Сначала выберите хотя бы одно в разделе «Приложения для мониторинга».</string>
@@ -209,7 +209,7 @@
     <string name="firefly_field_url_example">напр. https://firefly.example.com</string>
     <string name="firefly_cleartext_warning">⚠ http:// не шифруется — используйте только в доверенной локальной сети.</string>
     <string name="firefly_field_token">Personal access token</string>
-    <string name="firefly_field_token_saved_hint">Токен сохранён — оставьте пустым, чтобы не менять, или введите новый для замены.</string>
+    <string name="firefly_field_token_saved_hint">•••••••• (сохранён — оставьте пустым, чтобы не менять)</string>
     <string name="firefly_test_connection">Проверить подключение</string>
     <string name="firefly_test_connection_success">Подключено — Firefly III %1$s</string>
     <string name="firefly_test_connection_failure">Ошибка подключения: %1$s</string>
@@ -217,7 +217,7 @@
     <string name="firefly_token_required">Personal access token не может быть пустым.</string>
     <string name="firefly_settings_saved">Сохранено</string>
 
-    <string name="settings_transaction_creation_title">Создание транзакций</string>
+    <string name="settings_transaction_creation_title">Транзакции</string>
     <string name="settings_transaction_creation_subtitle">Автосоздание, поиск дублей, приближённая конвертация</string>
     <string name="firefly_field_approx_tag">Тег приближённой конвертации</string>
     <string name="firefly_field_approx_tag_example">напр. fx-approx — ставится, когда сумма посчитана по найденному курсу</string>

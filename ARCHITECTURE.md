@@ -1995,17 +1995,26 @@ Single `:app` module, packages under
       `FireflyConnectionFragment` (base URL, token, "Test connection")
       gets two defenses:
       - The token field is now **write-once** - `onViewCreated` never
-        loads the real saved token back into the field at all (a
-        `tokenSavedHint` text, "Token saved - leave blank to keep it",
-        shows instead when one exists), so there's no "read it back by
-        opening the screen" regardless of the reveal icon (kept, for
-        checking a freshly-*typed* value before saving - a much
-        lower-stakes reveal than an old secret nobody asked to see
-        again). `save()` only calls `FireflyPrefs.setToken` when the
-        field actually has something typed, leaving the stored token
-        untouched otherwise; `testConnection()` falls back to the saved
-        token the same way when the field is blank, so testing a
-        URL-only change doesn't force retyping the token first.
+        loads the real saved token back into the field at all. **Fixed
+        a real "looks just empty, not protected" gap, the user's own
+        catch**: a plain empty field with no explanation looked
+        indistinguishable from "nothing saved yet" - `updateTokenHint`
+        instead sets the field's own `android:hint` (not the
+        `TextInputLayout`'s floating label, which stays the static
+        "Personal access token" - same label-plus-inline-placeholder
+        shape `urlInput`'s own hint/example pair already uses) to a
+        masked placeholder (`firefly_field_token_saved_hint` - literal
+        •••• characters plus "saved - leave blank to keep it") whenever
+        a token already exists, so there's no "read it back by opening
+        the screen" regardless of the reveal icon (kept, for checking a
+        freshly-*typed* value before saving - a much lower-stakes
+        reveal than an old secret nobody asked to see again), while
+        still showing *something* distinct from "unconfigured". `save()`
+        only calls `FireflyPrefs.setToken` when the field actually has
+        something typed, leaving the stored token untouched otherwise;
+        `testConnection()` falls back to the saved token the same way
+        when the field is blank, so testing a URL-only change doesn't
+        force retyping the token first.
       - `FLAG_SECURE` (`onResume`/`onPause`) blocks screenshots/screen
         recording - system or a malicious accessibility service - while
         this screen is open. Driven by a `protectScreenshotsSwitch`,
@@ -2017,6 +2026,9 @@ Single `:app` module, packages under
         Activity-wide, so `onPause` always clears it unconditionally,
         regardless of the switch - leaving this screen never leaves the
         flag set behind it for whatever `SettingsActivity` shows next.
+        Placed at the *bottom* of the form, below Save and behind its
+        own divider - the user's own layout call, out of the way of the
+        fields someone actually opens this screen to edit.
       `TransactionCreationFragment` (approx tag, auto-create, dedup -
       all three) carries no such protection, same explicit Save-button
       shape as before, not autosave-per-field like
