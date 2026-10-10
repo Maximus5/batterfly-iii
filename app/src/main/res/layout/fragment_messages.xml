@@ -12,6 +12,11 @@
         android:padding="24dp"
         android:text="@string/messages_empty" />
 
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/messagesRecyclerView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
     <ScrollView
         android:id="@+id/setupChecklist"
         android:layout_width="match_parent"
@@ -71,10 +76,5 @@
         </LinearLayout>
 
     </ScrollView>
-
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/messagesRecyclerView"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent" />
 
 </FrameLayout>
