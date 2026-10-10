@@ -2313,18 +2313,37 @@ Single `:app` module, packages under
       Move up/down semantics for a multi-selection, the user's own
       chosen design: every selected rule moves exactly one slot in the
       chosen direction, independently, not as a block with special-
-      cased adjacency handling. `moveSelected(up)` gets this almost for
-      free from `RulesDb.moveUp`/`moveDown`'s own existing behavior
+      cased adjacency handling. `moveSelected(up)` gets most of this
+      for free from `RulesDb.moveUp`/`moveDown`'s own existing behavior
       (each swaps *the current* DB state with the immediate neighbor,
-      re-read fresh every call, not a cached snapshot) by just choosing
-      the right processing order first: top-to-bottom (on-screen order)
-      for "up", bottom-to-top for "down". That ordering is what keeps a
-      *contiguous* selected block moving as a single unit (each row's
-      neighbor swap lands it directly next to the next selected row in
-      line) instead of selected rows leapfrogging each other into a
-      jumbled order - verified by hand-tracing both a spread-out
-      selection (1/3/5) and an adjacent one (1/2) through the swap
-      sequence before writing this, not assumed.
+      re-read fresh every call, not a cached snapshot) by choosing the
+      right processing order first: top-to-bottom (on-screen order)
+      for "up", bottom-to-top for "down" - what keeps a *contiguous*
+      selected block moving as a single unit (each row's neighbor swap
+      lands it directly next to the next selected row in line) instead
+      of selected rows leapfrogging each other into a jumbled order.
+      **Fixed a real "boundary pair shuffles instead of staying put"
+      bug, the user's own catch**: that ordering alone isn't enough
+      right at the top/bottom of the whole list - if two or more
+      selected rules are already the bottom-most (or top-most) rows as
+      a block, each one still has a neighbor, but that neighbor is
+      *another selected row in the same stuck block*, so the original
+      version swapped them anyway on every tap: the block itself had
+      nowhere to go, but its members kept reordering among themselves,
+      which read as random shuffling rather than "these can't move".
+      `moveSelected` now tracks a `frozen` set as it processes: a
+      selected id freezes (no swap at all) when its neighbor in the
+      chosen direction is either the true edge of the whole list (no
+      neighbor at all) or is itself a selected id that already froze
+      earlier in the same pass - processing boundary-first (the same
+      top-to-bottom/bottom-to-top order above) guarantees the
+      list-edge member of any contiguous selected run is decided
+      before the rest of the run, so the freeze correctly propagates
+      inward instead of each member swapping blindly with whatever's
+      physically next. Verified by hand-tracing a spread-out selection
+      (1/3/5), an adjacent one (1/2), and - the case that was actually
+      broken - a selected run touching the list's own edge, through
+      the full algorithm before writing this, not assumed.
       Enable/disable for a selection reuses the existing `RulesDb.
       update(rule)` (no new DB method) - `rulesDb.loadAllOrdered().
       filter { it.id in ids }.forEach { rulesDb.update(it.copy(enabled

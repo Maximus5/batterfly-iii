@@ -166,18 +166,44 @@ class RulesListFragment : Fragment() {
     }
 
     /** Processes selected ids in on-screen order (top-to-bottom moving up, bottom-to-top moving
-     * down) and re-reads that order fresh each call - each `RulesDb.moveUp`/`moveDown` call
-     * already re-reads the table's current sort order itself, so a selected id's own neighbor by
-     * the time its turn comes may be another just-moved selected id, not its original one. The
-     * user's own chosen semantics: every selected rule moves exactly one slot in the chosen
-     * direction, independently - processing in this order is what keeps a contiguous selected
-     * block moving as a unit (each item's neighbor swap lands it next to the next one in the
-     * block) instead of rows leapfrogging each other into a jumbled order. */
+     * down), re-reading the table's current order fresh before every single move - each
+     * `RulesDb.moveUp`/`moveDown` call already does the same internally, so a selected id's own
+     * neighbor by the time its turn comes may be another just-moved selected id, not its original
+     * one.
+     *
+     * **Fixed a real "boundary pair shuffles instead of staying put" bug, the user's own catch**:
+     * the previous version just called `moveUp`/`moveDown` for every selected id unconditionally.
+     * That's correct when a selected id's neighbor isn't selected (nothing else cares), but wrong
+     * right at a boundary - if two or more selected rules are already the bottom-most (or
+     * top-most) rows as a block, each one individually still has a neighbor *within that same
+     * selected block*, so it swapped with it anyway: the block had nowhere real to go, but its
+     * own members still shuffled their internal order every tap, which read as "random" since the
+     * actual rule content didn't move relative to the rest of the list but the selected rows'
+     * *order among themselves* kept changing.
+     *
+     * [frozen] tracks ids that turned out unable to move this pass - a selected id is frozen when
+     * its neighbor in the chosen direction is either nonexistent (the true top/bottom of the whole
+     * list) *or* is itself a selected id that already froze earlier in this same pass. Processing
+     * bottom-to-top for "down" (top-to-bottom for "up") guarantees the boundary-touching member of
+     * any contiguous selected run is always decided first, so that freeze correctly propagates
+     * inward through the rest of the run instead of each member swapping blindly with whatever's
+     * physically next. */
     private fun moveSelected(up: Boolean) {
         val ids = adapter.selectedIds()
         val ordered = rulesDb.loadAllOrdered().map { it.id }.filter { it in ids }
-        (if (up) ordered else ordered.reversed()).forEach {
-            if (up) rulesDb.moveUp(it) else rulesDb.moveDown(it)
+        val processOrder = if (up) ordered else ordered.reversed()
+        val frozen = mutableSetOf<String>()
+        for (id in processOrder) {
+            val current = rulesDb.loadAllOrdered().map { it.id }
+            val index = current.indexOf(id)
+            val neighborId = current.getOrNull(if (up) index - 1 else index + 1)
+            if (neighborId == null || (neighborId in ids && neighborId in frozen)) {
+                frozen += id
+            } else if (up) {
+                rulesDb.moveUp(id)
+            } else {
+                rulesDb.moveDown(id)
+            }
         }
         reload()
     }
