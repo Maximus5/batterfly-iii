@@ -3,6 +3,7 @@ package io.github.maximus5.ffnotifyimporter.backup
 import android.content.Context
 import io.github.maximus5.ffnotifyimporter.data.MessageHistoryDb
 import io.github.maximus5.ffnotifyimporter.data.MessageStore
+import io.github.maximus5.ffnotifyimporter.data.RetentionController
 import io.github.maximus5.ffnotifyimporter.prefs.MonitoredAppsPrefs
 import io.github.maximus5.ffnotifyimporter.prefs.RetentionPrefs
 import io.github.maximus5.ffnotifyimporter.rules.CreatedTransactionsDb
@@ -19,7 +20,7 @@ object BackupManager {
 
     fun collect(context: Context): FullBackupData = FullBackupData(
         monitoredPackages = MonitoredAppsPrefs(context).getMonitoredPackages(),
-        retentionDays = RetentionPrefs(context).getRetentionDays(),
+        retention = RetentionPrefs(context).get(),
         currencies = CurrenciesDb.getInstance(context).loadAll(),
         rules = RulesDb.getInstance(context).loadAllOrdered(),
         messages = MessageStore.shared.snapshot(),
@@ -35,7 +36,7 @@ object BackupManager {
      */
     fun restore(context: Context, data: FullBackupData) {
         MonitoredAppsPrefs(context).setMonitoredPackages(data.monitoredPackages)
-        RetentionPrefs(context).setRetentionDays(data.retentionDays)
+        RetentionPrefs(context).set(data.retention)
 
         val currenciesDb = CurrenciesDb.getInstance(context)
         currenciesDb.loadAll().forEach { currenciesDb.delete(it.code) }
@@ -48,21 +49,23 @@ object BackupManager {
         // needing to carry an explicit sort-order field through the JSON.
         data.rules.forEach { rulesDb.add(it) }
 
-        val historyDb = MessageHistoryDb.getInstance(context)
-        historyDb.clearAll()
         MessageStore.shared.clear()
-        val oldestFirst = data.messages.sortedBy { it.timestampMillis }
-        MessageStore.shared.restore(oldestFirst)
-        // Only mirrors to disk if the (just-restored) retention setting is actually on - matches
-        // the same condition RetentionController applies for a live capture, not unconditional.
-        if (data.retentionDays > 0) {
-            oldestFirst.forEach { historyDb.insert(it) }
-        }
+        MessageStore.shared.restore(data.messages.sortedBy { it.timestampMillis })
 
         val createdTransactionsDb = CreatedTransactionsDb.getInstance(context)
         createdTransactionsDb.clearAll()
         data.createdTransactions.forEach {
             createdTransactionsDb.recordCreated(it.hashWithDescription, it.hashWithoutDescription, it.dateMillis, it.fireflyTransactionId)
         }
+
+        // Last, once both stores hold the restored data: trims everything to the restored window,
+        // rewrites the on-disk message mirror from memory (or clears it when persisting is off) and
+        // re-wires the live capture hooks to the restored setting.
+        RetentionController.applyOnSettingChanged(
+            settings = data.retention,
+            store = MessageStore.shared,
+            db = MessageHistoryDb.getInstance(context),
+            createdTransactions = createdTransactionsDb,
+        )
     }
 }

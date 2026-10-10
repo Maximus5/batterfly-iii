@@ -1,6 +1,7 @@
 package io.github.maximus5.ffnotifyimporter.backup
 
 import io.github.maximus5.ffnotifyimporter.data.CapturedMessage
+import io.github.maximus5.ffnotifyimporter.prefs.RetentionSettings
 import io.github.maximus5.ffnotifyimporter.rules.CreatedTransactionRecord
 import io.github.maximus5.ffnotifyimporter.rules.CurrencyEntry
 import io.github.maximus5.ffnotifyimporter.rules.ParseRule
@@ -33,7 +34,7 @@ import org.json.JSONObject
  */
 data class FullBackupData(
     val monitoredPackages: Set<String>,
-    val retentionDays: Int,
+    val retention: RetentionSettings,
     val currencies: List<CurrencyEntry>,
     val rules: List<ParseRule>,
     val messages: List<CapturedMessage>,
@@ -43,7 +44,8 @@ data class FullBackupData(
 fun fullBackupToJson(data: FullBackupData): String {
     val root = JSONObject()
     root.put("monitoredPackages", JSONArray(data.monitoredPackages.toList()))
-    root.put("retentionDays", data.retentionDays)
+    root.put("persistHistory", data.retention.persistToDisk)
+    root.put("retentionDays", data.retention.days)
     root.put(
         "currencies",
         JSONArray().apply {
@@ -150,9 +152,18 @@ fun fullBackupFromJson(json: String): FullBackupData? {
         }
     }.orEmpty()
 
+    // A backup written before "persist to disk" became its own flag only has retentionDays, where
+    // 0 meant "don't save" - the same mapping the on-device prefs migration applies.
+    val retentionDays = root.optInt("retentionDays", 0)
+    val retention = if (root.has("persistHistory")) {
+        RetentionSettings(root.optBoolean("persistHistory", false), RetentionSettings.normalizeDays(retentionDays))
+    } else {
+        RetentionSettings.fromLegacyDays(retentionDays)
+    }
+
     return FullBackupData(
         monitoredPackages = monitoredPackages,
-        retentionDays = root.optInt("retentionDays", 0),
+        retention = retention,
         currencies = currencies,
         rules = rules,
         messages = messages,

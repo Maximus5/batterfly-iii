@@ -19,12 +19,19 @@
     <string name="settings_monitored_apps_subtitle">Выберите, чьи уведомления отслеживать</string>
 
     <string name="settings_message_history_title">История сообщений</string>
-    <string name="settings_message_history_subtitle_off">Выключено — ничего не сохраняется на диск</string>
-    <string name="settings_message_history_subtitle_on_one">Хранится 1 день</string>
-    <string name="settings_message_history_subtitle_on_many">Хранится %1$d дней</string>
 
-    <string name="message_history_explanation">Если включено, пойманные уведомления дополнительно сохраняются на устройстве, чтобы не теряться при обновлении приложения и перезапуске. При выключении все сохранённые данные удаляются.</string>
-    <string name="message_history_option_off">Не сохранять (только в памяти)</string>
+    <string name="settings_message_history_subtitle_persisted">Сохраняется на устройстве · %1$s</string>
+    <string name="settings_message_history_subtitle_memory">Только в памяти · %1$s</string>
+    <plurals name="history_keep_days">
+        <item quantity="one">хранится %1$d день</item>
+        <item quantity="few">хранится %1$d дня</item>
+        <item quantity="many">хранится %1$d дней</item>
+        <item quantity="other">хранится %1$d дня</item>
+    </plurals>
+
+    <string name="message_history_persist_switch">Сохранять историю в локальном хранилище</string>
+    <string name="message_history_persist_hint">Если включено, пойманные уведомления сохраняются на устройстве и переживают перезапуск приложения или телефона. Если выключено, они хранятся только в памяти и теряются при перезапуске. В любом случае уже созданные в Firefly III транзакции это не затрагивает.</string>
+    <string name="message_history_window_explanation">Как долго хранится история. Относится к пойманным уведомлениям и к журналу созданных транзакций, по которому ищутся дубликаты; более старые записи удаляются автоматически.</string>
     <string name="message_history_option_1">Хранить 1 день</string>
     <string name="message_history_option_3">Хранить 3 дня</string>
     <string name="message_history_option_5">Хранить 5 дней</string>

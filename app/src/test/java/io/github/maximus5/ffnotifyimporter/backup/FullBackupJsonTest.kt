@@ -1,6 +1,7 @@
 package io.github.maximus5.ffnotifyimporter.backup
 
 import io.github.maximus5.ffnotifyimporter.data.CapturedMessage
+import io.github.maximus5.ffnotifyimporter.prefs.RetentionSettings
 import io.github.maximus5.ffnotifyimporter.rules.CreatedTransactionRecord
 import io.github.maximus5.ffnotifyimporter.rules.CurrencyEntry
 import io.github.maximus5.ffnotifyimporter.rules.ParseRule
@@ -14,7 +15,7 @@ class FullBackupJsonTest {
 
     private fun data() = FullBackupData(
         monitoredPackages = setOf("bank.app", "wallet.app"),
-        retentionDays = 5,
+        retention = RetentionSettings(persistToDisk = true, days = 7),
         currencies = listOf(CurrencyEntry("EUR", "€"), CurrencyEntry("CHF", "")),
         rules = listOf(
             ParseRule(
@@ -47,7 +48,7 @@ class FullBackupJsonTest {
         val imported = fullBackupFromJson(fullBackupToJson(original))!!
 
         assertEquals(original.monitoredPackages, imported.monitoredPackages)
-        assertEquals(original.retentionDays, imported.retentionDays)
+        assertEquals(original.retention, imported.retention)
         assertEquals(original.currencies, imported.currencies)
         assertEquals(1, imported.rules.size)
         assertEquals("Test rule", imported.rules.first().label)
@@ -109,7 +110,7 @@ class FullBackupJsonTest {
         val imported = fullBackupFromJson("""{"monitoredPackages": ["bank.app"]}""")
 
         assertEquals(setOf("bank.app"), imported?.monitoredPackages)
-        assertEquals(0, imported?.retentionDays)
+        assertEquals(RetentionSettings(persistToDisk = false, days = 5), imported?.retention)
         assertTrue(imported?.currencies?.isEmpty() == true)
         assertTrue(imported?.rules?.isEmpty() == true)
         assertTrue(imported?.messages?.isEmpty() == true)
@@ -129,5 +130,21 @@ class FullBackupJsonTest {
 
         assertEquals(1, imported?.messages?.size)
         assertEquals(5000L, imported?.messages?.first()?.timestampMillis)
+    }
+
+    @Test
+    fun `an old backup with only retentionDays maps onto the two-part setting`() {
+        val persisted = fullBackupFromJson("""{"monitoredPackages": [], "retentionDays": 3}""")
+        val inMemory = fullBackupFromJson("""{"monitoredPackages": [], "retentionDays": 0}""")
+
+        assertEquals(RetentionSettings(persistToDisk = true, days = 3), persisted?.retention)
+        assertEquals(RetentionSettings(persistToDisk = false, days = 5), inMemory?.retention)
+    }
+
+    @Test
+    fun `an explicit persistHistory flag wins over the legacy reading of retentionDays`() {
+        val imported = fullBackupFromJson("""{"monitoredPackages": [], "persistHistory": false, "retentionDays": 30}""")
+
+        assertEquals(RetentionSettings(persistToDisk = false, days = 30), imported?.retention)
     }
 }

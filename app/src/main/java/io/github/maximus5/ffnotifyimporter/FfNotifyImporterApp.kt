@@ -7,15 +7,17 @@ import io.github.maximus5.ffnotifyimporter.data.MessageStore
 import io.github.maximus5.ffnotifyimporter.data.RetentionController
 import io.github.maximus5.ffnotifyimporter.posting.AutoCreateScheduler
 import io.github.maximus5.ffnotifyimporter.prefs.RetentionPrefs
+import io.github.maximus5.ffnotifyimporter.rules.CreatedTransactionsDb
 
 class FfNotifyImporterApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
         RetentionController.applyOnStartup(
-            retentionDays = RetentionPrefs(this).getRetentionDays(),
+            settings = RetentionPrefs(this).get(),
             store = MessageStore.shared,
             db = MessageHistoryDb.getInstance(this),
+            createdTransactions = CreatedTransactionsDb.getInstance(this),
         )
         purgePoisonedAutoCreateChainOnce()
     }

@@ -11,11 +11,12 @@ import io.github.maximus5.ffnotifyimporter.data.MessageStore
 import io.github.maximus5.ffnotifyimporter.data.RetentionController
 import io.github.maximus5.ffnotifyimporter.databinding.FragmentMessageHistoryBinding
 import io.github.maximus5.ffnotifyimporter.prefs.RetentionPrefs
+import io.github.maximus5.ffnotifyimporter.rules.CreatedTransactionsDb
 
-/** Retention radio group, plus a button to [AddTestMessageFragment] (the user's own call, moved
- * here from its own top-level Settings row - a debug tool, grouped with the other thing it most
- * directly feeds, this screen's own captured-message history, rather than sitting as a permanent
- * fixture on the main Settings list). */
+/** The "save history to local storage" switch, the retention-window radio group, plus a button to
+ * [AddTestMessageFragment] (the user's own call, moved here from its own top-level Settings row - a
+ * debug tool, grouped with the other thing it most directly feeds, this screen's own captured-message
+ * history, rather than sitting as a permanent fixture on the main Settings list). */
 class MessageHistoryFragment : Fragment() {
 
     private var binding: FragmentMessageHistoryBinding? = null
@@ -35,16 +36,17 @@ class MessageHistoryFragment : Fragment() {
         val binding = binding ?: return
         retentionPrefs = RetentionPrefs(requireContext())
 
+        binding.persistSwitch.isChecked = retentionPrefs.isPersistToDisk()
         radioIdFor(retentionPrefs.getRetentionDays())?.let { binding.retentionOptions.check(it) }
 
+        binding.persistSwitch.setOnCheckedChangeListener { _, checked ->
+            retentionPrefs.setPersistToDisk(checked)
+            applySettings()
+        }
         binding.retentionOptions.setOnCheckedChangeListener { _, checkedId ->
             val days = daysForRadioId(checkedId) ?: return@setOnCheckedChangeListener
             retentionPrefs.setRetentionDays(days)
-            RetentionController.applyOnSettingChanged(
-                retentionDays = days,
-                store = MessageStore.shared,
-                db = MessageHistoryDb.getInstance(requireContext()),
-            )
+            applySettings()
         }
 
         binding.addTestMessageButton.setOnClickListener {
@@ -55,10 +57,19 @@ class MessageHistoryFragment : Fragment() {
         }
     }
 
+    private fun applySettings() {
+        val context = requireContext()
+        RetentionController.applyOnSettingChanged(
+            settings = retentionPrefs.get(),
+            store = MessageStore.shared,
+            db = MessageHistoryDb.getInstance(context),
+            createdTransactions = CreatedTransactionsDb.getInstance(context),
+        )
+    }
+
     private fun radioIdFor(days: Int): Int? {
         val binding = binding ?: return null
         return when (days) {
-            0 -> binding.retentionOff.id
             1 -> binding.retention1.id
             3 -> binding.retention3.id
             5 -> binding.retention5.id
@@ -71,7 +82,6 @@ class MessageHistoryFragment : Fragment() {
     private fun daysForRadioId(radioId: Int): Int? {
         val binding = binding ?: return null
         return when (radioId) {
-            binding.retentionOff.id -> 0
             binding.retention1.id -> 1
             binding.retention3.id -> 3
             binding.retention5.id -> 5

@@ -22,6 +22,7 @@ import com.google.android.material.textfield.TextInputLayout
 import io.github.maximus5.ffnotifyimporter.R
 import io.github.maximus5.ffnotifyimporter.data.CapturedMessage
 import io.github.maximus5.ffnotifyimporter.data.MessageStore
+import io.github.maximus5.ffnotifyimporter.data.RetentionController
 import io.github.maximus5.ffnotifyimporter.databinding.FragmentCreateTransactionBinding
 import io.github.maximus5.ffnotifyimporter.network.ExchangeRateClient
 import io.github.maximus5.ffnotifyimporter.network.FireflyAccount
@@ -36,6 +37,7 @@ import io.github.maximus5.ffnotifyimporter.posting.checkForDuplicate
 import io.github.maximus5.ffnotifyimporter.posting.matchMessage
 import io.github.maximus5.ffnotifyimporter.posting.verifyLinkedTransaction
 import io.github.maximus5.ffnotifyimporter.prefs.FireflyPrefs
+import io.github.maximus5.ffnotifyimporter.prefs.RetentionPrefs
 import io.github.maximus5.ffnotifyimporter.rules.CreatedTransactionsDb
 import io.github.maximus5.ffnotifyimporter.rules.DraftIssue
 import io.github.maximus5.ffnotifyimporter.rules.ParseOutcome
@@ -757,12 +759,14 @@ class CreateTransactionFragment : Fragment() {
      * cancel] is a no-op when this screen wasn't opened from one (a plain in-app tap, or auto-create
      * on) - see that function's own KDoc. */
     private fun onSaveSuccess(context: Context, draft: TransactionDraft, transactionId: String) {
-        CreatedTransactionsDb.getInstance(context).recordCreated(
+        val createdDb = CreatedTransactionsDb.getInstance(context)
+        createdDb.recordCreated(
             hashWithDescription = transactionDedupHash(draft, true),
             hashWithoutDescription = transactionDedupHash(draft, false),
             transactionDateMillis = draft.date.toEpochMilli(),
             fireflyTransactionId = transactionId,
         )
+        RetentionController.purgeCreatedTransactions(createdDb, RetentionPrefs(context).getRetentionDays())
         MessageStore.shared.setTransactionId(message, transactionId)
         ReviewNotifications.cancel(context, message)
         Toast.makeText(context, getString(R.string.create_success_message, transactionId), Toast.LENGTH_LONG).show()

@@ -274,4 +274,43 @@ class MessageStoreTest {
 
         assertEquals("7", updated.single().fireflyTransactionId)
     }
+
+    @Test
+    fun `deleteOlderThan drops only entries before the cutoff and notifies listeners`() {
+        val store = MessageStore(clock = { 0L })
+        store.add("bank.app", "Bank", "Old", "a", timestampMillis = 1_000L)
+        store.add("bank.app", "Bank", "New", "b", timestampMillis = 5_000L)
+        var notified = 0
+        store.addListener { notified++ }
+        notified = 0
+
+        store.deleteOlderThan(2_000L)
+
+        assertEquals(listOf("New"), store.snapshot().map { it.title })
+        assertEquals(1, notified)
+    }
+
+    @Test
+    fun `deleteOlderThan spares the kept message even when it is older than the cutoff`() {
+        val store = MessageStore(clock = { 0L })
+        val oldTest = store.add("bank.app", "Bank", "Test", "a", timestampMillis = 1_000L)!!
+        store.add("bank.app", "Bank", "Old", "b", timestampMillis = 1_500L)
+
+        store.deleteOlderThan(2_000L, keep = oldTest)
+
+        assertEquals(listOf("Test"), store.snapshot().map { it.title })
+    }
+
+    @Test
+    fun `deleteOlderThan does not notify when nothing is removed`() {
+        val store = MessageStore(clock = { 0L })
+        store.add("bank.app", "Bank", "New", "b", timestampMillis = 5_000L)
+        var notified = 0
+        store.addListener { notified++ }
+        notified = 0
+
+        store.deleteOlderThan(2_000L)
+
+        assertEquals(0, notified)
+    }
 }

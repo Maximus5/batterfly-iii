@@ -118,12 +118,13 @@ class SettingsRootFragment : Fragment() {
 
     private fun updateMessageHistorySubtitle() {
         val binding = binding ?: return
-        val days = RetentionPrefs(requireContext()).getRetentionDays()
-        binding.rowMessageHistorySubtitle.text = when {
-            days <= 0 -> getString(R.string.settings_message_history_subtitle_off)
-            days == 1 -> getString(R.string.settings_message_history_subtitle_on_one)
-            else -> getString(R.string.settings_message_history_subtitle_on_many, days)
-        }
+        val retention = RetentionPrefs(requireContext()).get()
+        val kept = resources.getQuantityString(R.plurals.history_keep_days, retention.days, retention.days)
+        binding.rowMessageHistorySubtitle.text = getString(
+            if (retention.persistToDisk) R.string.settings_message_history_subtitle_persisted
+            else R.string.settings_message_history_subtitle_memory,
+            kept,
+        )
     }
 
     override fun onDestroyView() {

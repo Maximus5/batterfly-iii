@@ -6,9 +6,11 @@ import androidx.work.Data
 import androidx.work.WorkerParameters
 import io.github.maximus5.ffnotifyimporter.data.CapturedMessage
 import io.github.maximus5.ffnotifyimporter.data.MessageStore
+import io.github.maximus5.ffnotifyimporter.data.RetentionController
 import io.github.maximus5.ffnotifyimporter.network.FireflyApiClient
 import io.github.maximus5.ffnotifyimporter.network.FireflyTransactionRequest
 import io.github.maximus5.ffnotifyimporter.prefs.FireflyPrefs
+import io.github.maximus5.ffnotifyimporter.prefs.RetentionPrefs
 import io.github.maximus5.ffnotifyimporter.rules.CreatedTransactionsDb
 import io.github.maximus5.ffnotifyimporter.rules.DraftIssue
 import io.github.maximus5.ffnotifyimporter.rules.TransactionDraft
@@ -140,12 +142,14 @@ class AutoCreateWorker(context: Context, params: WorkerParameters) : CoroutineWo
         val client = FireflyApiClient(prefs.getBaseUrl(), prefs.getToken())
         return when (val result = client.createTransaction(request)) {
             is FireflyApiClient.Result.Success -> {
-                CreatedTransactionsDb.getInstance(applicationContext).recordCreated(
+                val createdDb = CreatedTransactionsDb.getInstance(applicationContext)
+                createdDb.recordCreated(
                     hashWithDescription = transactionDedupHash(draft, true),
                     hashWithoutDescription = transactionDedupHash(draft, false),
                     transactionDateMillis = draft.date.toEpochMilli(),
                     fireflyTransactionId = result.value,
                 )
+                RetentionController.purgeCreatedTransactions(createdDb, RetentionPrefs(applicationContext).getRetentionDays())
                 MessageStore.shared.setTransactionId(message, result.value)
                 AutoCreateNotifications.notifySuccess(
                     applicationContext, prefs.getBaseUrl(), message,

@@ -115,6 +115,19 @@ class MessageStore(
         listeners.forEach { it(snapshot) }
     }
 
+    /** Drops everything older than [cutoffMillis] - the retention window applied to the in-memory
+     * list. [keep] is exempt: a just-added test message carrying a deliberately old date
+     * (`ui.AddTestMessageFragment`) would otherwise vanish the instant it's recorded. Like
+     * [clear], doesn't touch [onMessageRemoved] - on-disk storage is trimmed separately. */
+    fun deleteOlderThan(cutoffMillis: Long, keep: CapturedMessage? = null) {
+        val snapshot: List<CapturedMessage>
+        synchronized(lock) {
+            if (!messages.removeAll { it.timestampMillis < cutoffMillis && it != keep }) return
+            snapshot = messages.toList()
+        }
+        listeners.forEach { it(snapshot) }
+    }
+
     /** Removes [message] (matched by value equality) from history. Returns true if it was there. */
     fun remove(message: CapturedMessage): Boolean {
         val snapshot: List<CapturedMessage>

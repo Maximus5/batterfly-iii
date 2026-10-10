@@ -21,7 +21,7 @@ Nothing is ever sent off the device; Firefly III itself (not part of
 this repo) will be the system of record for the resulting
 transactions, once posting to it exists. Locally, message content is
 in-memory only by default - nothing written to disk - unless the user
-explicitly opts into on-device message history retention (see below).
+turns on "Save history to local storage" (see below).
 
 Current iteration (fifth milestone, in progress): capture + dedup, a
 settings area (monitored apps + opt-in local history), a full
@@ -187,7 +187,7 @@ Single `:app` module, packages under
     transactionDedupHash`/`CreatedTransactionsDb` below and TODO.md.
   - `MessageHistoryDb` - the on-disk mirror, plain `SQLiteOpenHelper`
     (no ORM), one `messages` table. Only ever written to while
-    retention is enabled. `MessageHistoryDb.getInstance(context)` is
+    "Save history to local storage" is on. `MessageHistoryDb.getInstance(context)` is
     the one shared instance (a `SQLiteOpenHelper` per call would leak
     connections). `DB_VERSION` 1->2 added
     `firefly_transaction_id` via a real `ALTER TABLE ... ADD COLUMN`
@@ -199,17 +199,30 @@ Single `:app` module, packages under
     setTransactionId` on disk, matching the row the same "every column
     except the one being changed" way.
   - `RetentionController` (`RetentionControllerTest` for the pure
-    cutoff-date math) - wires `MessageStore` and `MessageHistoryDb`
-    together based on the user's retention setting.
+    cutoff-date math) - applies the user's history setting
+    (`prefs.RetentionSettings`: `persistToDisk` + a window of
+    1/3/5/7/30 days, default off + 5) to every append-only store: the
+    in-memory `MessageStore` (`MessageStore.deleteOlderThan`, run on
+    startup/setting change and after each new message - the message
+    just added is exempt, so a test message with a deliberately old
+    date doesn't vanish instantly), `CreatedTransactionsDb`
+    (`deleteOlderThan` by transaction date, also run after each
+    successful create via `purgeCreatedTransactions`), and - only while
+    `persistToDisk` is on - `MessageHistoryDb`. The window always
+    applies; only the on-disk mirror of the message list is optional
+    (the dedup log is on disk regardless, it's the duplicate-detection
+    safety net).
     `applyOnStartup` (called once, from `FfNotifyImporterApp`) may
     call `MessageStore.restore`; `applyOnSettingChanged` (called from
-    the settings UI when the user changes the value mid-session) never
-    does, since `restore` has no dedup against what's already in
-    memory and calling it twice would duplicate entries already shown.
+    the settings UI and after a backup restore) never does, since
+    `restore` has no dedup against what's already in memory and
+    calling it twice would duplicate entries already shown. Instead it
+    rewrites the disk mirror from memory (memory is always a superset
+    of disk), or clears it when persisting is off.
     Wires all three `MessageStore` hooks (`onNewMessage`/
-    `onMessageRemoved`/`onMessageUpdated`) to the matching
-    `MessageHistoryDb` call, and clears all three (not just the first
-    two) when retention is turned off.
+    `onMessageRemoved`/`onMessageUpdated`); the latter two only call
+    into `MessageHistoryDb` while persisting, and are nulled out
+    otherwise.
 - `parser` - regex mechanics only, zero knowledge of transactions,
   Firefly, or what any group name means:
   - `extractGroups(pattern, input): Map<String,String>?` /
@@ -664,8 +677,14 @@ Single `:app` module, packages under
   notification content, so - unlike captured messages by default -
   persisted across restarts/reboots on purpose):
   - `MonitoredAppsPrefs` - which package names to monitor.
-  - `RetentionPrefs` - local history retention in days; `0` (default)
-    means off/in-memory-only.
+  - `RetentionPrefs` - `isPersistToDisk` (default off: captured
+    messages live in memory only and are lost on restart) and
+    `getRetentionDays` (default 5, one of 1/3/5/7/30; the window for
+    everything the app appends over time, in memory and on disk).
+    Replaced the old single "days, 0 = off" value; `RetentionPrefs`
+    migrates it once on first read (`RetentionSettings.fromLegacyDays`:
+    1+ days -> persisting on with that window, 0 -> off with the
+    default window), the old `retention_days` key is then removed.
   - `NotificationPrefs` - whether this app's own notifications
     (`posting.AutoCreateNotifications`/`ReviewNotifications`) post at
     all (`isNotificationsEnabled`, default **on** - these already
@@ -998,8 +1017,11 @@ Single `:app` module, packages under
     (Android-dependent orchestration, not unit tested, same reason
     `RulesDb` isn't) - the new "Backup & restore" Settings row
     (`BackupFragment`), covering monitored apps, currencies, rules,
-    message history, *and* the `CreatedTransactionsDb` dedup log in one
-    file. Has its own per-rule shape (`toBackupJson`/
+    message history (plus its `persistHistory`/`retentionDays`
+    setting; an old file with only `retentionDays`, 0 = off, still
+    maps correctly, and restore re-applies the setting through
+    `RetentionController.applyOnSettingChanged`), *and* the
+    `CreatedTransactionsDb` dedup log in one file. Has its own per-rule shape (`toBackupJson`/
     `toBackupRuleOrNull`) now, *not* a reuse of `RulesJson`'s - the two
     formats are for genuinely different jobs and shouldn't share one
     shape just because a rule is a rule (and, as of the account-id
@@ -2517,9 +2539,15 @@ Single `:app` module, packages under
       banner via `parentFragmentManager.popBackStack()` - `AppsFragment`
       is still right behind it on `SettingsActivity`'s back stack,
       nothing lost.
-    - `MessageHistoryFragment` (the retention radio group, writes to
-      `RetentionPrefs` and calls `RetentionController
-      .applyOnSettingChanged`) - also now the entry point to
+    - `MessageHistoryFragment` (the "Save history to local storage"
+      switch - off by default, hint text spells out that off means
+      lost on app/device restart and that created Firefly
+      transactions are unaffected either way - plus the 1/3/5/7/30-day
+      window radio group, always enabled; both write to
+      `RetentionPrefs` and call `RetentionController
+      .applyOnSettingChanged`; the Settings row's subtitle shows both,
+      e.g. "In memory only · kept for 5 days", via a `plurals`
+      resource since Russian has four forms) - also now the entry point to
       `AddTestMessageFragment` (below) via an `addTestMessageButton`,
       moved off its own top-level Settings row - the user's own call:
       a debug tool fits better grouped with the one screen it most
@@ -3115,11 +3143,11 @@ Single `:app` module, packages under
 `NotificationListenerService.onNotificationPosted` (only for monitored
 packages) -> extract title/text -> `MessageStore.add` (dedups
 app+title+text within a 15-minute window) -> `MessagesFragment`
-re-renders via the store's listener callback; if retention is enabled,
-`MessageStore`'s `onNewMessage` hook also mirrors the entry into
-`MessageHistoryDb` and prunes rows older than the retention window. On
-process start, `FfNotifyImporterApp` hydrates `MessageStore` from
-`MessageHistoryDb` if retention was left enabled. Tapping a message
+re-renders via the store's listener callback; `MessageStore`'s
+`onNewMessage` hook prunes entries older than the retention window
+and, if "Save history to local storage" is on, also mirrors the entry
+into `MessageHistoryDb`. On process start, `FfNotifyImporterApp`
+hydrates `MessageStore` from `MessageHistoryDb` if that was left on. Tapping a message
 (outside selection mode) loads rules from `RulesDb`, runs
 `RuleEngine.match`, and shows the `ParseOutcome` in a dialog - nothing
 is written anywhere by this, it's purely a preview. No Firefly III API

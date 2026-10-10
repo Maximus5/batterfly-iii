@@ -9,25 +9,38 @@
         android:orientation="vertical"
         android:padding="16dp">
 
+        <com.google.android.material.switchmaterial.SwitchMaterial
+            android:id="@+id/persistSwitch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="4dp"
+            android:text="@string/message_history_persist_switch" />
+
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:text="@string/message_history_persist_hint"
+            android:textColor="#888888"
+            android:textSize="13sp" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginTop="16dp"
             android:layout_marginBottom="16dp"
-            android:text="@string/message_history_explanation"
+            android:background="#E0E0E0" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:text="@string/message_history_window_explanation"
             android:textColor="#666666" />
 
         <RadioGroup
             android:id="@+id/retentionOptions"
             android:layout_width="match_parent"
             android:layout_height="wrap_content">
-
-            <RadioButton
-                android:id="@+id/retentionOff"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:paddingTop="10dp"
-                android:paddingBottom="10dp"
-                android:text="@string/message_history_option_off" />
 
             <RadioButton
                 android:id="@+id/retention1"

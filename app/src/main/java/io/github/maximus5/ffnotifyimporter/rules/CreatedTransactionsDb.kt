@@ -124,6 +124,13 @@ class CreatedTransactionsDb(context: Context) : SQLiteOpenHelper(context, DB_NAM
         return records
     }
 
+    /** Retention: drops rows whose transaction date is before [cutoffMillis] (see
+     * `data.RetentionController`). The dedup window is minutes, so any retention setting is far
+     * longer than a lookup can ever reach back. */
+    fun deleteOlderThan(cutoffMillis: Long) {
+        writableDatabase.delete(TABLE, "$COL_DATE_MILLIS < ?", arrayOf(cutoffMillis.toString()))
+    }
+
     /** Wipes the whole log - used by `backup.BackupManager.restore` before re-adding the backed-up
      * rows, same replace-not-merge semantics every other store restore uses. */
     fun clearAll() {

@@ -675,10 +675,11 @@ work.
   second, static line (`rule_escape_hint`) pointing at the `{{word}}`
   syntax - the insert-macro picker itself stays as-is, it's about
   inserting real macros, not escaping literals.
-- Real on-device verification needed for: message history retention
+- Real on-device verification needed for: "Save history to local storage"
   (toggle on, capture a notification, restart the app, confirm it's
   still there; toggle back off, confirm the on-disk file is actually
-  cleared), and the whole rules flow (add/edit/duplicate/delete/
+  cleared; also an upgrade from the old retention setting - 1+ days
+  must come up with the switch on and the same window), and the whole rules flow (add/edit/duplicate/delete/
   reorder a rule, pick an existing pattern, "test match" tap on a
   message, including the foreign-currency/LOCAL_AMOUNT_MISSING case)
   - see ARCHITECTURE.md's Known bugs/gotchas. Notification capture +
@@ -724,73 +725,10 @@ work.
   (not just the adapter logic), and the move-up/move-down ordering
   with a real spread-out *and* adjacent multi-row selection (hand-
   traced on paper, not run on device yet).
-- **Decided** (explicit user instruction, not a "revisit if it matters"
-  judgment call this time): no table or in-memory store in this app
-  should grow unbounded - this is a notification handler, not an
-  archive. Retention window capped at one month, user-configurable,
-  same idea as `MessageHistoryDb`'s existing `RetentionPrefs` (off/1/3/
-  5/7/30 days) - never "forever" by default anywhere.
-  - `CreatedTransactionsDb` (the dedup log) is the real gap right now:
-    `recordCreated` never purges anything, and `findWithinWindow`'s own
-    date-range scoping only affects what a lookup *finds* (the dedup
-    window, minutes), not what's *kept* - every successfully created
-    transaction's row stays forever. Needs its own retention setting
-    and a `deleteOlderThan`-equivalent, called the same places
-    `MessageHistoryDb.deleteOlderThan` already is (right after
-    `recordCreated`, and when the setting changes) - capped at 30 days
-    max per the decision above. **Decided** (the user's own follow-up,
-    not started): share one retention setting with message history,
-    not a separate one - same `RetentionPrefs` window governs both
-    `MessageHistoryDb` and `CreatedTransactionsDb` (and any other
-    append-only operational log/structure this app grows later, not
-    just these two named now - the user's own framing was "all tables
-    and structures", scoped to data *this app itself appends over
-    time*, explicitly **not** `RulesDb`/`CurrenciesDb`/`MonitoredAppsPrefs`/
-    `FireflyPrefs`/`NotificationPrefs`, which stay config, unaffected -
-    see the `RulesDb`/`CurrenciesDb` item further below).
-    Also decided, same follow-up - a UI rework of
-    `MessageHistoryFragment` itself, not just the scope above
-    (**confirmed with the user** - the inversion flagged in an earlier
-    pass of this note was real, fixed below):
-    - The `RadioGroup` (off/1/3/5/7/30 days) loses its "Don't save"
-      option; a separate switch, **"Keep history only in-memory"**,
-      takes over that meaning instead - checked means ephemeral
-      (today's "Don't save"/`retentionDays = 0`), unchecked means
-      persisted for whichever day-count is currently selected (the
-      day-count control presumably only enabled/meaningful while
-      unchecked - not fully specified yet). Subtitle text under the
-      switch, the user's own wording: explains that while in-memory,
-      notification history is lost on an app or device restart, but
-      that this never affects transactions already created in Firefly
-      - i.e. reassures that toggling this is about losing the
-      *notification log*, not anything already posted.
-    - New-install default: switch **checked** (in-memory only) - this
-      is just today's actual default (`retentionDays = 0`) carried
-      over unchanged, not a behavior change - an earlier pass of this
-      note said "3 days, unchecked" for new installs; the user walked
-      that back in favor of keeping the existing default as-is.
-    - Migration for an existing install, confirmed with the user:
-      switch **unchecked** (still persisted) if the old setting *was*
-      "Keep for 1+ day" - i.e. preserves whatever the install already
-      had, in either direction. (An earlier pass of this note had this
-      backwards and flagged it rather than guessing; the user confirmed
-      the preserve-behavior mapping above is the correct one.)
-  - `MessageHistoryDb` already satisfies this (max 30 days via
-    `RetentionPrefs`) - no change needed there.
-  - `MessageStore`'s in-memory list still has no cap - lower priority
-    than the two on-disk logs (it's already lost on process death by
-    design, see its own KDoc), but a long-running session with high
-    notification volume could still grow it unboundedly within one
-    process lifetime; worth capping too, not just the disk-backed
-    stores.
-  - `RulesDb`/`CurrenciesDb` are user-authored config (rules, the
-    currency table), not append-only logs - bounded by how many the
-    user deliberately creates, a different class of problem, no
-    retention needed there.
 - No foreground service - chosen deliberately (no persistent
   notification icon) at the cost of the captured-messages list being
   more likely to be lost if Android kills the backgrounded app under
-  memory pressure (when message history retention is off - the
+  memory pressure (when "Save history to local storage" is off - the
   default), not just on reboot.
 - `ic_launcher` is a placeholder vector icon, not a real app icon.
 - Optional fullscreen/edge-to-edge mode as a user setting (in the

@@ -19,12 +19,17 @@
     <string name="settings_monitored_apps_subtitle">Choose which apps\' notifications to watch</string>
 
     <string name="settings_message_history_title">Message history</string>
-    <string name="settings_message_history_subtitle_off">Off — nothing saved to disk</string>
-    <string name="settings_message_history_subtitle_on_one">Keeping notifications for 1 day</string>
-    <string name="settings_message_history_subtitle_on_many">Keeping notifications for %1$d days</string>
 
-    <string name="message_history_explanation">When enabled, captured notifications are also saved on this device so they survive app updates and restarts. Turning this off deletes everything that was saved.</string>
-    <string name="message_history_option_off">Don\'t save (in-memory only)</string>
+    <string name="settings_message_history_subtitle_persisted">Saved on this device · %1$s</string>
+    <string name="settings_message_history_subtitle_memory">In memory only · %1$s</string>
+    <plurals name="history_keep_days">
+        <item quantity="one">kept for %1$d day</item>
+        <item quantity="other">kept for %1$d days</item>
+    </plurals>
+
+    <string name="message_history_persist_switch">Save history to local storage</string>
+    <string name="message_history_persist_hint">When on, captured notifications are saved on this device and survive an app or device restart. When off, they are kept in memory only and are lost on restart. Either way, transactions already created in Firefly III are not affected.</string>
+    <string name="message_history_window_explanation">How long history is kept. This applies to captured notifications and to the log of created transactions used for duplicate detection; older entries are deleted automatically.</string>
     <string name="message_history_option_1">Keep for 1 day</string>
     <string name="message_history_option_3">Keep for 3 days</string>
     <string name="message_history_option_5">Keep for 5 days</string>
