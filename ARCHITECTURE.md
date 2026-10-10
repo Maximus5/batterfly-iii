@@ -2261,14 +2261,36 @@ Single `:app` module, packages under
       and inflate `menu_rules_selection` instead, then calls
       `requireActivity().invalidateMenu()` to make it re-run.
       `menu_rules_selection` - move up/move down (`ic_arrow_upward`/
-      `ic_arrow_downward`, new plain Material glyphs, `ifRoom`) and
-      delete (`@android:drawable/ic_menu_delete`, the same system glyph
-      `menu_selection.xml` already uses, `ifRoom`) as icons; enable/
-      disable (`never` - text-only in the overflow) since there was no
-      good single icon for either without a label anyway. The per-row
-      overflow menu (move up/down/duplicate/delete, one row at a time)
-      is unchanged and still exists side by side - multi-select is
-      additive, not a replacement.
+      `ic_arrow_downward`, new plain Material glyphs) are the only two
+      `ifRoom` icons; duplicate/enable/disable/delete are all `never` -
+      text-only in the overflow, **deliberately matching the per-row
+      overflow menu's own all-text shape** (the user's own call,
+      "менюшки должны соответствовать друг другу" - the two menus
+      should read as the same kind of thing) rather than hunting for
+      icons that don't already exist in this app just to fill the
+      toolbar. Order mirrors the per-row menu's own (move up, move
+      down, duplicate), with enable/disable appended (no per-row
+      equivalent - that's normally a field inside `RuleEditFragment`,
+      not a quick row action) and delete moved to the very end,
+      **the user's own explicit request** - keeping the one
+      irreversible action furthest from the others, including past
+      "duplicate" which creates new rows rather than destroying any).
+      A true visual divider line between items isn't available here -
+      checked and confirmed with the user: standard `Menu`/`MenuItem`
+      XML (the Toolbar/overflow this app uses, not a custom-view
+      `PopupMenu` like the duplicate-confirm dialog's own 4-button
+      grid) has no divider item type at all, so ordering alone is the
+      separation, not a line. The per-row overflow menu (move up/down/
+      duplicate/delete, one row at a time) is unchanged and still
+      exists side by side - multi-select is additive, not a
+      replacement.
+      `duplicateSelected()` is the same per-rule behavior the per-row
+      overflow's own "Duplicate" already has (`RulesDb.duplicate`,
+      clone with " (copy)" label inserted right after the original),
+      just applied to every selected id - each duplicate lands next to
+      its own original, not clustered together; the originals (not
+      their new copies) stay selected afterward, since only their ids
+      were ever in the selection set to begin with.
       Move up/down semantics for a multi-selection, the user's own
       chosen design: every selected rule moves exactly one slot in the
       chosen direction, independently, not as a block with special-

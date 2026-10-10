@@ -89,6 +89,7 @@ class RulesListFragment : Fragment() {
                         return when (menuItem.itemId) {
                             R.id.action_move_up_selected -> { moveSelected(up = true); true }
                             R.id.action_move_down_selected -> { moveSelected(up = false); true }
+                            R.id.action_duplicate_selected -> { duplicateSelected(); true }
                             R.id.action_enable_selected -> { setEnabledForSelected(true); true }
                             R.id.action_disable_selected -> { setEnabledForSelected(false); true }
                             R.id.action_delete_selected_rules -> { confirmDeleteSelected(); true }
@@ -178,6 +179,16 @@ class RulesListFragment : Fragment() {
         (if (up) ordered else ordered.reversed()).forEach {
             if (up) rulesDb.moveUp(it) else rulesDb.moveDown(it)
         }
+        reload()
+    }
+
+    /** Same per-rule behavior the per-row overflow's own "Duplicate" already has
+     * (`RulesDb.duplicate`, clone with " (copy)" label, inserted right after the original),
+     * just applied to every selected id - no new semantics needed, each duplicate still lands
+     * right next to its own original rather than all of them clustering at one spot. */
+    private fun duplicateSelected() {
+        val ids = adapter.selectedIds()
+        rulesDb.loadAllOrdered().map { it.id }.filter { it in ids }.forEach { rulesDb.duplicate(it) }
         reload()
     }
 
