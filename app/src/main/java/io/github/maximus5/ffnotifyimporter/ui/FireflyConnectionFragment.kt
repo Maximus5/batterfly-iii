@@ -8,6 +8,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import io.github.maximus5.ffnotifyimporter.R
@@ -54,6 +55,15 @@ class FireflyConnectionFragment : Fragment() {
     private var binding: FragmentFireflyConnectionBinding? = null
     private lateinit var prefs: FireflyPrefs
 
+    /** Same "confirm before losing unsaved edits" shape `RuleEditFragment.initialDraft`/
+     * `hasUnsavedChanges` already uses - just [urlInput]/[tokenInput], not
+     * [protectScreenshotsSwitch]: that one is deliberately never persisted at all (see this
+     * class's own KDoc, "not sticky" by design), so toggling it alone is never an unsaved change
+     * worth confirming - there's nothing for [save] to lose. [tokenInput] starts genuinely blank
+     * every time (write-once design, same KDoc) and gets cleared again after a successful save, so
+     * comparing it against a blank baseline still correctly flags "typed but not yet saved". */
+    private var initialSnapshot: Pair<String, String>? = null
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -82,6 +92,32 @@ class FireflyConnectionFragment : Fragment() {
 
         binding.testConnectionButton.setOnClickListener { testConnection() }
         binding.saveButton.setOnClickListener { save() }
+
+        initialSnapshot = buildSnapshot()
+        (activity as? SettingsActivity)?.setBackGuard { handleBackPressed() }
+    }
+
+    private fun buildSnapshot(): Pair<String, String>? {
+        val binding = binding ?: return null
+        return binding.urlInput.text?.toString()?.trim().orEmpty() to binding.tokenInput.text?.toString()?.trim().orEmpty()
+    }
+
+    private fun hasUnsavedChanges(): Boolean = buildSnapshot() != initialSnapshot
+
+    /** Cancel always rightmost/last (house convention, AGENTS.md) - the real action (Discard)
+     * goes in [AlertDialog.Builder.setNegativeButton] (left), Cancel in
+     * [AlertDialog.Builder.setPositiveButton] (right). */
+    private fun handleBackPressed() {
+        if (hasUnsavedChanges()) {
+            AlertDialog.Builder(requireContext())
+                .setTitle(R.string.discard_changes_title)
+                .setMessage(R.string.discard_changes_message)
+                .setNegativeButton(R.string.discard_changes_discard) { _, _ -> parentFragmentManager.popBackStack() }
+                .setPositiveButton(android.R.string.cancel, null)
+                .show()
+        } else {
+            parentFragmentManager.popBackStack()
+        }
     }
 
     override fun onResume() {
@@ -153,11 +189,13 @@ class FireflyConnectionFragment : Fragment() {
             updateTokenHint()
         }
 
+        initialSnapshot = buildSnapshot()
         Toast.makeText(requireContext(), R.string.firefly_settings_saved, Toast.LENGTH_SHORT).show()
     }
 
     override fun onDestroyView() {
         super.onDestroyView()
+        (activity as? SettingsActivity)?.setBackGuard(null)
         binding = null
     }
 }

@@ -768,20 +768,35 @@ class CreateTransactionFragment : Fragment() {
      * fields (true in edit mode from the start - there was never a parse to begin with). Returns
      * null (after showing the relevant field's error) on the first validation failure - same
      * "stop at the first problem" shape `FireflyConnectionFragment.save`/
-     * `TransactionCreationFragment.save` already use. */
+     * `TransactionCreationFragment.save` already use.
+     *
+     * Errors are shown via [TextInputLayout.setError], not the plain `EditText.setError` this
+     * used before - the user's own catch/screenshot: the account fields' own custom end-icon
+     * (the dropdown picker) visually clashed with `EditText`'s native error glyph trying to
+     * occupy the same spot, and that native error's explanatory tooltip only ever showed once the
+     * field had focus, which a button tap elsewhere never gives it - so the two account-field
+     * errors landed as two unexplained red icons with nothing else on screen. `TextInputLayout`'s
+     * own error instead draws a red-outlined box plus the message as caption text directly below
+     * the field, always visible, no focus needed, and it leaves an already-set custom end icon
+     * alone rather than fighting it for the same space. Cleared at the top of every call so a
+     * fixed field doesn't keep showing a stale error from the previous attempt. */
     private fun buildDraft(): TransactionDraft? {
         val binding = binding ?: return null
+        binding.amountLayout.error = null
+        binding.descriptionLayout.error = null
+        binding.sourceAccountLayout.error = null
+        binding.destinationAccountLayout.error = null
 
         val amountText = binding.amountInput.text?.toString()?.trim().orEmpty()
         val amount = amountText.toBigDecimalOrNull()
         if (amount == null) {
-            binding.amountInput.error = getString(R.string.create_tx_amount_invalid)
+            binding.amountLayout.error = getString(R.string.create_tx_amount_invalid)
             return null
         }
 
         val description = binding.descriptionInput.text?.toString()?.trim().orEmpty()
         if (description.isBlank()) {
-            binding.descriptionInput.error = getString(R.string.create_tx_description_required)
+            binding.descriptionLayout.error = getString(R.string.create_tx_description_required)
             return null
         }
 
@@ -794,8 +809,8 @@ class CreateTransactionFragment : Fragment() {
                 isAssetAccountName(destinationName, destinationAccountPick),
             )
             if (resolved == null) {
-                binding.sourceAccountInput.error = getString(R.string.create_tx_no_asset_account_error)
-                binding.destinationAccountInput.error = getString(R.string.create_tx_no_asset_account_error)
+                binding.sourceAccountLayout.error = getString(R.string.create_tx_no_asset_account_error)
+                binding.destinationAccountLayout.error = getString(R.string.create_tx_no_asset_account_error)
                 return null
             }
             kind = resolved
@@ -803,11 +818,11 @@ class CreateTransactionFragment : Fragment() {
         }
 
         if (kind != RuleKind.DEPOSIT && sourceName.isBlank()) {
-            binding.sourceAccountInput.error = getString(R.string.create_tx_source_required)
+            binding.sourceAccountLayout.error = getString(R.string.create_tx_source_required)
             return null
         }
         if (kind != RuleKind.WITHDRAWAL && destinationName.isBlank()) {
-            binding.destinationAccountInput.error = getString(R.string.create_tx_destination_required)
+            binding.destinationAccountLayout.error = getString(R.string.create_tx_destination_required)
             return null
         }
 

@@ -2009,6 +2009,25 @@ Single `:app` module, packages under
       to save (`create_tx_no_asset_account_error` on both account
       fields) if it's still indeterminate then - the "ругаться" the
       user asked for, but only once, at submit, not on every keystroke.
+      **Fixed a real "two unexplained red icons" bug, the user's own
+      catch/screenshot**: every field error on this screen (this one
+      included) used to be set via plain `EditText.setError` - its
+      native red glyph visually clashed with the account fields' own
+      custom end icon (the dropdown picker) trying to occupy the same
+      spot, and its explanatory tooltip only ever shows once the field
+      has focus, which a `createTransactionButton` tap elsewhere never
+      gives it - so a failed validation landed as two unexplained red
+      icons with nothing else on screen. Every `.error` assignment in
+      `buildDraft` now targets the wrapping `TextInputLayout` instead
+      (`amountLayout`/`descriptionLayout`/`sourceAccountLayout`/
+      `destinationAccountLayout` - the first two needed a new
+      `android:id` added, they'd never needed one before) - Material's
+      own error treatment draws a red-outlined box plus the message as
+      caption text directly below the field, always visible with no
+      focus needed, and leaves an already-set custom end icon alone
+      rather than fighting it for the same space. Cleared at the top
+      of every `buildDraft` call so a since-fixed field doesn't keep
+      showing a stale error from the previous attempt.
       `isAssetAccountName` treats a *picked* account as asset
       regardless of whether `assetAccounts` has loaded yet (the picker
       dialog itself is only ever built from `FireflyApiClient.
@@ -2763,7 +2782,25 @@ Single `:app` module, packages under
       `initialDraft` is captured, cleared in `onDestroyView` so it
       can't linger once the fragment is gone (a real save/delete pops
       the back stack directly, bypassing this check entirely - there's
-      nothing to discard). App and
+      nothing to discard). **This was the only settings screen with
+      this guard until the user caught, directly, that every other
+      Save-button screen silently dropped unsaved edits on a stray
+      back press too** - `FireflyConnectionFragment`/
+      `TransactionCreationFragment` now use the identical shape
+      (their own `initialSnapshot`/`buildSnapshot`/`hasUnsavedChanges`/
+      `handleBackPressed`, same `setBackGuard` wiring, re-baselined
+      after a successful save so an immediate back press right after
+      saving doesn't ask about changes that are already persisted).
+      `FireflyConnectionFragment`'s own snapshot deliberately excludes
+      `protectScreenshotsSwitch` - that switch is never persisted at
+      all (see its own KDoc, "not sticky" by design), so toggling it
+      alone was never an unsaved change to begin with, nothing for
+      `save` to lose. The dialog strings (`discard_changes_title`/
+      `_message`/`_discard`) were renamed from `rule_discard_changes_*`
+      to drop the rule-specific framing, now shared by all three
+      screens rather than duplicated per screen - the title/discard
+      label were already screen-agnostic text, only the message needed
+      a genuinely generic rewording ("to this rule" dropped). App and
       kind are both Material "exposed dropdown menu" fields (an
       outlined `TextInputLayout` wrapping a
       `MaterialAutoCompleteTextView`) rather than a bare `Spinner` -

@@ -61,6 +61,26 @@ class TransactionCreationFragment : Fragment() {
     private var binding: FragmentTransactionCreationBinding? = null
     private lateinit var prefs: FireflyPrefs
 
+    /** A snapshot of [buildSnapshot] taken right after the fields are first populated - the
+     * baseline [hasUnsavedChanges] compares against, same "leaving with unsaved edits asks first"
+     * shape `RuleEditFragment.initialDraft`/`hasUnsavedChanges` already uses. Re-baselined at the
+     * end of a successful [save] too, so a back press right after saving doesn't ask about
+     * changes that are already persisted. */
+    private var initialSnapshot: SettingsSnapshot? = null
+
+    /** Every field on this screen, for change-detection only - not persisted itself, [save]
+     * writes straight to [FireflyPrefs] as before. */
+    private data class SettingsSnapshot(
+        val autoCreate: Boolean,
+        val dedupEnabled: Boolean,
+        val dedupIncludeDescription: Boolean,
+        val dedupWindow: String,
+        val defaultAccountCurrency: String,
+        val defaultSourceAccount: String,
+        val allTransactionsTags: String,
+        val approxTag: String,
+    )
+
     /** Fetched once per screen session on first use, same reasoning as `RuleEditFragment.
      * assetAccounts`/`CreateTransactionFragment.assetAccounts` - a personal Firefly instance's
      * enabled-currency set changes rarely enough that a stale cache for the rest of this one
@@ -108,7 +128,42 @@ class TransactionCreationFragment : Fragment() {
         binding.autoCreateSwitch.setOnCheckedChangeListener { _, isChecked -> if (isChecked) requestNotificationPermissionIfNeeded() }
         if (binding.autoCreateSwitch.isChecked) requestNotificationPermissionIfNeeded()
 
+        initialSnapshot = buildSnapshot()
+        (activity as? SettingsActivity)?.setBackGuard { handleBackPressed() }
+
         binding.saveButton.setOnClickListener { save() }
+    }
+
+    private fun buildSnapshot(): SettingsSnapshot? {
+        val binding = binding ?: return null
+        return SettingsSnapshot(
+            autoCreate = binding.autoCreateSwitch.isChecked,
+            dedupEnabled = binding.dedupEnabledSwitch.isChecked,
+            dedupIncludeDescription = binding.dedupIncludeDescriptionSwitch.isChecked,
+            dedupWindow = binding.dedupWindowInput.text?.toString()?.trim().orEmpty(),
+            defaultAccountCurrency = binding.defaultAccountCurrencyInput.text?.toString()?.trim().orEmpty(),
+            defaultSourceAccount = binding.defaultSourceAccountInput.text?.toString()?.trim().orEmpty(),
+            allTransactionsTags = binding.allTransactionsTagInput.text?.toString()?.trim().orEmpty(),
+            approxTag = binding.approxTagInput.text?.toString()?.trim().orEmpty(),
+        )
+    }
+
+    private fun hasUnsavedChanges(): Boolean = buildSnapshot() != initialSnapshot
+
+    /** Cancel always rightmost/last (house convention, AGENTS.md) - the real action (Discard)
+     * goes in [AlertDialog.Builder.setNegativeButton] (left), Cancel in
+     * [AlertDialog.Builder.setPositiveButton] (right). */
+    private fun handleBackPressed() {
+        if (hasUnsavedChanges()) {
+            AlertDialog.Builder(requireContext())
+                .setTitle(R.string.discard_changes_title)
+                .setMessage(R.string.discard_changes_message)
+                .setNegativeButton(R.string.discard_changes_discard) { _, _ -> parentFragmentManager.popBackStack() }
+                .setPositiveButton(android.R.string.cancel, null)
+                .show()
+        } else {
+            parentFragmentManager.popBackStack()
+        }
     }
 
     private fun requestNotificationPermissionIfNeeded() {
@@ -227,11 +282,13 @@ class TransactionCreationFragment : Fragment() {
         prefs.setAllTransactionsTags(binding.allTransactionsTagInput.text?.toString().orEmpty().trim())
         prefs.setApproxConversionTag(binding.approxTagInput.text?.toString().orEmpty().trim())
 
+        initialSnapshot = buildSnapshot()
         Toast.makeText(requireContext(), R.string.firefly_settings_saved, Toast.LENGTH_SHORT).show()
     }
 
     override fun onDestroyView() {
         super.onDestroyView()
+        (activity as? SettingsActivity)?.setBackGuard(null)
         binding = null
     }
 }
