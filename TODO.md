@@ -564,11 +564,16 @@ work.
     user-defined matched" for free - just append them after
     `RulesDb.loadAllOrdered()`'s own list, before constructing
     `RuleEngine`).
-  - **A built-in-rule match always routes to manual review, never
-    auto-create, regardless of `FireflyPrefs.isAutoCreateEnabled()`** -
-    a generic catch-all regex is inherently less reliable than a
-    per-app, user-authored rule (easy to grab the wrong number out of
-    the text, or - before the point below - misjudge direction).
+  - **Superseded, the user's own follow-up - no forced-review
+    restriction after all**: a built-in-rule match was going to always
+    route to manual review, bypassing `FireflyPrefs.isAutoCreateEnabled()`
+    entirely - the user judged this too strict once `kind` became
+    editable on create (below) made the main risk this was protecting
+    against recoverable anyway. A built-in match now flows through the
+    exact same `AutoCreateScheduler`/`ReviewNotificationScheduler`
+    dispatch every other rule already uses, no special case at all -
+    auto-create off (the default) means review, same as today; on
+    means it can auto-create, same as any user-defined rule.
   - **`kind` becomes editable on the create screen - the user's own
     decision, resolving the direction-detection problem above instead
     of trying to guess it**: scoped to *create* mode only, for *any*
@@ -587,17 +592,46 @@ work.
     mode only (edit mode keeps the plain text); `updateAccountFieldModes()`
     re-run whenever the user changes it, since which side is the asset
     account depends on `kind`.
-  - **New setting needed: a home currency**, the user's own call after
+  - **New setting: "Default account currency"** (exact label, the
+    user's own choice) on `TransactionCreationFragment` - raised after
     noticing a built-in rule has no account to inherit `homeCurrency`
     from the way a user-defined rule does (each of theirs is scoped to
     one real account, already in a known currency) - without it,
     foreign-amount detection (`currency != rule.homeCurrency` ->
     `DraftIssue.LOCAL_AMOUNT_MISSING`) has nothing correct to compare
-    against. A new `FireflyPrefs.getHomeCurrency()`/`setHomeCurrency()`
-    (plain string, a `TransactionCreationFragment` text field, same
-    shape as the existing tag fields there) - both built-in rules read
-    it as their `homeCurrency` instead of a hardcoded value. Default
-    value and exact field placement not decided yet.
+    against. New `FireflyPrefs.getDefaultAccountCurrency()`/
+    `setDefaultAccountCurrency()` (plain string).
+    **Generalized past just the 2 built-in rules, the user's own
+    follow-up**: a caption under the field says it's used whenever a
+    *rule's own* currency is left blank, not only for the built-in
+    ones - so this becomes a general `RuleEngine` fallback (a new
+    plain `defaultAccountCurrency: String = ""` constructor parameter,
+    same "external config injected as data" shape `currencySymbols`/
+    `allTransactionsTags` already use, so `rules` stays free of any
+    `FireflyPrefs`/`Context` dependency), substituted in `buildDraft`
+    whenever `rule.homeCurrency.isBlank()`, rather than something
+    hardcoded only into the 2 built-in constants. This needs
+    `RuleValidation`'s existing "Currency can't be empty" check
+    relaxed too - today it unconditionally requires a non-blank
+    `homeCurrency` on *every* rule, user-defined ones included; a
+    user-defined rule would need to be allowed to leave it blank on
+    purpose to lean on this same fallback (the built-in rules always
+    leave it blank, needing no special-casing of their own once this
+    lands).
+    **Picker, not a plain text field, the user's own request**: should
+    offer the currencies *actually enabled in the user's own Firefly
+    instance* (not this app's own locally-maintained `CurrenciesDb`
+    table, which `RuleEditFragment`'s existing currency picker already
+    uses, and not the same data source either - Firefly's own "enabled
+    currencies" list is a live, server-side concept). Needs a new
+    `FireflyApiClient.listCurrencies()` (or similarly named) call,
+    checked against Firefly's real API/OpenAPI spec before writing it
+    (same house practice as every other Firefly endpoint in this app -
+    confirm the actual path/response shape, including whatever field
+    marks a currency "enabled"/"active", not guessed), plus parsing in
+    `FireflyJson`. UI: same end-icon `TextInputLayout` + `AlertDialog.
+    setSingleChoiceItems` picker shape every other Firefly-sourced
+    picker in this app already uses (asset accounts, categories).
   - Blank `sourceAccountName`/`destinationAccountName` on these rules
     is expected, not a bug to fix - a built-in rule can't know which
     real Firefly account any given app's money should land in, so the
