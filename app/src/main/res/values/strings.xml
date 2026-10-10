@@ -270,7 +270,8 @@
     <string name="review_match_channel_description">A notification matched a rule while auto-create is off - review and create the transaction by hand</string>
     <string name="review_match_title">Transaction to review</string>
     <string name="review_match_text">%1$s · %2$s %3$s · \"%4$s\"</string>
-    <string name="review_match_text_generic">%1$s - notification matched a rule, tap to review and create transaction</string>
+    <string name="review_match_text_generic">%1$s - transaction detected</string>
+    <string name="review_match_action">Review and create</string>
 
     <string name="settings_backup_title">Backup &amp; restore</string>
     <string name="settings_backup_subtitle">Save or restore everything except the Firefly connection</string>

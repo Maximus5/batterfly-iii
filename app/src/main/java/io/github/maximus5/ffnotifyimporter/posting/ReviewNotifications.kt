@@ -18,8 +18,16 @@ import java.math.BigDecimal
  * for when auto-create is *off*: a rule still matched, so rather than silently leaving it for the
  * user to notice in the in-app Messages list, surface it right away with enough detail to act on
  * (amount/currency/description, same reasoning as [AutoCreateNotifications]'s own fields), and a
- * "Create transaction" action to act on it from the shade. **Fixed a real "the app is lying to me"
- * gap, the user's own catch**: that action used to jump straight to [CreateTransactionActivity]
+ * "Review and create" action to act on it from the shade - relabeled from "Create transaction"
+ * (now [R.string.review_match_action], distinct from `create_tx`'s own on-screen button string so
+ * the two can read differently without one accidentally changing the other) the user's own call:
+ * tapping it never posts directly, it only ever opens the review screen first (see below), so the
+ * label should say that. The generic (`isShowFinancialInfoEnabled` off) body text dropped its own
+ * now-redundant "tap to review and create transaction" phrasing for the same reason, down to a
+ * plain "%1$s - transaction detected" - the action button already says what tapping does.
+ *
+ * **Fixed a real "the app is lying to me" gap, the user's own catch**: that action used to jump
+ * straight to [CreateTransactionActivity]
  * with no duplicate check at all (deliberately, by the original design - left entirely to the
  * screen's own on-submit `checkForDuplicate`), so a message that was actually a duplicate of
  * something already created walked the user into a blank create screen that only found out when
@@ -76,7 +84,7 @@ object ReviewNotifications {
             .setContentText(text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))
             .setContentIntent(action)
-            .addAction(R.drawable.ic_notification_sync, context.getString(R.string.test_match_create), action)
+            .addAction(R.drawable.ic_notification_sync, context.getString(R.string.review_match_action), action)
         try {
             NotificationManagerCompat.from(context).notify(notificationId(message), builder.build())
         } catch (e: SecurityException) {
