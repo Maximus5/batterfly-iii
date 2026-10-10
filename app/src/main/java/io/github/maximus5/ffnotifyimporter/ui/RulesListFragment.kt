@@ -89,9 +89,9 @@ class RulesListFragment : Fragment() {
                         return when (menuItem.itemId) {
                             R.id.action_move_up_selected -> { moveSelected(up = true); true }
                             R.id.action_move_down_selected -> { moveSelected(up = false); true }
-                            R.id.action_duplicate_selected -> { duplicateSelected(); true }
                             R.id.action_enable_selected -> { setEnabledForSelected(true); true }
                             R.id.action_disable_selected -> { setEnabledForSelected(false); true }
+                            R.id.action_duplicate_selected -> { duplicateSelected(); true }
                             R.id.action_delete_selected_rules -> { confirmDeleteSelected(); true }
                             else -> false
                         }
@@ -289,16 +289,29 @@ class RulesListFragment : Fragment() {
         )
     }
 
+    /** Same action set/order as `menu_rules_selection` (move up, move down, enable, disable,
+     * duplicate, delete) - the user's own explicit call, "менюшки должны соответствовать друг
+     * другу" - including Enable/Disable, which this per-row menu didn't have at all before (only
+     * reachable via the `enabledSwitch` inside `RuleEditFragment`'s own full editor). Delete last,
+     * same reasoning as the selection menu's own KDoc: keep the one irreversible action furthest
+     * from the rest. Both always shown regardless of the rule's current state (tapping the
+     * already-matching one is a harmless no-op) rather than only showing whichever one currently
+     * applies - the user's own choice, for exact parity with the selection menu, which can't
+     * single out one state anyway once more than one rule with mixed states is selected. */
     private fun showOverflowMenu(rule: ParseRule, anchor: View) {
         val popup = PopupMenu(requireContext(), anchor)
         popup.menu.add(0, ID_MOVE_UP, 0, R.string.rule_move_up)
         popup.menu.add(0, ID_MOVE_DOWN, 1, R.string.rule_move_down)
-        popup.menu.add(0, ID_DUPLICATE, 2, R.string.rule_duplicate)
-        popup.menu.add(0, ID_DELETE, 3, R.string.action_delete)
+        popup.menu.add(0, ID_ENABLE, 2, R.string.rule_enable_selected)
+        popup.menu.add(0, ID_DISABLE, 3, R.string.rule_disable_selected)
+        popup.menu.add(0, ID_DUPLICATE, 4, R.string.rule_duplicate)
+        popup.menu.add(0, ID_DELETE, 5, R.string.rule_action_delete)
         popup.setOnMenuItemClickListener { item ->
             when (item.itemId) {
                 ID_MOVE_UP -> rulesDb.moveUp(rule.id)
                 ID_MOVE_DOWN -> rulesDb.moveDown(rule.id)
+                ID_ENABLE -> rulesDb.update(rule.copy(enabled = true))
+                ID_DISABLE -> rulesDb.update(rule.copy(enabled = false))
                 ID_DUPLICATE -> rulesDb.duplicate(rule.id)
                 ID_DELETE -> rulesDb.delete(rule.id)
                 else -> return@setOnMenuItemClickListener false
@@ -319,5 +332,7 @@ class RulesListFragment : Fragment() {
         const val ID_MOVE_DOWN = 2
         const val ID_DUPLICATE = 3
         const val ID_DELETE = 4
+        const val ID_ENABLE = 5
+        const val ID_DISABLE = 6
     }
 }

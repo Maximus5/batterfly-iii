@@ -2161,8 +2161,24 @@ Single `:app` module, packages under
       prefs/db involved.
     - `RulesListFragment` - the ordered rule list (`RulesAdapter`);
       tap opens `RuleEditFragment` to edit, the overflow (⋮) menu per
-      row has move up/down, duplicate, delete - all straight
-      `RulesDb` calls followed by a reload. **This row's overflow-menu
+      row has move up, move down, enable, disable, duplicate, delete
+      (in that order, delete last) - all straight `RulesDb` calls
+      followed by a reload. Enable/disable here are new - the user's
+      own explicit call, "менюшки должны соответствовать друг другу",
+      matching the multi-select toolbar's own action set/order
+      (below) exactly rather than leaving this per-row menu without
+      them (previously only reachable via `RuleEditFragment`'s own
+      `enabledSwitch`). Both always shown regardless of the rule's
+      current state - tapping the one that already matches is a
+      harmless no-op, the same choice the multi-select version makes
+      (there, a mixed-state selection can't single out just one
+      anyway). Every item's title carries one emoji prefix now too
+      (⬆️/⬇️/✅/🚫/📋/🗑️) - the user's own request, and a genuinely
+      practical one for this specific menu, not just decoration: a
+      plain `PopupMenu` (what this is) has no reliable way to show
+      `android:icon` without a private-API `setForceShowIcon` call,
+      so a one-glyph text prefix is the only straightforward way to
+      give these items any visual icon at all. **This row's overflow-menu
       shape is the reference pattern for every list in the app** - the
       user's own explicit call, prompted by `CurrenciesFragment` having
       grown a bespoke standalone trash-icon button instead: same
@@ -2262,28 +2278,31 @@ Single `:app` module, packages under
       `requireActivity().invalidateMenu()` to make it re-run.
       `menu_rules_selection` - move up/move down (`ic_arrow_upward`/
       `ic_arrow_downward`, new plain Material glyphs) are the only two
-      `ifRoom` icons; duplicate/enable/disable/delete are all `never` -
+      `ifRoom` icons; enable/disable/duplicate/delete are all `never` -
       text-only in the overflow, **deliberately matching the per-row
       overflow menu's own all-text shape** (the user's own call,
       "менюшки должны соответствовать друг другу" - the two menus
       should read as the same kind of thing) rather than hunting for
       icons that don't already exist in this app just to fill the
-      toolbar. Order mirrors the per-row menu's own (move up, move
-      down, duplicate), with enable/disable appended (no per-row
-      equivalent - that's normally a field inside `RuleEditFragment`,
-      not a quick row action) and delete moved to the very end,
-      **the user's own explicit request** - keeping the one
-      irreversible action furthest from the others, including past
-      "duplicate" which creates new rows rather than destroying any).
+      toolbar. Order is now identical to the per-row menu's own (see
+      its own entry above): move up, move down, enable, disable,
+      duplicate, delete - delete last in both, **the user's own
+      explicit request** - keeping the one irreversible action
+      furthest from the rest, including past "duplicate" which creates
+      new rows rather than destroying any. Same emoji-prefixed titles
+      as the per-row menu too, reusing the exact same string resources
+      (`rule_move_up`/`rule_move_down`/`rule_enable_selected`/
+      `rule_disable_selected`/`rule_duplicate`/`rule_action_delete`) -
+      one shared set of labels, not two copies that could drift apart.
       A true visual divider line between items isn't available here -
       checked and confirmed with the user: standard `Menu`/`MenuItem`
       XML (the Toolbar/overflow this app uses, not a custom-view
       `PopupMenu` like the duplicate-confirm dialog's own 4-button
       grid) has no divider item type at all, so ordering alone is the
-      separation, not a line. The per-row overflow menu (move up/down/
-      duplicate/delete, one row at a time) is unchanged and still
-      exists side by side - multi-select is additive, not a
-      replacement.
+      separation, not a line. The per-row overflow menu (one row at a
+      time) is unchanged in *mechanism* and still exists side by side -
+      multi-select is additive, not a replacement - even though its
+      own action set just grew to match this one's.
       `duplicateSelected()` is the same per-rule behavior the per-row
       overflow's own "Duplicate" already has (`RulesDb.duplicate`,
       clone with " (copy)" label inserted right after the original),

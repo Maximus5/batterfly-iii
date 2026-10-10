@@ -85,15 +85,16 @@
     <string name="rules_import_success_named">Imported %1$d rule(s) from %2$s.</string>
     <string name="rules_import_failed">Import failed: %1$s</string>
     <string name="rules_import_invalid_file">This doesn\'t look like a rules export file.</string>
-    <string name="rule_move_up">Move up</string>
-    <string name="rule_move_down">Move down</string>
-    <string name="rule_duplicate">Duplicate</string>
+    <string name="rule_move_up">⬆️ Move up</string>
+    <string name="rule_move_down">⬇️ Move down</string>
+    <string name="rule_duplicate">📋 Duplicate</string>
+    <string name="rule_action_delete">🗑️ Delete</string>
     <string name="rule_apps_any">any monitored app</string>
     <string name="rule_disabled_label">disabled</string>
     <string name="rule_account_no_name">(no name)</string>
     <string name="rule_default_label">Rule #%1$d</string>
-    <string name="rule_enable_selected">Enable</string>
-    <string name="rule_disable_selected">Disable</string>
+    <string name="rule_enable_selected">✅ Enable</string>
+    <string name="rule_disable_selected">🚫 Disable</string>
     <string name="rules_delete_selected_confirm_title">Delete %1$d rule(s)?</string>
     <string name="rules_delete_selected_confirm_message">This can\'t be undone.</string>
 

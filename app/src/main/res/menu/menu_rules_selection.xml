@@ -12,10 +12,6 @@
         android:title="@string/rule_move_down"
         app:showAsAction="ifRoom" />
     <item
-        android:id="@+id/action_duplicate_selected"
-        android:title="@string/rule_duplicate"
-        app:showAsAction="never" />
-    <item
         android:id="@+id/action_enable_selected"
         android:title="@string/rule_enable_selected"
         app:showAsAction="never" />
@@ -24,7 +20,11 @@
         android:title="@string/rule_disable_selected"
         app:showAsAction="never" />
     <item
+        android:id="@+id/action_duplicate_selected"
+        android:title="@string/rule_duplicate"
+        app:showAsAction="never" />
+    <item
         android:id="@+id/action_delete_selected_rules"
-        android:title="@string/action_delete"
+        android:title="@string/rule_action_delete"
         app:showAsAction="never" />
 </menu>

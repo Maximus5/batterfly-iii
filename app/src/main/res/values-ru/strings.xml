@@ -85,15 +85,16 @@
     <string name="rules_import_success_named">Импортировано правил: %1$d, из файла %2$s.</string>
     <string name="rules_import_failed">Ошибка импорта: %1$s</string>
     <string name="rules_import_invalid_file">Это не похоже на файл экспорта правил.</string>
-    <string name="rule_move_up">Переместить выше</string>
-    <string name="rule_move_down">Переместить ниже</string>
-    <string name="rule_duplicate">Дублировать</string>
+    <string name="rule_move_up">⬆️ Переместить выше</string>
+    <string name="rule_move_down">⬇️ Переместить ниже</string>
+    <string name="rule_duplicate">📋 Дублировать</string>
+    <string name="rule_action_delete">🗑️ Удалить</string>
     <string name="rule_apps_any">любое мониторимое приложение</string>
     <string name="rule_disabled_label">выключено</string>
     <string name="rule_account_no_name">(без имени)</string>
     <string name="rule_default_label">Правило №%1$d</string>
-    <string name="rule_enable_selected">Включить</string>
-    <string name="rule_disable_selected">Выключить</string>
+    <string name="rule_enable_selected">✅ Включить</string>
+    <string name="rule_disable_selected">🚫 Выключить</string>
     <string name="rules_delete_selected_confirm_title">Удалить %1$d правил(о)?</string>
     <string name="rules_delete_selected_confirm_message">Это нельзя отменить.</string>
 
