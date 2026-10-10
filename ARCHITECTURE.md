@@ -2767,16 +2767,24 @@ Single `:app` module, packages under
       it's toggled - no Save button needed since that's the only
       actually-mutable thing about a built-in "rule" to begin with.
       `showOverflowMenu` similarly branches to
-      `showBuiltInOverflowMenu` for a built-in id - just one item,
-      "Duplicate" (the user's own explicit call: move/enable/disable/
-      delete don't apply, so don't show them disabled, just leave them
-      out) - `duplicateBuiltInRule` clones the built-in's fields into a
-      brand-new `RulesDb` row via the ordinary `RulesDb.add` (ignores
-      the id it's given, appends at the end, same as any other "new
-      rule") with " (copy)" appended to the label, then opens that new
-      row straight in the editor - this is how a built-in rule becomes
-      a real, customizable starting point, since it was never a
-      database row to begin with. **Needs real-device verification
+      `showBuiltInOverflowMenu` for a built-in id - Enable, Disable,
+      Duplicate (move/delete still left out entirely rather than shown
+      disabled - they're Kotlin constants, not `RulesDb` rows, nothing
+      to move/delete). **Enable/Disable here were added as a follow-up
+      to the original one-item ("Duplicate" only) version, the user's
+      own request** - a second, quicker path to the same shared
+      `FireflyPrefs.isBuiltInRulesEnabled()` flag `showBuiltInRuleDetails`'s
+      own switch already controls, regardless of which of the two
+      built-in rows was tapped. `duplicateBuiltInRule` clones the
+      built-in's fields into a brand-new `RulesDb` row via the ordinary
+      `RulesDb.add` (ignores the id it's given, appends at the end,
+      same as any other "new rule") with " (copy)" appended to the
+      label, then opens that new row straight in the editor - this is
+      how a built-in rule becomes a real, customizable starting point,
+      since it was never a database row to begin with (its own
+      `reload()` call was removed once the menu's shared
+      `setOnMenuItemClickListener` started calling it once, uniformly,
+      after every action). **Needs real-device verification
       too** - same reasoning as the multi-select feature above,
       nothing here is exercised by a JVM test either.
     - `RuleEditFragment` - one form for both create (`ruleId == null`)

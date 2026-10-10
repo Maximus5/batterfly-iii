@@ -401,18 +401,25 @@ class RulesListFragment : Fragment() {
         popup.show()
     }
 
-    /** Built-in rows only - the user's own explicit call: move/enable/disable/delete don't apply
-     * (they're Kotlin constants, not `RulesDb` rows - see `rules.BuiltInRules`'s own KDoc), so
-     * only "Duplicate" is offered here, rather than showing the full menu with most items
-     * pointlessly disabled. */
+    /** Built-in rows only - move/delete don't apply (they're Kotlin constants, not `RulesDb`
+     * rows - see `rules.BuiltInRules`'s own KDoc), but Enable/Disable/Duplicate do, the user's own
+     * follow-up request, same three actions the real-row menu offers. Enable/Disable here flip
+     * the one shared `FireflyPrefs.isBuiltInRulesEnabled()` flag regardless of which of the two
+     * built-in rows was actually tapped - same as the toggle inside `showBuiltInRuleDetails` - a
+     * second, quicker way to reach the identical flag without opening that view first. */
     private fun showBuiltInOverflowMenu(rule: ParseRule, anchor: View) {
         val popup = PopupMenu(requireContext(), anchor)
-        popup.menu.add(0, ID_DUPLICATE, 0, R.string.rule_duplicate)
+        popup.menu.add(0, ID_ENABLE, 0, R.string.rule_enable_selected)
+        popup.menu.add(0, ID_DISABLE, 1, R.string.rule_disable_selected)
+        popup.menu.add(0, ID_DUPLICATE, 2, R.string.rule_duplicate)
         popup.setOnMenuItemClickListener { item ->
             when (item.itemId) {
+                ID_ENABLE -> fireflyPrefs.setBuiltInRulesEnabled(true)
+                ID_DISABLE -> fireflyPrefs.setBuiltInRulesEnabled(false)
                 ID_DUPLICATE -> duplicateBuiltInRule(rule)
                 else -> return@setOnMenuItemClickListener false
             }
+            reload()
             true
         }
         popup.show()
@@ -427,9 +434,10 @@ class RulesListFragment : Fragment() {
      * `packageNames` is empty - "any app" - and `RuleEditFragment.populateFields` will default it
      * to the first monitored app instead, same as a genuinely new rule). */
     private fun duplicateBuiltInRule(rule: ParseRule) {
-        // Same " (copy)" suffix convention RulesDb.duplicate already uses for a real row.
+        // Same " (copy)" suffix convention RulesDb.duplicate already uses for a real row. No
+        // reload() here - showBuiltInOverflowMenu's own caller already does one, uniformly, after
+        // every action in its when-block (including this one).
         val copy = rulesDb.add(rule.copy(label = "${rule.label} (copy)"))
-        reload()
         openEditor(copy)
     }
 
