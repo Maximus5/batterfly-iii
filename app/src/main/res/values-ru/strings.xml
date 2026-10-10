@@ -220,7 +220,7 @@
     <string name="settings_transaction_creation_title">Транзакции</string>
     <string name="settings_transaction_creation_subtitle">Автосоздание, поиск дублей, приближённая конвертация</string>
     <string name="firefly_field_approx_tag">Тег приближённой конвертации</string>
-    <string name="firefly_field_approx_tag_hint">напр. fx-approx — ставится, когда сумма посчитана по найденному курсу</string>
+    <string name="firefly_field_approx_tag_hint">напр. fx-approx — для транзакций в валюте, отличной от валюты счёта, ставится когда сумма посчитана по найденному курсу</string>
     <string name="firefly_auto_create">Создавать транзакции автоматически</string>
     <string name="firefly_dedup_enabled">Избегать дублей транзакций</string>
     <string name="firefly_dedup_include_description">Также сравнивать description</string>

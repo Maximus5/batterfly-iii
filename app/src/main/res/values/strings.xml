@@ -220,7 +220,7 @@
     <string name="settings_transaction_creation_title">Transactions</string>
     <string name="settings_transaction_creation_subtitle">Auto-create, duplicate detection, approximate conversion</string>
     <string name="firefly_field_approx_tag">Approximate-conversion tag</string>
-    <string name="firefly_field_approx_tag_hint">e.g. fx-approx - applied when the amount is computed from a fetched exchange rate</string>
+    <string name="firefly_field_approx_tag_hint">e.g. fx-approx - for transactions in a currency different from the account\'s own currency, applied when the amount had to be computed from a fetched exchange rate</string>
     <string name="firefly_auto_create">Create transactions automatically</string>
     <string name="firefly_dedup_enabled">Avoid duplicate transactions</string>
     <string name="firefly_dedup_include_description">Also compare description</string>
