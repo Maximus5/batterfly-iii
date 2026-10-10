@@ -19,17 +19,21 @@ import io.github.maximus5.ffnotifyimporter.prefs.FireflyPrefs
  * token field's reveal icon: none of these fields are secret, so there's no reason to carry them
  * behind the same `FLAG_SECURE`/write-once protection that screen now has.
  *
- * [FragmentTransactionCreationBinding.allTransactionsTagInput] ("Tag for all transactions") - the
- * user's own request: a tag merged into *every* created transaction's tags, regardless of which
- * rule matched, so a tag wanted everywhere doesn't have to be repeated in every single rule's own
- * tags template (unlike [FragmentTransactionCreationBinding.approxTagInput], which only ever
- * applies to an amount this app itself computed from a fetched exchange rate). The actual merge
- * happens in `rules.RuleEngine` (a plain `String` constructor parameter - see its own KDoc for why
- * that keeps `rules` free of any `FireflyPrefs`/`Context` dependency), read fresh from
- * `FireflyPrefs.getAllTransactionsTag()` by every caller that builds a `RuleEngine` - this screen's
- * own field is placed after both dividers, grouped with [approxTagInput] (moved here from the top
- * of the screen) rather than with auto-create/dedup above it - the user's own layout call.
- */
+ * [FragmentTransactionCreationBinding.allTransactionsTagInput] ("Add tags for all transactions
+ * (comma separated)") - the user's own request: one or more tags merged into *every* created
+ * transaction's tags, regardless of which rule matched, so tags wanted everywhere don't have to be
+ * repeated in every single rule's own tags template (unlike
+ * [FragmentTransactionCreationBinding.approxTagInput], which only ever applies to an amount this
+ * app itself computed from a fetched exchange rate). The actual merge happens in `rules.RuleEngine`
+ * (a plain `String` constructor parameter - see its own KDoc for why that keeps `rules` free of any
+ * `FireflyPrefs`/`Context` dependency), read fresh from `FireflyPrefs.getAllTransactionsTags()` by
+ * every caller that builds a `RuleEngine` - this screen's own field is placed after both dividers,
+ * grouped with [approxTagInput] (moved here from the top of the screen) rather than with
+ * auto-create/dedup above it - the user's own layout call. Both tag fields' explanatory text is a
+ * plain caption *below* the field now, not the `TextInputEditText`'s own inline `android:hint` the
+ * way other fields on this screen still use - the user's own catch: a long inline hint made the
+ * field itself taller, pushing content down for no benefit over a caption that only takes space
+ * when it's actually shown. */
 class TransactionCreationFragment : Fragment() {
 
     private var binding: FragmentTransactionCreationBinding? = null
@@ -64,7 +68,7 @@ class TransactionCreationFragment : Fragment() {
         binding.dedupEnabledSwitch.isChecked = prefs.isDedupEnabled()
         binding.dedupIncludeDescriptionSwitch.isChecked = prefs.isDedupIncludeDescription()
         binding.dedupWindowInput.setText(prefs.getDedupWindowMinutes().toString())
-        binding.allTransactionsTagInput.setText(prefs.getAllTransactionsTag())
+        binding.allTransactionsTagInput.setText(prefs.getAllTransactionsTags())
         binding.approxTagInput.setText(prefs.getApproxConversionTag())
 
         binding.autoCreateSwitch.setOnCheckedChangeListener { _, isChecked -> if (isChecked) requestNotificationPermissionIfNeeded() }
@@ -91,7 +95,7 @@ class TransactionCreationFragment : Fragment() {
         prefs.setDedupEnabled(binding.dedupEnabledSwitch.isChecked)
         prefs.setDedupIncludeDescription(binding.dedupIncludeDescriptionSwitch.isChecked)
         prefs.setDedupWindowMinutes(dedupWindow)
-        prefs.setAllTransactionsTag(binding.allTransactionsTagInput.text?.toString().orEmpty().trim())
+        prefs.setAllTransactionsTags(binding.allTransactionsTagInput.text?.toString().orEmpty().trim())
         prefs.setApproxConversionTag(binding.approxTagInput.text?.toString().orEmpty().trim())
 
         Toast.makeText(requireContext(), R.string.firefly_settings_saved, Toast.LENGTH_SHORT).show()

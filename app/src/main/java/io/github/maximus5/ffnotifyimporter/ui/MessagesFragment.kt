@@ -126,8 +126,8 @@ class MessagesFragment : Fragment() {
         val context = requireContext()
         val rules = RulesDb.getInstance(context).loadAllOrdered()
         val currencySymbols = CurrenciesDb.getInstance(context).symbolToCodeMap()
-        val allTransactionsTag = FireflyPrefs(context).getAllTransactionsTag()
-        val outcome = RuleEngine(rules, currencySymbols, allTransactionsTag).match(message)
+        val allTransactionsTags = FireflyPrefs(context).getAllTransactionsTags()
+        val outcome = RuleEngine(rules, currencySymbols, allTransactionsTags).match(message)
 
         when (outcome) {
             is ParseOutcome.NoMatch -> {
@@ -654,7 +654,7 @@ class MessagesFragment : Fragment() {
 
             val rules = RulesDb.getInstance(context).loadAllOrdered()
             val currencySymbols = CurrenciesDb.getInstance(context).symbolToCodeMap()
-            val outcome = RuleEngine(rules, currencySymbols, prefs.getAllTransactionsTag()).match(message)
+            val outcome = RuleEngine(rules, currencySymbols, prefs.getAllTransactionsTags()).match(message)
             val draft = (outcome as? ParseOutcome.Matched)?.draft
             if (draft == null) {
                 Toast.makeText(context, R.string.messages_check_no_rule_matched, Toast.LENGTH_SHORT).show()

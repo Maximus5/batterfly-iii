@@ -61,32 +61,46 @@
         <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp"
-            android:hint="@string/firefly_field_all_transactions_tag"
+            android:layout_marginBottom="4dp"
+            android:hint="@string/firefly_field_all_transactions_tags"
             app:expandedHintEnabled="false">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/allTransactionsTagInput"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:hint="@string/firefly_field_all_transactions_tag_example" />
+                android:layout_height="wrap_content" />
 
         </com.google.android.material.textfield.TextInputLayout>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:text="@string/firefly_field_all_transactions_tags_hint"
+            android:textColor="#888888"
+            android:textSize="13sp" />
 
         <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp"
+            android:layout_marginBottom="4dp"
             android:hint="@string/firefly_field_approx_tag"
             app:expandedHintEnabled="false">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/approxTagInput"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:hint="@string/firefly_field_approx_tag_example" />
+                android:layout_height="wrap_content" />
 
         </com.google.android.material.textfield.TextInputLayout>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:text="@string/firefly_field_approx_tag_hint"
+            android:textColor="#888888"
+            android:textSize="13sp" />
 
         <Button
             android:id="@+id/saveButton"

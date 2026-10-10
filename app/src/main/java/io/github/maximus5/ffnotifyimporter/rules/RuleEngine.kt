@@ -25,17 +25,17 @@ private val whitespaceRun = Regex("\\s+")
  * or stored - banks print symbols far more often than ISO codes. Defaults to empty (no
  * translation) so tests and call sites that don't care about this can ignore it.
  *
- * [allTransactionsTag] (`FireflyPrefs.getAllTransactionsTag()`) - the user's own request: a tag
- * appended to every draft's own [ParseRule.tagsTemplate] output, so a tag wanted on everything
- * doesn't have to be repeated in every single rule. A plain `String`, not a `FireflyPrefs`/`Context`
- * reference - same "external config injected as data" shape [currencySymbols] already uses, so
- * `rules` stays free of any Android/Firefly dependency. Defaults to blank (no-op) for the same
- * "callers that don't care can ignore it" reason.
+ * [allTransactionsTags] (`FireflyPrefs.getAllTransactionsTags()`) - the user's own request:
+ * comma-separated, one or more tags appended to every draft's own [ParseRule.tagsTemplate] output,
+ * so tags wanted on everything don't have to be repeated in every single rule. A plain `String`,
+ * not a `FireflyPrefs`/`Context` reference - same "external config injected as data" shape
+ * [currencySymbols] already uses, so `rules` stays free of any Android/Firefly dependency. Defaults
+ * to blank (no-op) for the same "callers that don't care can ignore it" reason.
  */
 class RuleEngine(
     private val rules: List<ParseRule>,
     private val currencySymbols: Map<String, String> = emptyMap(),
-    private val allTransactionsTag: String = "",
+    private val allTransactionsTags: String = "",
 ) {
 
     fun match(message: CapturedMessage): ParseOutcome {
@@ -103,11 +103,10 @@ class RuleEngine(
             .split(",")
             .map { it.trim() }
             .filter { it.isNotEmpty() }
-        val tags = if (allTransactionsTag.isNotBlank() && allTransactionsTag !in ruleTags) {
-            ruleTags + allTransactionsTag
-        } else {
-            ruleTags
-        }
+        val extraTags = allTransactionsTags.split(",")
+            .map { it.trim() }
+            .filter { it.isNotEmpty() && it !in ruleTags }
+        val tags = ruleTags + extraTags
 
         return TransactionDraft(
             kind = rule.kind,
