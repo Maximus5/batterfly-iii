@@ -2132,6 +2132,18 @@ Single `:app` module, packages under
     instance with no weekday of its own to extend). The user chose
     this over three fixed-English alternatives offered side by side
     (a literal "Oct 6, 2026, Tue", weekday-first, and day-month-year).
+    **Fixed a real "uneven row height" regression the long format
+    itself caused, the user's own catch/screenshot**: the longer text
+    wrapped to two lines at the old equal 1:1 width split, making the
+    Date field visibly taller than Time's - `android:layout_weight`
+    is now 3:1 (Date:Time, `transactionTimeInput`'s own field narrowed
+    per the user's explicit ask, "22:05" never needed as much room as
+    "October 6, 2026, Tue"), and both `TextInputEditText`s get
+    `maxLines="1"`/`ellipsize="end"` - a true fixed single-line height
+    regardless of content width, not just "usually fits" from the
+    wider weighting alone (an edge case - a long locale month name
+    plus large accessibility font scaling - would otherwise still
+    wrap and reintroduce the same row-height mismatch).
     **Both currency fields (home and foreign) now pick from a list
     too, the user's own request**: `currencyCodeLayout`/
     `foreignCurrencyCodeLayout` get the same end-icon `AlertDialog`

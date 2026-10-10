@@ -135,7 +135,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="8dp"
-                android:layout_weight="1"
+                android:layout_weight="3"
                 android:hint="@string/create_tx_field_date"
                 app:expandedHintEnabled="false">
 
@@ -144,8 +144,10 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:cursorVisible="false"
+                    android:ellipsize="end"
                     android:focusable="false"
-                    android:inputType="none" />
+                    android:inputType="none"
+                    android:maxLines="1" />
 
             </com.google.android.material.textfield.TextInputLayout>
 
@@ -161,8 +163,10 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:cursorVisible="false"
+                    android:ellipsize="end"
                     android:focusable="false"
-                    android:inputType="none" />
+                    android:inputType="none"
+                    android:maxLines="1" />
 
             </com.google.android.material.textfield.TextInputLayout>
 
