@@ -1101,3 +1101,31 @@ work.
     directly (`Settings.ACTION_APP_NOTIFICATION_SETTINGS` +
     `Settings.EXTRA_APP_PACKAGE`) for channel-level mute/importance/
     sound controls this screen doesn't duplicate.
+- **Done** - an AI-Review security finding, the user's own follow-up:
+  the Firefly settings screen's token field had a `password_toggle`
+  reveal icon that let anyone looking at the phone read the *saved*
+  token back out just by opening the screen. Fixed with two layered
+  changes (see ARCHITECTURE.md's `ui` section, `FireflyConnectionFragment`'s
+  entry, for the full design):
+  - What used to be one `FireflySettingsFragment` is now two screens -
+    `FireflyConnectionFragment` (base URL, token, "Test connection")
+    and `TransactionCreationFragment` (approx-conversion tag,
+    auto-create, dedup) - splitting the genuinely secret fields from
+    the non-secret ones that have no reason to carry the same
+    protection.
+  - The token field is now write-once: the real saved value is never
+    loaded back into the field at all (a "Token saved - leave blank to
+    keep it" hint shows instead), so there's nothing left to reveal by
+    opening the screen regardless of the icon - which stays, for
+    checking a freshly-*typed* replacement before saving. Leaving the
+    field blank on save keeps the existing token untouched; "Test
+    connection" falls back to it the same way.
+  - A "Protect from screenshots" switch drives `FLAG_SECURE` on that
+    one screen - default **on** every time it opens, deliberately *not*
+    a persisted setting, so there's no way to leave it off by accident.
+    The user's own follow-up request, after asking how to still take a
+    screenshot of this screen for documentation purposes: toggle it off
+    briefly, it's back on next time the screen opens.
+  Also moved in the same pass: "Add test message" is no longer its own
+  top-level Settings row - a button on `MessageHistoryFragment` now
+  opens it instead, grouped with the one screen it most directly feeds.

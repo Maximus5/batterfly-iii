@@ -30,8 +30,14 @@ class SettingsRootFragment : Fragment() {
 
         binding.rowFirefly.setOnClickListener {
             (activity as? SettingsActivity)?.openScreen(
-                FireflySettingsFragment(),
+                FireflyConnectionFragment(),
                 R.string.settings_firefly_title,
+            )
+        }
+        binding.rowTransactionCreation.setOnClickListener {
+            (activity as? SettingsActivity)?.openScreen(
+                TransactionCreationFragment(),
+                R.string.settings_transaction_creation_title,
             )
         }
         binding.rowNotifications.setOnClickListener {
@@ -62,12 +68,6 @@ class SettingsRootFragment : Fragment() {
             (activity as? SettingsActivity)?.openScreen(
                 MessageHistoryFragment(),
                 R.string.settings_message_history_title,
-            )
-        }
-        binding.rowAddTestMessage.setOnClickListener {
-            (activity as? SettingsActivity)?.openScreen(
-                AddTestMessageFragment(),
-                R.string.settings_add_test_message_title,
             )
         }
         binding.rowBackup.setOnClickListener {

@@ -36,7 +36,7 @@ import java.math.BigDecimal
  * these three outcomes at all.
  *
  * Every call is a no-op if [android.Manifest.permission.POST_NOTIFICATIONS] was never granted
- * (API 33+, requested from `FireflySettingsFragment` when the user turns "Auto-create" on) -
+ * (API 33+, requested from `ui.TransactionCreationFragment` when the user turns "Auto-create" on) -
  * [NotificationManagerCompat.notify] throws [SecurityException] in that case rather than silently
  * dropping it, so that's caught here explicitly; a missing permission should never crash a
  * background worker over something this non-critical.

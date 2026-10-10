@@ -22,10 +22,10 @@ class MainActivity : AppCompatActivity() {
     private var onSelectionDelete: (() -> Unit)? = null
     private var onSelectionCancel: (() -> Unit)? = null
 
-    /** Catches the case `FireflySettingsFragment`'s own request (when the switch is actually
+    /** Catches the case `TransactionCreationFragment`'s own request (when the switch is actually
      * toggled on) can't: auto-create already enabled from before this permission check existed,
      * or the permission later revoked by hand in system settings, with the user never opening
-     * Firefly III settings again to re-trigger it there. Checked on every app start, not just
+     * that screen again to re-trigger it there. Checked on every app start, not just
      * first install, for the same "could have changed since last time" reason. */
     private val notificationPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { /* no-op either way */ }

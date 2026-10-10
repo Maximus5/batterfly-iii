@@ -5,12 +5,17 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
+import io.github.maximus5.ffnotifyimporter.R
 import io.github.maximus5.ffnotifyimporter.data.MessageHistoryDb
 import io.github.maximus5.ffnotifyimporter.data.MessageStore
 import io.github.maximus5.ffnotifyimporter.data.RetentionController
 import io.github.maximus5.ffnotifyimporter.databinding.FragmentMessageHistoryBinding
 import io.github.maximus5.ffnotifyimporter.prefs.RetentionPrefs
 
+/** Retention radio group, plus a button to [AddTestMessageFragment] (the user's own call, moved
+ * here from its own top-level Settings row - a debug tool, grouped with the other thing it most
+ * directly feeds, this screen's own captured-message history, rather than sitting as a permanent
+ * fixture on the main Settings list). */
 class MessageHistoryFragment : Fragment() {
 
     private var binding: FragmentMessageHistoryBinding? = null
@@ -39,6 +44,13 @@ class MessageHistoryFragment : Fragment() {
                 retentionDays = days,
                 store = MessageStore.shared,
                 db = MessageHistoryDb.getInstance(requireContext()),
+            )
+        }
+
+        binding.addTestMessageButton.setOnClickListener {
+            (activity as? SettingsActivity)?.openScreen(
+                AddTestMessageFragment(),
+                R.string.settings_add_test_message_title,
             )
         }
     }

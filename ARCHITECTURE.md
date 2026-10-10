@@ -562,14 +562,17 @@ Single `:app` module, packages under
     own choice, for Google Play's financial-app content guidelines).
     `ui.NotificationSettingsFragment` is the UI.
   - `FireflyPrefs` - the Firefly III connection + posting-behavior
-    settings (`FireflySettingsFragment` is the UI): base URL, personal
-    access token, the approximate-conversion tag name, auto-create
-    toggle, dedup toggle + include-description toggle + window
-    (minutes, default 5). Base URL and token are the only genuinely
-    secret values in this app (AGENTS.md's Secrets section) - encrypted
-    through `KeystoreCipher` before being stored, in an otherwise plain
-    `SharedPreferences` (every other field here is unencrypted, same as
-    every other prefs class). *Not* built on
+    settings, one prefs class for both even though its UI is now split
+    across two screens (`ui.FireflyConnectionFragment` - base URL,
+    personal access token; `ui.TransactionCreationFragment` - the
+    approximate-conversion tag name, auto-create toggle, dedup toggle +
+    include-description toggle + window (minutes, default 5) - see the
+    `ui` section below for why they're separate screens now). Base URL
+    and token are the only genuinely secret values in this app
+    (AGENTS.md's Secrets section) - encrypted through `KeystoreCipher`
+    before being stored, in an otherwise plain `SharedPreferences`
+    (every other field here is unencrypted, same as every other prefs
+    class). *Not* built on
     `androidx.security:security-crypto`'s `EncryptedSharedPreferences`/
     `MasterKey` - checked before using them and found every API in that
     library deprecated as of 1.1.0 with no further releases planned.
@@ -1090,15 +1093,17 @@ Single `:app` module, packages under
     shape `BankNotificationListenerService`'s own notification-listener
     access already has. Requested from three places, not just one -
     **fixed a real "the user has no idea this is silently broken" gap**:
-    requesting only when `FireflySettingsFragment`'s switch is actually
-    toggled on missed the case where it was already on (enabled in a
-    build before this permission check existed, or the permission later
-    revoked by hand in system settings) - that user would never see the
-    permission dialog again and would never know auto-create's own
-    notifications had gone silent. Now requested (a) from
-    `FireflySettingsFragment` when the switch is toggled on, (b) from
-    that same screen's `onViewCreated` if it's already on when the
-    screen opens, and (c) from `MainActivity.onCreate`, every app start,
+    requesting only when the switch (now on `ui.TransactionCreationFragment`
+    - see the `ui` section below for why it moved off the original
+    `FireflySettingsFragment`) is actually toggled on missed the case
+    where it was already on (enabled in a build before this permission
+    check existed, or the permission later revoked by hand in system
+    settings) - that user would never see the permission dialog again
+    and would never know auto-create's own notifications had gone
+    silent. Now requested (a) from `TransactionCreationFragment` when
+    the switch is toggled on, (b) from that same screen's
+    `onViewCreated` if it's already on when the screen opens, and (c)
+    from `MainActivity.onCreate`, every app start,
     for a user who never opens Firefly III settings again at all.
     All three outcome notifications (and `ReviewNotifications.notifyMatch`
     below) are now also gated on `prefs.NotificationPrefs.
@@ -1953,52 +1958,93 @@ Single `:app` module, packages under
     activity can plausibly need it (so far: `RuleEditFragment`'s
     unsaved-changes confirm, see its own entry below). `null` restores
     the default. `SettingsRootFragment` is the menu (Firefly III
-    settings, monitored apps, currencies, rules, message history, add
-    test message, backup & restore, about, added one row
-    at a time as each is built - Firefly settings sits first since
-    it's the gateway to actually doing anything with a rule match now
-    that posting is underway; currencies sits above rules since rules
-    depend on it, same reasoning as monitored apps coming first; about
-    sits last, after backup & restore - nothing to configure, just name/
-    version/GitHub link, so it belongs at the very bottom of the list).
-    **Renamed from "Firefly III connection", the user's own call**: the
-    screen covers far more than the connection itself (approx-conversion
-    tag, auto-create, all three dedup settings) - "Firefly III settings"
-    doesn't imply it's only URL/token. The row's own subtitle (below)
-    still only reflects the connection half, unchanged.
+    connection, transaction creation, notifications, monitored apps,
+    currencies, rules, message history, backup & restore, about, added
+    one row at a time as each is built - Firefly III connection sits
+    first since it's the gateway to actually doing anything with a rule
+    match now that posting is underway, transaction creation and
+    notifications right after it since they're the other two halves of
+    "what happens when a rule matches"; currencies sits above rules
+    since rules depend on it, same reasoning as monitored apps coming
+    first; about sits last, after backup & restore - nothing to
+    configure, just name/version/GitHub link, so it belongs at the very
+    bottom of the list; add test message is no longer its own row at
+    all, see `MessageHistoryFragment`'s own entry below).
+    **History**: this row was briefly named "Firefly III settings"
+    (renamed from "Firefly III connection" at the time, since the
+    screen then covered far more than the connection itself) - now
+    split back into two screens (below), so "Firefly III connection" is
+    accurate again, this time for a different reason: an AI-Review
+    security finding about the token field, not a naming preference.
     `rowAboutSubtitle` now shows "Version x.yy" right on this list
     (`updateAboutSubtitle`, same `PackageManager.getPackageInfo`
     `versionName` lookup `AboutFragment` already did, reusing its
     `about_version` string) - the user's own request, so the running
     build's version is visible without opening About first.
     Linking to:
-    - `FireflySettingsFragment` (see the `prefs`/`network` package
-      notes above for `FireflyPrefs`/`FireflyApiClient`) - one form,
-      one explicit Save button, not autosave-per-field like
+    - `FireflyConnectionFragment`/`TransactionCreationFragment` (see the
+      `prefs`/`network` package notes above for `FireflyPrefs`/
+      `FireflyApiClient`) - **split out of one combined
+      `FireflySettingsFragment`, the user's own call, prompted by an
+      AI-Review finding**: the token field's `password_toggle` reveal
+      icon let anyone looking at the phone read the *saved* token back
+      out just by opening the screen, and that risk had nothing to do
+      with the non-secret fields (approx-conversion tag, auto-create,
+      dedup) sitting on the same form - splitting them means only the
+      genuinely sensitive half needs any extra protection at all.
+      `FireflyConnectionFragment` (base URL, token, "Test connection")
+      gets two defenses:
+      - The token field is now **write-once** - `onViewCreated` never
+        loads the real saved token back into the field at all (a
+        `tokenSavedHint` text, "Token saved - leave blank to keep it",
+        shows instead when one exists), so there's no "read it back by
+        opening the screen" regardless of the reveal icon (kept, for
+        checking a freshly-*typed* value before saving - a much
+        lower-stakes reveal than an old secret nobody asked to see
+        again). `save()` only calls `FireflyPrefs.setToken` when the
+        field actually has something typed, leaving the stored token
+        untouched otherwise; `testConnection()` falls back to the saved
+        token the same way when the field is blank, so testing a
+        URL-only change doesn't force retyping the token first.
+      - `FLAG_SECURE` (`onResume`/`onPause`) blocks screenshots/screen
+        recording - system or a malicious accessibility service - while
+        this screen is open. Driven by a `protectScreenshotsSwitch`,
+        default **on** every time the screen opens and deliberately
+        *not* a persisted `FireflyPrefs` setting (no way to leave
+        "documentation mode" on by accident) - the user's own follow-up
+        request, after asking how to still capture a screenshot of this
+        specific screen (for documentation). Window flags are
+        Activity-wide, so `onPause` always clears it unconditionally,
+        regardless of the switch - leaving this screen never leaves the
+        flag set behind it for whatever `SettingsActivity` shows next.
+      `TransactionCreationFragment` (approx tag, auto-create, dedup -
+      all three) carries no such protection, same explicit Save-button
+      shape as before, not autosave-per-field like
       `MessageHistoryFragment`'s radio group, since several of these
-      fields are text the user is still typing/correcting rather than
-      a single tap choice. "Test connection" runs
+      fields are text the user is still typing/correcting rather than a
+      single tap choice. "Test connection" runs
       `FireflyApiClient.testConnection()` on a coroutine
       (`viewLifecycleOwner.lifecycleScope`) against whatever's
-      currently typed in the URL/token fields - not what's saved - so
-      the user can verify before committing. The Settings row's own
-      subtitle ("Connected to X" / "Not configured") only reads
-      `hostOf(getBaseUrl())`, not a live connection check - a cheap,
-      offline-friendly signal that *something* is saved, not proof it
-      still works.
+      currently typed in the URL/token fields (falling back to the
+      saved token per the write-once note above) - not necessarily
+      what's saved - so the user can verify before committing. The
+      Settings row's own subtitle ("Connected to X" / "Not configured")
+      only reads `hostOf(getBaseUrl())`, not a live connection check - a
+      cheap, offline-friendly signal that *something* is saved, not
+      proof it still works.
     - `NotificationSettingsFragment` (new row, right after Firefly III
-      settings - grouping it near the auto-create toggle it's a sibling
-      concept to, even though the two are otherwise independent) -
-      `prefs.NotificationPrefs`'s two switches, same autosave-per-tap
-      shape as `MessageHistoryFragment`'s radio group (below) rather
-      than `FireflySettingsFragment`'s explicit Save, since there's no
-      typed/validated text here. See the `posting` section above
-      (`AutoCreateNotifications`/`ReviewNotifications`) for what the two
-      toggles actually gate. `showFinancialInfoSwitch` is disabled (not
-      hidden - same "visible but not usable" convention the per-row
-      overflow menu items in `MessagesFragment` use) whenever
-      `showNotificationsSwitch` is off, since there's nothing left for
-      it to apply to. A third row's button opens
+      connection - grouping it near the auto-create toggle it's a
+      sibling concept to, even though the two are otherwise
+      independent) - `prefs.NotificationPrefs`'s two switches, same
+      autosave-per-tap shape as `MessageHistoryFragment`'s radio group
+      (below) rather than `TransactionCreationFragment`'s explicit Save,
+      since there's no typed/validated text here. See the `posting`
+      section above (`AutoCreateNotifications`/`ReviewNotifications`)
+      for what the two toggles actually gate. `showFinancialInfoSwitch`
+      is disabled (not hidden - same "visible but not usable"
+      convention the per-row overflow menu items in `MessagesFragment`
+      use) whenever `showNotificationsSwitch` is off, since there's
+      nothing left for it to apply to. A third row's button opens
       `Settings.ACTION_APP_NOTIFICATION_SETTINGS` directly.
     - `AppsFragment` (reused as-is, just hosted here instead of a tab;
       lists every launchable installed app via `queryIntentActivities`
@@ -2026,7 +2072,13 @@ Single `:app` module, packages under
       nothing lost.
     - `MessageHistoryFragment` (the retention radio group, writes to
       `RetentionPrefs` and calls `RetentionController
-      .applyOnSettingChanged`).
+      .applyOnSettingChanged`) - also now the entry point to
+      `AddTestMessageFragment` (below) via an `addTestMessageButton`,
+      moved off its own top-level Settings row - the user's own call:
+      a debug tool fits better grouped with the one screen it most
+      directly feeds (this one, the captured-message history it injects
+      test messages into) than as a permanent fixture on the main
+      Settings list.
     - `AddTestMessageFragment` - a debug tool: picks from the
       monitored apps list and calls `MessageStore.shared.add(...)`
       directly with user-entered title/text, exactly like
@@ -2034,7 +2086,8 @@ Single `:app` module, packages under
       (same dedup, same persistence-if-enabled, same
       `posting.AutoCreateScheduler.scheduleIfEnabled` call on a
       genuinely new result) - lets rule processing be tested without
-      waiting for a real bank notification.
+      waiting for a real bank notification. Reached from
+      `MessageHistoryFragment` now (see above), not its own row.
       `dateTimeButton` (defaults to "now" when the screen opens, chained
       `DatePickerDialog`+`TimePickerDialog` to edit) lets the injected
       message carry a chosen timestamp instead of always being "just

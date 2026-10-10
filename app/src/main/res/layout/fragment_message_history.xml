@@ -71,6 +71,29 @@
 
         </RadioGroup>
 
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginTop="16dp"
+            android:layout_marginBottom="16dp"
+            android:background="#E0E0E0" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="4dp"
+            android:text="@string/settings_add_test_message_subtitle"
+            android:textColor="#666666" />
+
+        <Button
+            android:id="@+id/addTestMessageButton"
+            style="?attr/borderlessButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:minWidth="0dp"
+            android:paddingStart="0dp"
+            android:text="@string/settings_add_test_message_button" />
+
     </LinearLayout>
 
 </ScrollView>

@@ -563,8 +563,8 @@ class CreateTransactionFragment : Fragment() {
      * automated-parse uncertainty, which no longer applies once a human has directly
      * reviewed/filled in the fields (true in edit mode from the start - there was never a parse
      * to begin with). Returns null (after showing the relevant field's error) on the first
-     * validation failure - same "stop at the first problem" shape `FireflySettingsFragment.save`
-     * already uses. */
+     * validation failure - same "stop at the first problem" shape `FireflyConnectionFragment.save`/
+     * `TransactionCreationFragment.save` already use. */
     private fun buildDraft(): TransactionDraft? {
         val binding = binding ?: return null
 

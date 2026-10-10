@@ -12,7 +12,7 @@ import io.github.maximus5.ffnotifyimporter.prefs.NotificationPrefs
 
 /**
  * The user's own request: a dedicated screen for this app's own notifications
- * (`posting.AutoCreateNotifications`/`ReviewNotifications`), separate from `FireflySettingsFragment`'s
+ * (`posting.AutoCreateNotifications`/`ReviewNotifications`), separate from `TransactionCreationFragment`'s
  * auto-create toggle - that one decides *which* of those two notification kinds fires for a match,
  * this one decides whether either is allowed to post at all, and how much they say. Two switches,
  * autosave-per-tap (same shape `MessageHistoryFragment`'s radio group already uses) rather than an

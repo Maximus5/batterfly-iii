@@ -33,6 +33,7 @@
 
     <string name="settings_add_test_message_title">Add test message</string>
     <string name="settings_add_test_message_subtitle">Manually add a message, for testing rules later</string>
+    <string name="settings_add_test_message_button">Add test message…</string>
     <string name="add_test_message_explanation">Adds a message to history exactly like a real notification would - useful for testing rule processing without waiting for a real one.</string>
     <string name="add_test_message_no_apps">No monitored apps yet. Pick at least one in Monitored apps first.</string>
     <string name="add_test_message_app_label">App</string>
@@ -199,26 +200,32 @@
     <string name="currency_code_required">Code can\'t be empty.</string>
     <string name="currency_delete_confirm_title">Delete %1$s?</string>
 
-    <string name="settings_firefly_title">Firefly III settings</string>
+    <string name="settings_firefly_title">Firefly III connection</string>
     <string name="settings_firefly_subtitle_not_configured">Not configured</string>
     <string name="settings_firefly_subtitle_configured">Connected to %1$s</string>
+    <string name="firefly_protect_screenshots_switch">Protect from screenshots</string>
+    <string name="firefly_protect_screenshots_hint">Blocks screenshots and screen recording while this screen is open. Turn off briefly if you need to capture it yourself, e.g. for documentation - it turns back on next time you open this screen.</string>
     <string name="firefly_field_url">Base URL</string>
     <string name="firefly_field_url_example">e.g. https://firefly.example.com</string>
     <string name="firefly_cleartext_warning">⚠ http:// is not encrypted - only use this on a trusted local network.</string>
     <string name="firefly_field_token">Personal access token</string>
+    <string name="firefly_field_token_saved_hint">Token saved - leave blank to keep it, or type a new one to replace it.</string>
     <string name="firefly_test_connection">Test connection</string>
     <string name="firefly_test_connection_success">Connected - Firefly III %1$s</string>
     <string name="firefly_test_connection_failure">Connection failed: %1$s</string>
+    <string name="firefly_url_required">Base URL can\'t be empty.</string>
+    <string name="firefly_token_required">Personal access token can\'t be empty.</string>
+    <string name="firefly_settings_saved">Saved</string>
+
+    <string name="settings_transaction_creation_title">Transaction creation</string>
+    <string name="settings_transaction_creation_subtitle">Auto-create, duplicate detection, approximate conversion</string>
     <string name="firefly_field_approx_tag">Approximate-conversion tag</string>
     <string name="firefly_field_approx_tag_example">e.g. fx-approx - applied when the amount is computed from a fetched exchange rate</string>
     <string name="firefly_auto_create">Create transactions automatically</string>
     <string name="firefly_dedup_enabled">Avoid duplicate transactions</string>
     <string name="firefly_dedup_include_description">Also compare description</string>
     <string name="firefly_field_dedup_window">Dedup window (minutes)</string>
-    <string name="firefly_url_required">Base URL can\'t be empty.</string>
-    <string name="firefly_token_required">Personal access token can\'t be empty.</string>
     <string name="firefly_dedup_window_invalid">Dedup window must be a positive number of minutes.</string>
-    <string name="firefly_settings_saved">Saved</string>
 
     <string name="settings_notifications_title">Notifications</string>
     <string name="settings_notifications_subtitle">What this app\'s own notifications show</string>

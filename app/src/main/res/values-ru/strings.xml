@@ -33,6 +33,7 @@
 
     <string name="settings_add_test_message_title">Добавить тестовое сообщение</string>
     <string name="settings_add_test_message_subtitle">Вручную добавить сообщение — для тестирования правил</string>
+    <string name="settings_add_test_message_button">Добавить тестовое сообщение…</string>
     <string name="add_test_message_explanation">Добавляет сообщение в историю точно так же, как это сделало бы реальное уведомление — удобно для тестирования обработки правил без ожидания настоящего уведомления.</string>
     <string name="add_test_message_no_apps">Нет приложений для мониторинга. Сначала выберите хотя бы одно в разделе «Приложения для мониторинга».</string>
     <string name="add_test_message_app_label">Приложение</string>
@@ -199,26 +200,32 @@
     <string name="currency_code_required">Код не может быть пустым.</string>
     <string name="currency_delete_confirm_title">Удалить %1$s?</string>
 
-    <string name="settings_firefly_title">Настройки Firefly III</string>
+    <string name="settings_firefly_title">Подключение к Firefly III</string>
     <string name="settings_firefly_subtitle_not_configured">Не настроено</string>
     <string name="settings_firefly_subtitle_configured">Подключено к %1$s</string>
+    <string name="firefly_protect_screenshots_switch">Защита от скриншотов</string>
+    <string name="firefly_protect_screenshots_hint">Блокирует скриншоты и запись экрана, пока открыт этот экран. Выключите на время, если нужно сделать скриншот самостоятельно — например, для документации — при следующем открытии экрана защита снова включится.</string>
     <string name="firefly_field_url">Base URL</string>
     <string name="firefly_field_url_example">напр. https://firefly.example.com</string>
     <string name="firefly_cleartext_warning">⚠ http:// не шифруется — используйте только в доверенной локальной сети.</string>
     <string name="firefly_field_token">Personal access token</string>
+    <string name="firefly_field_token_saved_hint">Токен сохранён — оставьте пустым, чтобы не менять, или введите новый для замены.</string>
     <string name="firefly_test_connection">Проверить подключение</string>
     <string name="firefly_test_connection_success">Подключено — Firefly III %1$s</string>
     <string name="firefly_test_connection_failure">Ошибка подключения: %1$s</string>
+    <string name="firefly_url_required">Base URL не может быть пустым.</string>
+    <string name="firefly_token_required">Personal access token не может быть пустым.</string>
+    <string name="firefly_settings_saved">Сохранено</string>
+
+    <string name="settings_transaction_creation_title">Создание транзакций</string>
+    <string name="settings_transaction_creation_subtitle">Автосоздание, поиск дублей, приближённая конвертация</string>
     <string name="firefly_field_approx_tag">Тег приближённой конвертации</string>
     <string name="firefly_field_approx_tag_example">напр. fx-approx — ставится, когда сумма посчитана по найденному курсу</string>
     <string name="firefly_auto_create">Создавать транзакции автоматически</string>
     <string name="firefly_dedup_enabled">Избегать дублей транзакций</string>
     <string name="firefly_dedup_include_description">Также сравнивать description</string>
     <string name="firefly_field_dedup_window">Окно дедупликации (минут)</string>
-    <string name="firefly_url_required">Base URL не может быть пустым.</string>
-    <string name="firefly_token_required">Personal access token не может быть пустым.</string>
     <string name="firefly_dedup_window_invalid">Окно дедупликации должно быть положительным числом минут.</string>
-    <string name="firefly_settings_saved">Сохранено</string>
 
     <string name="settings_notifications_title">Уведомления</string>
     <string name="settings_notifications_subtitle">Что показывают собственные уведомления приложения</string>
