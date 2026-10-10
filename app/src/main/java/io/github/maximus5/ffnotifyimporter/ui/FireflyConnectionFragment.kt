@@ -94,7 +94,7 @@ class FireflyConnectionFragment : Fragment() {
         binding.protectScreenshotsSwitch.setOnCheckedChangeListener { _, isChecked -> setSecure(isChecked) }
 
         binding.testConnectionButton.setOnClickListener { testConnection() }
-        addSaveMenu(::save)
+        addSaveMenu(onSave = ::save)
 
         initialSnapshot = buildSnapshot()
         (activity as? SettingsActivity)?.setBackGuard { handleBackPressed() }

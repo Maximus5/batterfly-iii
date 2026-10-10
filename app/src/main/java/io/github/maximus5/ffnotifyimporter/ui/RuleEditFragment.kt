@@ -95,8 +95,7 @@ class RuleEditFragment : Fragment() {
         binding.pickMessageButton.setOnClickListener { showMessagePicker() }
         binding.pickPatternButton.setOnClickListener { showPatternPicker() }
         binding.testAgainstHistoryButton.setOnClickListener { testAgainstHistory() }
-        binding.saveRuleButton.setOnClickListener { save() }
-        binding.deleteRuleButton.setOnClickListener { confirmDelete() }
+        addSaveMenu(onDelete = if (existingRule != null) ::confirmDelete else null, onSave = ::save)
         binding.homeCurrencyLayout.setEndIconOnClickListener { showCurrencyPicker() }
         binding.dateFormatLayout.setEndIconOnClickListener { showDateFormatPicker() }
 
@@ -331,7 +330,6 @@ class RuleEditFragment : Fragment() {
         binding.categoryTemplateInput.setText(rule?.categoryTemplate.orEmpty())
         binding.tagsTemplateInput.setText(rule?.tagsTemplate.orEmpty())
         binding.enabledSwitch.isChecked = rule?.enabled ?: true
-        binding.deleteRuleButton.visibility = if (rule != null) View.VISIBLE else View.GONE
     }
 
     private fun updateAvailableMacros() {

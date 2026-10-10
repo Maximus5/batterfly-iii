@@ -3059,10 +3059,13 @@ Single `:app` module, packages under
     on any failure. `chooseDefaults` is the pure part, unit-tested. On the
     Transactions screen the currency + source account fields now sit at
     the top, above the switches.
-  - Save on `FireflyConnectionFragment` and `TransactionCreationFragment` is a
-    text action in the toolbar (`Fragment.addSaveMenu`, `menu_save.xml`), not a
-    button at the bottom of the scroll view - on the long Transactions form
-    the bottom button was off-screen and easy to miss.
+  - Save on `FireflyConnectionFragment`, `TransactionCreationFragment` and
+    `RuleEditFragment` is a filled button in the toolbar (`Fragment.addSaveMenu`,
+    `menu_save.xml` + `action_save_button.xml` as an action layout - its view
+    takes the click, it never reaches `onMenuItemSelected`), not a button at
+    the bottom of the scroll view - on the long forms the bottom button was
+    off-screen and easy to miss. `RuleEditFragment` also gets a trash icon
+    there (existing rules only), and its Enabled switch is the first field.
   - `SettingsActivity.leaveScreen()` - the one way a settings screen closes
     itself (back guards' "discard", and after a successful Save on
     `FireflyConnectionFragment`/`TransactionCreationFragment`): pops the
