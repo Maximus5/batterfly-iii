@@ -92,6 +92,10 @@
     <string name="rule_disabled_label">выключено</string>
     <string name="rule_account_no_name">(без имени)</string>
     <string name="rule_default_label">Правило №%1$d</string>
+    <string name="rule_enable_selected">Включить</string>
+    <string name="rule_disable_selected">Выключить</string>
+    <string name="rules_delete_selected_confirm_title">Удалить %1$d правил(о)?</string>
+    <string name="rules_delete_selected_confirm_message">Это нельзя отменить.</string>
 
     <string name="rule_kind_withdrawal">Списание</string>
     <string name="rule_kind_deposit">Пополнение</string>

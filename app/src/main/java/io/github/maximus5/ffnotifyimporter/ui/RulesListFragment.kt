@@ -11,6 +11,7 @@ import android.view.ViewGroup
 import android.widget.PopupMenu
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.core.view.MenuProvider
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.Lifecycle
@@ -25,11 +26,23 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+/** Long-press a row to multi-select (same gesture `MessagesFragment` already uses) - the
+ * toolbar swaps to "N selected" plus move up/move down/delete (`ifRoom`) and enable/disable
+ * (`never`, text-only in the overflow) rather than the normal add/export/import menu, hosted by
+ * `SettingsActivity` (see its own `updateSelectionCount` KDoc for why that needed only one small
+ * new method there - this screen's existing `setBackGuard`/up-arrow plumbing already covers
+ * "cancel selection" for free). The per-row overflow menu (move up/down/duplicate/delete, one at
+ * a time) is unchanged and still exists side by side - multi-select is an addition for acting on
+ * several rules at once, not a replacement.
+ *
+ * The user's own request, after noticing hand-authoring a regex rule is hard enough without also
+ * having to reorder/toggle several at a time one by one. */
 class RulesListFragment : Fragment() {
 
     private var binding: FragmentRulesListBinding? = null
     private lateinit var adapter: RulesAdapter
     private lateinit var rulesDb: RulesDb
+    private var inSelectionMode = false
 
     // Registered in onCreate (before onCreateView), the way these contracts require - a Fragment
     // can't register one after its view has been created.
@@ -54,21 +67,34 @@ class RulesListFragment : Fragment() {
         val binding = binding ?: return
         rulesDb = RulesDb.getInstance(requireContext())
 
-        adapter = RulesAdapter(onClick = ::openEditor, onOverflowClick = ::showOverflowMenu)
+        adapter = RulesAdapter(onClick = ::handleClick, onLongClick = ::handleLongClick, onOverflowClick = ::showOverflowMenu)
         binding.rulesRecyclerView.layoutManager = LinearLayoutManager(requireContext())
         binding.rulesRecyclerView.adapter = adapter
 
         // Toolbar action icons, not a FAB - all three (add/export/import) render in the same
         // style this way (plain tinted icon, no colored background or elevation shadow), which a
         // custom FAB-plus-ImageButtons mix couldn't give for free; see ARCHITECTURE.md's
-        // RulesListFragment notes.
+        // RulesListFragment notes. One `MenuProvider` handles both this screen's normal menu and
+        // the multi-select one (below) rather than swapping providers - `requireActivity().
+        // invalidateMenu()` (called on every selection-state change) re-runs `onCreateMenu`, which
+        // branches on `inSelectionMode` itself.
         requireActivity().addMenuProvider(
             object : MenuProvider {
                 override fun onCreateMenu(menu: Menu, menuInflater: MenuInflater) {
-                    menuInflater.inflate(R.menu.menu_rules_list, menu)
+                    menuInflater.inflate(if (inSelectionMode) R.menu.menu_rules_selection else R.menu.menu_rules_list, menu)
                 }
 
                 override fun onMenuItemSelected(menuItem: MenuItem): Boolean {
+                    if (inSelectionMode) {
+                        return when (menuItem.itemId) {
+                            R.id.action_move_up_selected -> { moveSelected(up = true); true }
+                            R.id.action_move_down_selected -> { moveSelected(up = false); true }
+                            R.id.action_enable_selected -> { setEnabledForSelected(true); true }
+                            R.id.action_disable_selected -> { setEnabledForSelected(false); true }
+                            R.id.action_delete_selected_rules -> { confirmDeleteSelected(); true }
+                            else -> false
+                        }
+                    }
                     return when (menuItem.itemId) {
                         R.id.action_add_rule -> {
                             openEditor(null)
@@ -91,9 +117,99 @@ class RulesListFragment : Fragment() {
         )
     }
 
+    private fun handleClick(rule: ParseRule) {
+        if (inSelectionMode) {
+            adapter.toggleSelection(rule)
+            if (adapter.selectedCount() == 0) clearSelectionAndExit() else updateSelectionCountDisplay()
+        } else {
+            openEditor(rule)
+        }
+    }
+
+    /** Starts (or extends) the multi-select the toolbar's move/enable/disable/delete actions act
+     * on - same long-press-to-select, toolbar-swap shape `MessagesFragment` already uses for the
+     * identical gesture, hosted by `SettingsActivity` instead of `MainActivity` since that's where
+     * this screen lives (see `SettingsActivity.updateSelectionCount`'s own KDoc for why that
+     * needed only one small new method there, reusing `setBackGuard` for "cancel" rather than a
+     * second bespoke mechanism). */
+    private fun handleLongClick(rule: ParseRule): Boolean {
+        if (!inSelectionMode) {
+            inSelectionMode = true
+            adapter.setSelectionMode(true)
+            adapter.toggleSelection(rule)
+            requireActivity().invalidateMenu()
+            (activity as? SettingsActivity)?.apply {
+                updateSelectionCount(adapter.selectedCount())
+                setBackGuard(::clearSelectionAndExit)
+            }
+        } else {
+            adapter.toggleSelection(rule)
+            if (adapter.selectedCount() == 0) clearSelectionAndExit() else updateSelectionCountDisplay()
+        }
+        return true
+    }
+
+    private fun updateSelectionCountDisplay() {
+        (activity as? SettingsActivity)?.updateSelectionCount(adapter.selectedCount())
+    }
+
+    private fun clearSelectionAndExit() {
+        adapter.clearSelection()
+        adapter.setSelectionMode(false)
+        inSelectionMode = false
+        requireActivity().invalidateMenu()
+        (activity as? SettingsActivity)?.apply {
+            setBackGuard(null)
+            setScreenTitle(R.string.settings_rules_title)
+        }
+    }
+
+    /** Processes selected ids in on-screen order (top-to-bottom moving up, bottom-to-top moving
+     * down) and re-reads that order fresh each call - each `RulesDb.moveUp`/`moveDown` call
+     * already re-reads the table's current sort order itself, so a selected id's own neighbor by
+     * the time its turn comes may be another just-moved selected id, not its original one. The
+     * user's own chosen semantics: every selected rule moves exactly one slot in the chosen
+     * direction, independently - processing in this order is what keeps a contiguous selected
+     * block moving as a unit (each item's neighbor swap lands it next to the next one in the
+     * block) instead of rows leapfrogging each other into a jumbled order. */
+    private fun moveSelected(up: Boolean) {
+        val ids = adapter.selectedIds()
+        val ordered = rulesDb.loadAllOrdered().map { it.id }.filter { it in ids }
+        (if (up) ordered else ordered.reversed()).forEach {
+            if (up) rulesDb.moveUp(it) else rulesDb.moveDown(it)
+        }
+        reload()
+    }
+
+    private fun setEnabledForSelected(enabled: Boolean) {
+        val ids = adapter.selectedIds()
+        rulesDb.loadAllOrdered().filter { it.id in ids }.forEach { rulesDb.update(it.copy(enabled = enabled)) }
+        reload()
+    }
+
+    /** Cancel always rightmost/last (house convention, AGENTS.md) - the real action
+     * (`action_delete`/"Delete") goes in [AlertDialog.Builder.setNegativeButton] (left), Cancel in
+     * [AlertDialog.Builder.setPositiveButton] (right). */
+    private fun confirmDeleteSelected() {
+        val ids = adapter.selectedIds()
+        AlertDialog.Builder(requireContext())
+            .setTitle(getString(R.string.rules_delete_selected_confirm_title, ids.size))
+            .setMessage(R.string.rules_delete_selected_confirm_message)
+            .setNegativeButton(R.string.action_delete) { _, _ ->
+                ids.forEach { rulesDb.delete(it) }
+                clearSelectionAndExit()
+            }
+            .setPositiveButton(android.R.string.cancel, null)
+            .show()
+    }
+
     override fun onResume() {
         super.onResume()
-        (activity as? SettingsActivity)?.setScreenTitle(R.string.settings_rules_title)
+        // Skipped while a selection is active - would otherwise stomp the "N selected" title
+        // (and the up arrow's cancel-selection guard stays whatever handleLongClick set, this
+        // never touches it either way) if onResume happens to re-run while selecting, e.g.
+        // returning from a backgrounded app.
+        if (!inSelectionMode) (activity as? SettingsActivity)?.setScreenTitle(R.string.settings_rules_title)
         reload()
     }
 

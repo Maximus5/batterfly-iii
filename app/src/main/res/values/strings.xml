@@ -92,6 +92,10 @@
     <string name="rule_disabled_label">disabled</string>
     <string name="rule_account_no_name">(no name)</string>
     <string name="rule_default_label">Rule #%1$d</string>
+    <string name="rule_enable_selected">Enable</string>
+    <string name="rule_disable_selected">Disable</string>
+    <string name="rules_delete_selected_confirm_title">Delete %1$d rule(s)?</string>
+    <string name="rules_delete_selected_confirm_message">This can\'t be undone.</string>
 
     <string name="rule_kind_withdrawal">Withdrawal</string>
     <string name="rule_kind_deposit">Deposit</string>

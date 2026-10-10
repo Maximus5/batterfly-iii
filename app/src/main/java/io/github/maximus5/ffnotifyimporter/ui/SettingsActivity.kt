@@ -68,6 +68,18 @@ class SettingsActivity : AppCompatActivity() {
         supportActionBar?.title = getString(titleRes)
     }
 
+    /** `RulesListFragment`'s multi-select (long-press to select, move/enable/disable/delete from
+     * the toolbar - see its own KDoc) - the "N selected" title while it's active, same
+     * `messages_selected_count` string `MainActivity.updateSelectionCount` already uses for the
+     * same purpose on the Messages list. A plain formatted string, not a `titleRes`, unlike
+     * [setScreenTitle] - this is the one title here that isn't a fixed per-screen resource.
+     * [setBackGuard] (already existing) doubles as this mode's "cancel selection" hook - no
+     * separate mechanism needed the way `MainActivity` has its own `onSelectionCancel`, since this
+     * activity already routes both the toolbar's up arrow and system back through one guard. */
+    fun updateSelectionCount(count: Int) {
+        supportActionBar?.title = getString(R.string.messages_selected_count, count)
+    }
+
     /** [guard] is called instead of the default back behavior for as long as it's set - passing
      * null restores the default. The caller decides what "back" means while it's registered
      * (e.g. show a confirm dialog, then actually leave only once the user agrees). */

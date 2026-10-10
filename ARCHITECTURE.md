@@ -2227,6 +2227,79 @@ Single `:app` module, packages under
       feedback that its meaning wasn't obvious at a glance; this one
       replaces that spot with the Firefly-familiar wording instead of
       reintroducing the same confusion).
+      **Fixed a real "not visible enough" gap, the user's own catch**:
+      a disabled rule's only indicator used to be the "· disabled"
+      text appended to this subtitle - easy to miss at a glance.
+      `ViewHolder.bind` now also dims the whole row (`binding.root.
+      alpha = 0.5f` when `!rule.enabled`, same "visible but not usable"
+      convention disabled controls elsewhere in this app already use) -
+      kept alongside the text, not instead of it, since alpha alone
+      could just as easily read as a rendering glitch without the label
+      spelling out why.
+      Long-press now starts a multi-select, the user's own request
+      after noticing hand-authoring a regex rule is hard enough without
+      also having to reorder/toggle several at a time one by one - same
+      long-press-to-select, toolbar-swap-to-"N selected" gesture
+      `MessagesFragment` already uses for the identical interaction on
+      the Messages list, but hosted by `SettingsActivity` instead of
+      `MainActivity` since that's where this screen lives.
+      `SettingsActivity` needed surprisingly little new code for this -
+      just one small `updateSelectionCount(count)` method (the "N
+      selected" title, reusing `MainActivity`'s own `messages_selected_
+      count` string) - because its existing `setBackGuard` already
+      routes both the toolbar's up arrow and system back through one
+      swappable callback (originally built for `RuleEditFragment`'s
+      unsaved-changes confirm), so "cancel selection" just reuses that
+      instead of needing a second, bespoke mechanism the way
+      `MainActivity` has its own `onSelectionCancel`/`backPressedCallback`
+      pair (that activity had no such guard to reuse before Messages'
+      own selection mode was built). The *menu* swap doesn't touch
+      `SettingsActivity` at all either - this screen already registers
+      its own add/export/import menu via a `MenuProvider` (above), so
+      entering selection mode just makes that same provider's
+      `onCreateMenu`/`onMenuItemSelected` branch on `inSelectionMode`
+      and inflate `menu_rules_selection` instead, then calls
+      `requireActivity().invalidateMenu()` to make it re-run.
+      `menu_rules_selection` - move up/move down (`ic_arrow_upward`/
+      `ic_arrow_downward`, new plain Material glyphs, `ifRoom`) and
+      delete (`@android:drawable/ic_menu_delete`, the same system glyph
+      `menu_selection.xml` already uses, `ifRoom`) as icons; enable/
+      disable (`never` - text-only in the overflow) since there was no
+      good single icon for either without a label anyway. The per-row
+      overflow menu (move up/down/duplicate/delete, one row at a time)
+      is unchanged and still exists side by side - multi-select is
+      additive, not a replacement.
+      Move up/down semantics for a multi-selection, the user's own
+      chosen design: every selected rule moves exactly one slot in the
+      chosen direction, independently, not as a block with special-
+      cased adjacency handling. `moveSelected(up)` gets this almost for
+      free from `RulesDb.moveUp`/`moveDown`'s own existing behavior
+      (each swaps *the current* DB state with the immediate neighbor,
+      re-read fresh every call, not a cached snapshot) by just choosing
+      the right processing order first: top-to-bottom (on-screen order)
+      for "up", bottom-to-top for "down". That ordering is what keeps a
+      *contiguous* selected block moving as a single unit (each row's
+      neighbor swap lands it directly next to the next selected row in
+      line) instead of selected rows leapfrogging each other into a
+      jumbled order - verified by hand-tracing both a spread-out
+      selection (1/3/5) and an adjacent one (1/2) through the swap
+      sequence before writing this, not assumed.
+      Enable/disable for a selection reuses the existing `RulesDb.
+      update(rule)` (no new DB method) - `rulesDb.loadAllOrdered().
+      filter { it.id in ids }.forEach { rulesDb.update(it.copy(enabled
+      = ...)) }`, two explicit actions (not one ambiguous "toggle") per
+      the user's own choice, so a mixed-state selection (some already
+      on, some off) has one unambiguous outcome regardless of where
+      each one started.
+      Bulk delete asks for confirmation first (`rules_delete_selected_
+      confirm_title`/`_message`, Cancel rightmost per house convention),
+      same shape `MessagesFragment.confirmDeleteSelected` already uses -
+      the user's own choice, folded into the same selection toolbar
+      rather than left out or kept to one-row-at-a-time only.
+      **Needs real-device verification** (not yet done): nothing here
+      can be meaningfully exercised by a JVM unit test (the `MenuProvider`
+      swap, `RecyclerView` long-press, `invalidateMenu()` actually
+      re-running `onCreateMenu`) - only compiled successfully so far.
     - `RuleEditFragment` - one form for both create (`ruleId == null`)
       and edit, via `RuleEditFragment.newInstance(ruleId)`. Leaving the
       screen with unsaved edits (toolbar's up arrow *or* system

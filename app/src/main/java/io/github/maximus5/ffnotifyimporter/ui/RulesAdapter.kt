@@ -1,5 +1,6 @@
 package io.github.maximus5.ffnotifyimporter.ui
 
+import android.graphics.Color
 import android.graphics.Typeface
 import android.text.SpannableStringBuilder
 import android.text.Spanned
@@ -13,15 +14,44 @@ import io.github.maximus5.ffnotifyimporter.databinding.ItemRuleBinding
 import io.github.maximus5.ffnotifyimporter.notifications.AppLabelResolver
 import io.github.maximus5.ffnotifyimporter.rules.ParseRule
 
+/** [onLongClick] starts/extends the multi-select `RulesListFragment` drives (move/enable/
+ * disable/delete from the toolbar - see that class's own KDoc) - same three-callback shape
+ * `MessagesAdapter` already uses for the identical gesture on the Messages list, keyed by
+ * [ParseRule.id] (not the rule object itself) for selection tracking, matching how every mutating
+ * `RulesDb` call in this fragment already addresses a rule - by id, never by value. */
 class RulesAdapter(
     private val onClick: (ParseRule) -> Unit,
+    private val onLongClick: (ParseRule) -> Boolean,
     private val onOverflowClick: (ParseRule, View) -> Unit,
 ) : RecyclerView.Adapter<RulesAdapter.ViewHolder>() {
 
     private var items: List<ParseRule> = emptyList()
+    private val selected = mutableSetOf<String>()
+    private var selectionMode = false
 
     fun submitList(newItems: List<ParseRule>) {
         items = newItems
+        selected.retainAll(newItems.map { it.id }.toSet())
+        notifyDataSetChanged()
+    }
+
+    fun setSelectionMode(enabled: Boolean) {
+        selectionMode = enabled
+        notifyDataSetChanged()
+    }
+
+    fun selectedIds(): Set<String> = selected.toSet()
+
+    fun selectedCount(): Int = selected.size
+
+    fun clearSelection() {
+        if (selected.isEmpty()) return
+        selected.clear()
+        notifyDataSetChanged()
+    }
+
+    fun toggleSelection(rule: ParseRule) {
+        if (!selected.add(rule.id)) selected.remove(rule.id)
         notifyDataSetChanged()
     }
 
@@ -67,8 +97,22 @@ class RulesAdapter(
             }
             binding.ruleSubtitle.text = subtitle
 
+            // The user's own catch: the "· disabled" text alone wasn't visible enough at a
+            // glance. Dimming the whole row (same convention disabled form controls elsewhere in
+            // this app already use) is the stronger, instantly-recognizable signal - kept
+            // alongside the text, not instead of it, since alpha alone could just as easily read
+            // as a rendering glitch without the label spelling out why.
+            binding.root.alpha = if (rule.enabled) 1f else 0.5f
+            binding.root.setBackgroundColor(if (rule.id in selected) SELECTED_BACKGROUND else Color.TRANSPARENT)
+
             binding.ruleRowContent.setOnClickListener { onClick(rule) }
+            binding.ruleRowContent.setOnLongClickListener { onLongClick(rule) }
+            binding.ruleOverflowButton.visibility = if (selectionMode) View.GONE else View.VISIBLE
             binding.ruleOverflowButton.setOnClickListener { onOverflowClick(rule, it) }
         }
+    }
+
+    private companion object {
+        const val SELECTED_BACKGROUND = 0x338C9EFF
     }
 }
