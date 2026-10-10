@@ -228,7 +228,7 @@
     <string name="firefly_url_required">Base URL can\'t be empty.</string>
     <string name="firefly_token_required">Personal access token can\'t be empty.</string>
     <string name="firefly_field_url_help">The address you open your Firefly III at in a browser, without /api.</string>
-    <string name="firefly_field_token_help">To get a token, open Firefly III → Options → Profile → OAuth tab → Personal Access Tokens → Create new token. Firefly shows it only once, so copy it here right away.</string>
+    <string name="firefly_field_token_help">To get a token, open Firefly III, tap the profile icon at the top right → Remote access and tokens, and create a new personal access token. Firefly shows it only once, so copy it here right away.</string>
     <string name="firefly_autofilled_currency">Default account currency set to %1$s (Firefly\'s primary currency).</string>
     <string name="firefly_autofilled_account">Default source account set to %1$s (your only asset account).</string>
     <string name="firefly_settings_saved">Saved</string>
