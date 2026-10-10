@@ -1136,14 +1136,48 @@ Single `:app` module, packages under
     payment, exactly the failure mode dedup exists to prevent in the
     first place. Every message is enqueued into one single WorkManager
     unique work chain (`WorkManager.enqueueUniqueWork`,
-    `ExistingWorkPolicy.APPEND`, `AutoCreateScheduler.UNIQUE_WORK_NAME`)
-    regardless of origin - `APPEND` makes each new request a dependency
-    of whatever's already queued/running in that chain, so WorkManager
-    itself guarantees strict one-at-a-time, in-arrival-order execution
-    with no manual locking needed on this app's side, and it survives
-    process death (WorkManager persists its own queue), so a burst that
-    arrives right before the app is killed still finishes in order once
-    it restarts.
+    `ExistingWorkPolicy.APPEND_OR_REPLACE`, `AutoCreateScheduler.
+    UNIQUE_WORK_NAME`) regardless of origin - appending makes each new
+    request a dependency of whatever's already queued/running in that
+    chain, so WorkManager itself guarantees strict one-at-a-time,
+    in-arrival-order execution with no manual locking needed on this
+    app's side, and it survives process death (WorkManager persists its
+    own queue), so a burst that arrives right before the app is killed
+    still finishes in order once it restarts.
+    **Fixed a real "every future auto-create silently never runs
+    again" bug, root-caused on the user's own device, not guessed**:
+    pulled `androidx.work.workdb` straight off the device (`adb
+    run-as` + `sqlite3`, `WorkSpec`/`WorkName` tables) once a long
+    on-device debugging session (OS permission, in-app notification
+    toggle, per-channel OS block, battery restriction, and the
+    matching logic itself, all individually confirmed clean, plus a
+    second, untouched device working fine with the identical build)
+    had ruled out everything *except* something specific to that one
+    device's own accumulated state. The query showed two `AutoCreateWorker`
+    `WorkSpec` rows sharing the same `WorkName` ("auto_create"), one
+    with `run_attempt_count = 6` in a terminal `FAILED` state (a
+    leftover from *before* `AutoCreateWorker.post`'s own
+    retry-until-`MAX_ATTEMPTS` loop was removed - see that class's own
+    KDoc), the other `run_attempt_count = 0`, also `FAILED`, despite
+    never having actually run. Root cause: plain `ExistingWorkPolicy.
+    APPEND` makes a new request a dependent of the chain's current
+    *tail*, whatever state that tail is in - and WorkManager cascades
+    a `FAILED`/`CANCELLED` tail's terminal state straight to every
+    dependent without ever invoking them. Once that one job failed,
+    every later message got silently enqueued as a dependent of an
+    already-dead tail - `doWork` never ran again for any of them, no
+    error, no notification, nothing, until the chain was cleared.
+    Fixed two ways: `ExistingWorkPolicy.APPEND_OR_REPLACE` instead of
+    `APPEND` - behaves identically while the tail hasn't finished, but
+    starts a fresh chain instead of appending once the tail *has*
+    reached a terminal state, so this specific poisoning can't happen
+    again; and `FfNotifyImporterApp.purgePoisonedAutoCreateChainOnce`
+    - a one-time `WorkManager.cancelUniqueWork(UNIQUE_WORK_NAME)` on
+    startup, guarded by a `startup_migrations` prefs flag, to
+    retroactively un-poison a chain that got stuck this way on an
+    install that hit the bug before this fix shipped (harmless even
+    when nothing was actually stuck - at worst drops one in-flight
+    attempt, same as any other dropped auto-create outcome).
     `AutoCreateWorker` (`CoroutineWorker`) re-checks `isAutoCreateEnabled`/
     `isConfigured` itself (not just trusting the scheduler's check at
     enqueue time, since the setting or connection could have changed
