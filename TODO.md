@@ -574,24 +574,20 @@ work.
     dispatch every other rule already uses, no special case at all -
     auto-create off (the default) means review, same as today; on
     means it can auto-create, same as any user-defined rule.
-  - **`kind` becomes editable on the create screen - the user's own
-    decision, resolving the direction-detection problem above instead
-    of trying to guess it**: scoped to *create* mode only, for *any*
-    match (not just a built-in one) - editing an already-*existing*
-    Firefly transaction's `kind` stays locked exactly as today, the
-    user's own explicit call (changing withdrawal/deposit/transfer on
-    a transaction Firefly already has is a structurally different,
-    riskier operation than picking it before the first post). This is
-    what makes dropping the separate deposit-keyword rules above safe:
-    a built-in "Default" rule can default to `WITHDRAWAL` (the
-    dominant real-world case) and the user corrects it by hand on the
-    create screen when it's actually a deposit, rather than this app
-    trying (and likely failing, per the evidence above) to guess it
-    from text. Needs: `CreateTransactionFragment`'s `kindText` (today
-    a plain read-only `TextView`) to become an actual picker in create
-    mode only (edit mode keeps the plain text); `updateAccountFieldModes()`
-    re-run whenever the user changes it, since which side is the asset
-    account depends on `kind`.
+  - **Done**: `kind` is now editable on `CreateTransactionFragment`'s
+    create screen - `kindText` is clickable there only
+    (`showKindPicker`, `AlertDialog.setSingleChoiceItems` over
+    `RuleKind.entries`), for *any* match, not just a future built-in
+    one; edit mode's `kindText` stays exactly as before (not
+    clickable, no listener) - changing kind on a transaction Firefly
+    already has stays unsupported, the user's own explicit call.
+    Picking a kind re-runs `updateAccountFieldModes()` and appends a
+    "▾" to the displayed text as the tap affordance. This is what
+    makes dropping the separate deposit-keyword rules above safe: a
+    built-in "Default" rule can default to `WITHDRAWAL` (the dominant
+    real-world case) and the user corrects it by hand here when it's
+    actually a deposit, rather than this app trying (and likely
+    failing, per the evidence above) to guess it from text.
   - **Done**: "Default account currency" on `TransactionCreationFragment`
     (`FireflyPrefs.getDefaultAccountCurrency`/`setDefaultAccountCurrency`) -
     a general `RuleEngine` fallback (`defaultAccountCurrency: String`

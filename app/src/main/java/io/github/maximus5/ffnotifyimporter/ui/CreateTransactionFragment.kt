@@ -136,6 +136,13 @@ class CreateTransactionFragment : Fragment() {
         populateFields(draft)
         updateAccountFieldModes()
 
+        // Create mode only - see showKindPicker's own KDoc for why. Edit mode's binding.kindText
+        // (loadForEdit) is left in its XML default state: no listener, not clickable, no ▾.
+        binding.kindText.isClickable = true
+        binding.kindText.isFocusable = true
+        binding.kindText.setOnClickListener { showKindPicker() }
+        updateKindText()
+
         // The user's own follow-up catch: falling through here because a previously-linked id
         // was just confirmed gone (MessagesFragment.verifyLinkedThenShow) used to show no warning
         // at all - silently dropping the fact that something *had* been linked, instead of saying
@@ -173,6 +180,7 @@ class CreateTransactionFragment : Fragment() {
                     kind = result.candidate.kind
                     populateFieldsFromCandidate(result.candidate)
                     updateAccountFieldModes()
+                    updateKindText()
                     binding.createTransactionButton.text = getString(R.string.create_tx_save)
                     binding.createTransactionButton.setOnClickListener { onSaveClicked(transactionId) }
                 }
@@ -194,14 +202,6 @@ class CreateTransactionFragment : Fragment() {
     private fun populateFields(draft: TransactionDraft) {
         val binding = binding ?: return
         val context = requireContext()
-
-        binding.kindText.text = getString(
-            when (kind) {
-                RuleKind.WITHDRAWAL -> R.string.rule_kind_withdrawal
-                RuleKind.DEPOSIT -> R.string.rule_kind_deposit
-                RuleKind.TRANSFER -> R.string.rule_kind_transfer
-            },
-        ) + " · " + message.appLabel
 
         binding.amountInput.setText(draft.amount?.let { formatAmountForDisplay(it) }.orEmpty())
         binding.currencyCodeInput.setText(draft.currencyCode)
@@ -236,14 +236,6 @@ class CreateTransactionFragment : Fragment() {
         val binding = binding ?: return
         val context = requireContext()
 
-        binding.kindText.text = getString(
-            when (kind) {
-                RuleKind.WITHDRAWAL -> R.string.rule_kind_withdrawal
-                RuleKind.DEPOSIT -> R.string.rule_kind_deposit
-                RuleKind.TRANSFER -> R.string.rule_kind_transfer
-            },
-        ) + " · " + message.appLabel
-
         binding.amountInput.setText(formatAmountForDisplay(candidate.amount))
         binding.currencyCodeInput.setText(candidate.currencyCode)
         binding.foreignAmountInput.setText(candidate.foreignAmount?.let { formatAmountForDisplay(it) }.orEmpty())
@@ -261,6 +253,34 @@ class CreateTransactionFragment : Fragment() {
         binding.notesInput.setText(candidate.notes.orEmpty())
         binding.categoryInput.setText(candidate.category.orEmpty())
         binding.tagsInput.setText(candidate.tags.joinToString(", "))
+    }
+
+    private fun updateKindText() {
+        val binding = binding ?: return
+        val affordance = if (binding.kindText.isClickable) " ▾" else ""
+        binding.kindText.text = getString(kind.labelRes()) + " · " + message.appLabel + affordance
+    }
+
+    /** Create mode only (see [loadForCreate] - [binding.kindText] is only ever made clickable
+     * there, never in [loadForEdit]): changing the kind of a transaction Firefly already has
+     * isn't supported, but a *fresh* match's guessed kind can genuinely be wrong and needs to be
+     * human-correctable before posting - the user's own call, driven by real evidence that bank
+     * notifications don't reliably carry a withdrawal/deposit keyword a rule could detect from
+     * (see TODO.md's built-in-rules history). Re-runs [updateAccountFieldModes] on change, same
+     * as the initial kind assignment does, since which side of source/destination is the asset
+     * account depends on it. */
+    private fun showKindPicker() {
+        val kinds = RuleKind.entries
+        val selectedIndex = kinds.indexOf(kind)
+        AlertDialog.Builder(requireContext())
+            .setTitle(R.string.create_tx_pick_kind)
+            .setSingleChoiceItems(kinds.map { getString(it.labelRes()) }.toTypedArray(), selectedIndex) { dialog, which ->
+                kind = kinds[which]
+                updateAccountFieldModes()
+                updateKindText()
+                dialog.dismiss()
+            }
+            .show()
     }
 
     /** Only the asset side of the pair gets the account picker (`FireflyApiClient.
@@ -558,9 +578,10 @@ class CreateTransactionFragment : Fragment() {
     }
 
     /** Builds the final [TransactionDraft] from the current field values, validating as it goes -
-     * [kind]/[message] carry over from the original match/fetch unchanged (kind isn't
-     * user-editable in either mode, see this class's own KDoc), everything else is read fresh
-     * from the form. `issues` is always empty - the two [DraftIssue] flags were about
+     * [message] carries over from the original match/fetch unchanged; [kind] is read as whatever
+     * it currently is (the original match's guess, or [showKindPicker]'s correction in create
+     * mode - never user-editable in edit mode, see that function's own KDoc), everything else is
+     * read fresh from the form. `issues` is always empty - the two [DraftIssue] flags were about
      * automated-parse uncertainty, which no longer applies once a human has directly
      * reviewed/filled in the fields (true in edit mode from the start - there was never a parse
      * to begin with). Returns null (after showing the relevant field's error) on the first

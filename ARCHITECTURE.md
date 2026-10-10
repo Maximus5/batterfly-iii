@@ -1822,7 +1822,21 @@ Single `:app` module, packages under
       without review. `CreateTransactionFragment.loadForCreate`
       re-matches the message fresh (`RuleEngine.match`) and populates
       the form from the resulting `TransactionDraft`
-      (`populateFields`). `staleLinkedId`, when present
+      (`populateFields`). `kindText` is made clickable here only
+      (`showKindPicker`, an `AlertDialog.setSingleChoiceItems` over
+      `RuleKind.entries`, labeled via `ui.RuleKindDisplay.labelRes()`) -
+      the user's own call: a fresh match's guessed `kind` can genuinely
+      be wrong (real bank notifications don't reliably carry a
+      withdrawal/deposit keyword a rule could detect from - see the
+      "built-in fallback rules" history below for the evidence that
+      surfaced this), and changing kind on an *existing* Firefly
+      transaction isn't supported, so the correction only ever makes
+      sense before posting. Picking a different kind re-runs
+      `updateAccountFieldModes` (which side of source/destination is the
+      asset account depends on it) and appends a "▾" to the displayed
+      text as the only visual affordance that it's tappable - edit
+      mode's `kindText` (below) is left in its XML default state, no
+      listener, not clickable, no "▾". `staleLinkedId`, when present
       (`CreateTransactionActivity.intent`'s own parameter, *not* folded
       into `message.fireflyTransactionId` - see below for why), shows
       `alreadyLinkedWarningText` (red/`?attr/colorError`, bold,

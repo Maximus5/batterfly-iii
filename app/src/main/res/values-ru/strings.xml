@@ -187,6 +187,7 @@
     <string name="create_tx_field_category">Категория</string>
     <string name="create_tx_field_tags">Теги (через запятую)</string>
     <string name="create_tx_pick_category">Выбрать категорию</string>
+    <string name="create_tx_pick_kind">Тип транзакции</string>
     <string name="create_tx_categories_failed">Не удалось загрузить категории: %1$s</string>
     <string name="create_tx_no_categories">В Firefly не найдено категорий.</string>
     <string name="create_tx_amount_invalid">Введите корректную сумму.</string>

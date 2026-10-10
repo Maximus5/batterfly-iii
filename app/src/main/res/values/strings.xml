@@ -187,6 +187,7 @@
     <string name="create_tx_field_category">Category</string>
     <string name="create_tx_field_tags">Tags (comma-separated)</string>
     <string name="create_tx_pick_category">Pick category</string>
+    <string name="create_tx_pick_kind">Transaction type</string>
     <string name="create_tx_categories_failed">Couldn\'t load categories: %1$s</string>
     <string name="create_tx_no_categories">No categories found in Firefly.</string>
     <string name="create_tx_amount_invalid">Enter a valid amount.</string>
