@@ -2522,6 +2522,10 @@ Single `:app` module, packages under
       genuinely new result) - lets rule processing be tested without
       waiting for a real bank notification. Reached from
       `MessageHistoryFragment` now (see above), not its own row.
+      "Add" is a toolbar button (`addSaveMenu`, disabled with no monitored
+      apps); after a successful add the screen closes via `leaveScreen()`
+      (back to the Messages list when opened from the setup checklist),
+      while a dropped duplicate keeps the form open.
       `dateTimeButton` (defaults to "now" when the screen opens, chained
       `DatePickerDialog`+`TimePickerDialog` to edit) lets the injected
       message carry a chosen timestamp instead of always being "just

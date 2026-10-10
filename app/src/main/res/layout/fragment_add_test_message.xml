@@ -84,13 +84,6 @@
 
         </com.google.android.material.textfield.TextInputLayout>
 
-        <Button
-            android:id="@+id/addButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="end"
-            android:text="@string/add_test_message_add_button" />
-
     </LinearLayout>
 
 </ScrollView>

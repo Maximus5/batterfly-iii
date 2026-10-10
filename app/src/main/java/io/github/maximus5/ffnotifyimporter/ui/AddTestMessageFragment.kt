@@ -61,7 +61,10 @@ class AddTestMessageFragment : Fragment() {
         val hasApps = appOptions.isNotEmpty()
         binding.noMonitoredAppsText.visibility = if (hasApps) View.GONE else View.VISIBLE
         binding.appSpinner.isEnabled = hasApps
-        binding.addButton.isEnabled = hasApps
+        addSaveMenu(onSave = ::addTestMessage).apply {
+            label = getString(R.string.add_test_message_add_button)
+            enabled = hasApps
+        }
 
         binding.appSpinner.adapter = ArrayAdapter(
             context,
@@ -71,8 +74,6 @@ class AddTestMessageFragment : Fragment() {
 
         updateDateTimeButtonText()
         binding.dateTimeButton.setOnClickListener { showDateTimePicker() }
-
-        binding.addButton.setOnClickListener { addTestMessage() }
     }
 
     private fun updateDateTimeButtonText() {
@@ -137,10 +138,9 @@ class AddTestMessageFragment : Fragment() {
             // triggering auto-create the same way BankNotificationListenerService does.
             AutoCreateScheduler.scheduleIfEnabled(context, added)
             ReviewNotificationScheduler.scheduleIfNeeded(context, added)
-            binding.titleInput.text?.clear()
-            binding.textInput.text?.clear()
-            selectedTimestampMillis = System.currentTimeMillis()
-            updateDateTimeButtonText()
+            // Back to whoever opened this screen (the Messages list from the checklist, or
+            // Message history) - the new message is visible there right away.
+            (activity as? SettingsActivity)?.leaveScreen()
         }
     }
 

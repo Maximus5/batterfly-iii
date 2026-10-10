@@ -40,7 +40,7 @@
     <string name="add_test_message_datetime_label">Дата и время</string>
     <string name="add_test_message_title_label">Заголовок</string>
     <string name="add_test_message_text_label">Текст</string>
-    <string name="add_test_message_add_button">Добавить в историю</string>
+    <string name="add_test_message_add_button">Добавить</string>
     <string name="add_test_message_empty_error">Заголовок и текст не могут быть пустыми одновременно.</string>
     <string name="add_test_message_added">Добавлено</string>
     <string name="add_test_message_duplicate">Отброшено как дубликат (то же приложение/заголовок/текст в пределах окна дедупликации).</string>

@@ -40,7 +40,7 @@
     <string name="add_test_message_datetime_label">Date &amp; time</string>
     <string name="add_test_message_title_label">Title</string>
     <string name="add_test_message_text_label">Text</string>
-    <string name="add_test_message_add_button">Add to history</string>
+    <string name="add_test_message_add_button">Add</string>
     <string name="add_test_message_empty_error">Title and text can\'t both be empty.</string>
     <string name="add_test_message_added">Added</string>
     <string name="add_test_message_duplicate">Dropped as a duplicate (same app/title/text within the dedup window).</string>
