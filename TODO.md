@@ -164,11 +164,30 @@ work.
       **Needs real-device verification** (not yet done): auto-create
       actually firing from a real notification with the app closed/
       backgrounded, the skip-duplicate and success notifications both
-      appearing and tapping through correctly, a forced API failure
-      actually retrying and eventually giving up after `MAX_ATTEMPTS`,
-      and - the one this was specifically built for - two notifications
-      posted back-to-back in a way that previously could have raced,
+      appearing and tapping through correctly, a forced dedup-check
+      network failure actually retrying and eventually giving up after
+      `MAX_ATTEMPTS`, a forced `createTransaction` failure surfacing
+      immediately with *no* retry at all (see the entry below - this
+      used to retry too, no longer does, on purpose), and - the one
+      this was specifically built for - two notifications posted
+      back-to-back in a way that previously could have raced,
       confirming they're still handled strictly one at a time.
+      **Fixed a real inconsistency, the user's own catch**:
+      `AutoCreateWorker.post()` used to retry a failed
+      `createTransaction` call too, same `Result.retry()`/
+      `MAX_ATTEMPTS` shape the dedup-check verification above still
+      legitimately uses - directly contradicting the non-idempotency
+      reasoning already settled and documented on `FireflyApiClient.
+      createTransaction` itself (deliberately never wrapped in
+      `withNetworkRetry`, precisely because a lost response *after*
+      Firefly already wrote the transaction would retry into a
+      genuine second one - "the caller decides whether to try again",
+      meaning a human, same as `updateTransaction`'s own failure just
+      surfacing and stopping). `post()` now does the same: one
+      failure, one notification, stop - no automatic retry of the
+      write itself, ever. The dedup-check retry above is unaffected
+      and still correct, since nothing has been written yet at that
+      point - it's a repeated *read*.
       **Fixed a real cross-app auto-create dedup miss, caught directly
       on-device**: two different rules (a bank app's own rule and a
       wallet app's rule) for the exact same real payment - same

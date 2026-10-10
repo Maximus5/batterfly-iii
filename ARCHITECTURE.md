@@ -1105,10 +1105,11 @@ Single `:app` module, packages under
     `startCreate` show the existing `check_search_failed_title` dialog
     instead of opening the review screen; `CreateTransactionFragment.
     onCreateClicked` shows the same dialog and re-enables "Create
-    transaction" instead of posting; `AutoCreateWorker` reuses its
-    existing `Result.retry()`/`MAX_ATTEMPTS`/`notifyFailed` machinery
-    (already built for a failed `createTransaction` call) rather than
-    silently posting on an unverified dedup check.
+    transaction" instead of posting; `AutoCreateWorker` retries this
+    specific check (`Result.retry()`/`MAX_ATTEMPTS`, see its own entry
+    below for why a failed `createTransaction` call itself gets no
+    such retry) rather than silently posting on an unverified dedup
+    check.
   - `AutoCreateScheduler`/`AutoCreateWorker`/`AutoCreateNotifications` -
     automatic transaction creation, gated by `FireflyPrefs.
     isAutoCreateEnabled()` (a long-standing setting that previously had
@@ -1170,12 +1171,14 @@ Single `:app` module, packages under
     shows when auto-create is off) instead of ever attempting to
     post - a human has to pick the account by hand regardless, no
     point retrying something structurally incapable of succeeding.
-    A failed Firefly call (for every other, genuinely posted draft)
-    retries
-    (`Result.retry()`, exponential backoff) up to `MAX_ATTEMPTS` (5) -
-    the actual "WorkManager for retrying failed API calls" use
-    AGENTS.md's own stack note was written for. Capped rather than left
-    to WorkManager's default indefinite retry: since every message
+    A failed dedup-check *verification* (`DuplicateCheckResult.
+    SearchFailed` - a local-cache hit that couldn't be confirmed
+    against Firefly) retries (`Result.retry()`, exponential backoff)
+    up to `MAX_ATTEMPTS` (5) - the actual "WorkManager for retrying
+    failed API calls" use AGENTS.md's own stack note was written for,
+    and safe specifically because nothing has been written to Firefly
+    yet at that point, a repeated *read*. Capped rather than left to
+    WorkManager's default indefinite retry: since every message
     shares one `APPEND` chain, a stuck-retrying item would otherwise
     block every later notification's auto-create attempt forever (a
     dead/revoked token would silently stall the entire feature, not
@@ -1188,6 +1191,25 @@ Single `:app` module, packages under
     instead of burning through those attempts on a guaranteed-to-fail
     call - once connectivity returns, the whole backlog drains in
     order.
+    **`post`'s own `createTransaction` call never retries, on purpose -
+    fixed a real inconsistency, the user's own catch**: an earlier
+    version gave a failed `createTransaction` call the identical
+    `Result.retry()`/`MAX_ATTEMPTS` treatment - directly contradicting
+    the non-idempotency reasoning already settled and documented on
+    `network.FireflyApiClient.createTransaction` itself (deliberately
+    never wrapped in `network.withNetworkRetry`, precisely because a
+    lost response *after* Firefly already wrote the transaction would
+    retry into a genuine second one - that KDoc's own "the caller
+    decides whether to try again" means a *human*, the same way
+    `updateTransaction`'s own failure just surfaces and stops, no
+    retry at all). Automatically retrying at the Worker layer carries
+    the exact same risk as retrying inside `FireflyApiClient` would
+    have - same non-idempotent write either way - so `post` now
+    matches `updateTransaction`'s posture instead: one failure, one
+    `notifyFailed` notification, `Result.failure()`, stop. The user
+    resolves it by hand afterward (`checkIfCreated`/manual create),
+    the same human-supervised path every other ambiguous case in this
+    app already goes through.
     `AutoCreateNotifications` posts to one `NotificationChannel`
     (`IMPORTANCE_DEFAULT` - not `_HIGH`, no heads-up warranted for a
     background bookkeeping result; not `_LOW` either, a skipped-

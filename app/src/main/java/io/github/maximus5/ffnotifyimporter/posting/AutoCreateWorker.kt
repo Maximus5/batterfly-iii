@@ -31,17 +31,32 @@ import java.math.BigDecimal
  * notification - manual creation's own feedback is the in-app OK dialog, which makes no sense for
  * something that happened with the app not even open.
  *
- * [Result.retry] on a failed Firefly call *or* a failed dedup-check verification
+ * [Result.retry], up to [MAX_ATTEMPTS], applies **only** to a failed dedup-check *verification*
  * ([DuplicateCheckResult.SearchFailed] - a local-cache hit that couldn't be confirmed against
- * Firefly, see that type's own KDoc for why this is no longer treated as "assume no duplicate"),
- * up to [MAX_ATTEMPTS] - this is the actual "WorkManager for retrying failed API calls" use
- * AGENTS.md's own stack note was written for.
+ * Firefly, see that type's own KDoc for why this is no longer treated as "assume no duplicate") -
+ * this is the actual "WorkManager for retrying failed API calls" use AGENTS.md's own stack note
+ * was written for, and it's safe specifically because nothing has been written yet at that point,
+ * a repeated *read*.
  * Capped rather than left to WorkManager's default indefinite retry: [AutoCreateScheduler]
  * enqueues every message into one single `ExistingWorkPolicy.APPEND` chain, so a stuck-retrying
  * item would otherwise block every later notification's auto-create attempt forever (a dead/
  * revoked token would silently stall the entire feature, not just one message) - exceeding the
  * cap gives up ([Result.failure]) instead, unblocking the chain, and tells the user once via
  * notification rather than retrying it forever in silence.
+ *
+ * **[post] itself never retries, on purpose, the user's own catch of a real inconsistency**: an
+ * earlier version of this class *did* retry a failed `createTransaction` call too, the same
+ * `Result.retry()`/[MAX_ATTEMPTS] shape - directly contradicting the non-idempotency reasoning
+ * already settled and documented on `network.FireflyApiClient.createTransaction` itself (never
+ * wrapped in `network.withNetworkRetry`, precisely because a lost response *after* Firefly already
+ * wrote the transaction would retry into a genuine second one - "the caller decides whether to try
+ * again", that KDoc says, meaning a *human*, the same way `FireflyApiClient.updateTransaction`'s
+ * own failure just surfaces and stops). Retrying automatically at this layer carries the exact
+ * same risk as retrying inside [FireflyApiClient] would have - it's the same non-idempotent write
+ * either way - so [post] now matches `updateTransaction`'s own posture: one failure, one
+ * notification, stop.
+ * The user resolves it by hand afterward (`checkIfCreated`/manual create), the same
+ * human-supervised path every other ambiguous case in this app already goes through.
  */
 class AutoCreateWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
 
@@ -76,10 +91,11 @@ class AutoCreateWorker(context: Context, params: WorkerParameters) : CoroutineWo
         return when (val result = checkForDuplicate(applicationContext, resolved)) {
             is DuplicateCheckResult.None -> post(resolved, amount, message, prefs)
             is DuplicateCheckResult.SearchFailed -> {
-                // Same retry/give-up shape as a failed createTransaction call below - a dedup
-                // check that couldn't be verified is no longer "assume no duplicate" (the user's
-                // own explicit call, see DuplicateCheckResult.SearchFailed's KDoc), so this gets
-                // the same chance to recover from a transient network blip before giving up.
+                // Safe to retry - nothing has been written yet, this is only a read (unlike
+                // post()'s own createTransaction call, which never retries, see this class's own
+                // KDoc). A dedup check that couldn't be verified is no longer "assume no
+                // duplicate" (the user's own explicit call, see DuplicateCheckResult.SearchFailed's
+                // KDoc), so this gets a chance to recover from a transient network blip first.
                 if (runAttemptCount >= MAX_ATTEMPTS) {
                     AutoCreateNotifications.notifyFailed(applicationContext, message, result.message)
                     Result.failure()
@@ -138,12 +154,11 @@ class AutoCreateWorker(context: Context, params: WorkerParameters) : CoroutineWo
                 Result.success()
             }
             is FireflyApiClient.Result.Failure -> {
-                if (runAttemptCount >= MAX_ATTEMPTS) {
-                    AutoCreateNotifications.notifyFailed(applicationContext, message, result.message)
-                    Result.failure()
-                } else {
-                    Result.retry()
-                }
+                // Never retried - see this class's own KDoc. A lost response after Firefly
+                // already applied the write would retry into a genuine second transaction, the
+                // exact thing this app's dedup machinery exists to prevent in the first place.
+                AutoCreateNotifications.notifyFailed(applicationContext, message, result.message)
+                Result.failure()
             }
         }
     }
