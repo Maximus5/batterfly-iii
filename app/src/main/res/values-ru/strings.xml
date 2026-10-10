@@ -270,6 +270,11 @@
     <string name="notifications_show_financial_switch">Показывать финансовую информацию в уведомлении</string>
     <string name="notifications_show_financial_switch_hint">Показывать сумму, валюту и описание в тексте уведомления. По умолчанию выключено — уведомление может увидеть кто-то кроме вас, например на заблокированном экране.</string>
     <string name="notifications_open_system_settings_button">Открыть системные настройки уведомлений…</string>
+    <string name="notifications_permission_card_title">Уведомления выключены</string>
+    <string name="notifications_permission_card_body">Когда сообщение банка совпадает с правилом, приложение показывает уведомление: либо «Создать транзакцию?» для проверки, либо итог автоматического создания (создана, дубликат или ошибка). Без разрешения вы их не увидите, но подходящие сообщения всё равно появятся в списке приложения.</string>
+    <string name="notifications_permission_card_body_blocked">Уведомления этого приложения выключены в системных настройках, поэтому ни одно из описанных выше уведомлений не появится. Включите их там.</string>
+    <string name="notifications_permission_allow_button">Разрешить уведомления</string>
+    <string name="notifications_permission_blocked_button">Открыть системные настройки</string>
 
     <string name="auto_create_channel_name">Автосоздание</string>
     <string name="auto_create_channel_description">Транзакции, созданные автоматически из уведомлений, без открытия приложения</string>

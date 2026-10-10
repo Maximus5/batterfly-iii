@@ -88,14 +88,10 @@ class TransactionCreationFragment : Fragment() {
     private var enabledCurrencies: List<FireflyCurrency>? = null
     private var assetAccounts: List<FireflyAccount>? = null
 
-    /** Requested the moment the user turns auto-create on, and also on opening this screen while
-     * it's already on (the user's own catch: a switch already enabled from a build before this
-     * check existed, or opening this screen is as good a moment as any to notice a later-revoked
-     * permission - `ui.MainActivity` separately re-checks at every app start too, for a user who
-     * never opens this screen again). Declining it doesn't block the switch itself - auto-create
-     * still works without it, the user just won't see `posting.AutoCreateNotifications`' outcome
-     * notifications (same as `BankNotificationListenerService`'s own "go grant this in system
-     * settings yourself" permission, no in-app gate on functioning without it). */
+    /** Requested the moment the user turns auto-create on - the explanation for it lives on the
+     * Notifications screen ([NotificationSettingsFragment]), which is also where the permission is
+     * otherwise requested. Declining doesn't block the switch itself - auto-create still works
+     * without it, the user just won't see `posting.AutoCreateNotifications`' outcome notifications. */
     private val notificationPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { /* no-op either way */ }
 
@@ -126,7 +122,6 @@ class TransactionCreationFragment : Fragment() {
         binding.defaultSourceAccountLayout.setEndIconOnClickListener { showAccountPicker(binding.defaultSourceAccountInput) }
 
         binding.autoCreateSwitch.setOnCheckedChangeListener { _, isChecked -> if (isChecked) requestNotificationPermissionIfNeeded() }
-        if (binding.autoCreateSwitch.isChecked) requestNotificationPermissionIfNeeded()
 
         initialSnapshot = buildSnapshot()
         (activity as? SettingsActivity)?.setBackGuard { handleBackPressed() }

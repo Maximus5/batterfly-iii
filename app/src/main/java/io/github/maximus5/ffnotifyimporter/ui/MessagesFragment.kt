@@ -1,6 +1,5 @@
 package io.github.maximus5.ffnotifyimporter.ui
 
-import android.Manifest
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -8,7 +7,6 @@ import android.content.Intent
 import android.graphics.Typeface
 import android.net.Uri
 import android.os.Bundle
-import android.provider.Settings
 import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.text.format.DateFormat
@@ -18,7 +16,6 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.PopupMenu
 import android.widget.Toast
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.core.app.NotificationManagerCompat
 import androidx.fragment.app.Fragment
@@ -124,7 +121,7 @@ class MessagesFragment : Fragment() {
             done = notificationsReady,
             titleRes = R.string.setup_step_notifications,
             subtitleRes = R.string.setup_step_notifications_sub,
-            onClick = ::onNotificationsStepClicked,
+            screen = SettingsActivity.SetupScreen.NOTIFICATIONS,
         )
         bindStep(
             binding.stepTestMessage.root,
@@ -148,38 +145,6 @@ class MessagesFragment : Fragment() {
         row.findViewById<android.widget.TextView>(R.id.stepTitle).setText(titleRes)
         row.findViewById<android.widget.TextView>(R.id.stepSubtitle).setText(subtitleRes)
         row.setOnClickListener { onClick() }
-    }
-
-    /** POST_NOTIFICATIONS is otherwise only ever requested when auto-create is switched on, so with
-     * the defaults (auto-create off, "show notifications" on) review notifications were silently
-     * dropped. Missing permission -> ask for it (the system dialog stops appearing after repeated
-     * denials; [onNotificationPermissionResult] then sends the user to the system settings);
-     * system-level notifications off -> system settings; otherwise the in-app Notifications screen. */
-    private fun onNotificationsStepClicked() {
-        val context = requireContext()
-        when {
-            !isNotificationPermissionGranted(context) -> notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-            !NotificationManagerCompat.from(context).areNotificationsEnabled() -> openSystemNotificationSettings()
-            else -> startActivity(SettingsActivity.intentFor(context, SettingsActivity.SetupScreen.NOTIFICATIONS))
-        }
-    }
-
-    private val notificationPermissionLauncher =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted -> onNotificationPermissionResult(granted) }
-
-    private fun onNotificationPermissionResult(granted: Boolean) {
-        if (granted) {
-            updateEmptyState()
-        } else if (!shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS)) {
-            openSystemNotificationSettings()
-        }
-    }
-
-    private fun openSystemNotificationSettings() {
-        startActivity(
-            Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
-                .putExtra(Settings.EXTRA_APP_PACKAGE, requireContext().packageName),
-        )
     }
 
     override fun onResume() {

@@ -1,13 +1,18 @@
 package io.github.maximus5.ffnotifyimporter.ui
 
+import android.Manifest
 import android.content.Intent
 import android.os.Bundle
 import android.provider.Settings
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.app.NotificationManagerCompat
 import androidx.fragment.app.Fragment
+import io.github.maximus5.ffnotifyimporter.R
 import io.github.maximus5.ffnotifyimporter.databinding.FragmentNotificationSettingsBinding
+import io.github.maximus5.ffnotifyimporter.posting.isNotificationPermissionGranted
 import io.github.maximus5.ffnotifyimporter.prefs.NotificationPrefs
 
 /**
@@ -56,8 +61,48 @@ class NotificationSettingsFragment : Fragment() {
         binding.openSystemSettingsButton.setOnClickListener { openSystemNotificationSettings() }
     }
 
+    override fun onResume() {
+        super.onResume()
+        updatePermissionState()
+    }
+
+    private val notificationPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            if (!granted && !shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS)) {
+                openSystemNotificationSettings()
+            }
+            updatePermissionState()
+        }
+
+    /** The explanation card is shown while notifications can't actually appear (runtime permission
+     * missing, or switched off in system settings), and the in-app switches are disabled meanwhile -
+     * visible so the user sees what they'd be enabling, not usable since they'd have no effect. The
+     * system permission dialog is only ever launched from this card's button, after the explanation. */
+    private fun updatePermissionState() {
+        val binding = binding ?: return
+        val context = requireContext()
+        val permissionMissing = !isNotificationPermissionGranted(context)
+        val blockedInSystem = !permissionMissing && !NotificationManagerCompat.from(context).areNotificationsEnabled()
+        binding.permissionCard.visibility = if (permissionMissing || blockedInSystem) View.VISIBLE else View.GONE
+        if (permissionMissing) {
+            binding.permissionCardBody.setText(R.string.notifications_permission_card_body)
+            binding.permissionCardButton.setText(R.string.notifications_permission_allow_button)
+            binding.permissionCardButton.setOnClickListener {
+                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        } else {
+            binding.permissionCardBody.setText(R.string.notifications_permission_card_body_blocked)
+            binding.permissionCardButton.setText(R.string.notifications_permission_blocked_button)
+            binding.permissionCardButton.setOnClickListener { openSystemNotificationSettings() }
+        }
+        binding.showNotificationsSwitch.isEnabled = !permissionMissing && !blockedInSystem
+        updateFinancialSwitchEnabled()
+    }
+
     private fun updateFinancialSwitchEnabled() {
-        binding?.showFinancialInfoSwitch?.isEnabled = binding?.showNotificationsSwitch?.isChecked == true
+        val binding = binding ?: return
+        binding.showFinancialInfoSwitch.isEnabled =
+            binding.showNotificationsSwitch.isEnabled && binding.showNotificationsSwitch.isChecked
     }
 
     /** `ACTION_APP_NOTIFICATION_SETTINGS` - the whole app's notification settings (every channel:

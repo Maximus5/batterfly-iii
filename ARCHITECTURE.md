@@ -3077,11 +3077,15 @@ Single `:app` module, packages under
     recomputed on every `onResume` so returning from a settings screen
     updates it. Below a divider, an "Optional" group of two more rows:
     *Show notifications* (done = `POST_NOTIFICATIONS` granted + system
-    notifications on + the in-app switch on; a tap requests the permission,
-    falling back to the system app-notification settings once the dialog no
-    longer appears, since the permission is otherwise only requested when
-    auto-create is switched on and review notifications were silently dropped
-    with the defaults) and *Add a test message* (opens `AddTestMessageFragment`;
+    notifications on + the in-app switch on; a tap opens the Notifications
+    screen, never the system permission dialog directly: that screen
+    (`NotificationSettingsFragment`) shows an explanation card while the
+    permission is missing or notifications are blocked in system settings,
+    with an "Allow notifications" button - the only place the system dialog
+    is launched, falling back to the system app-notification settings once it
+    no longer appears - and keeps its switches disabled meanwhile. Nothing
+    prompts at app start any more; the auto-create switch's own toggle-time
+    request remains) and *Add a test message* (opens `AddTestMessageFragment`;
     never shows as done - the checklist is retired as soon as a message exists). Tapping a row starts `SettingsActivity` with its
     `EXTRA_SCREEN` (`SettingsActivity.SetupScreen`), which opens that one
     screen as the activity's root with no back-stack entry, so back lands

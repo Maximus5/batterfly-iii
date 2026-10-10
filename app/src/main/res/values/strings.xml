@@ -268,6 +268,11 @@
     <string name="notifications_show_financial_switch">Show financial information in notification</string>
     <string name="notifications_show_financial_switch_hint">Include the amount, currency, and description in the notification text. Off by default - a notification can be seen by someone other than you, e.g. on a locked screen.</string>
     <string name="notifications_open_system_settings_button">Open system notification settings…</string>
+    <string name="notifications_permission_card_title">Notifications are off</string>
+    <string name="notifications_permission_card_body">When a bank message matches a rule, this app shows a notification: either \"Create transaction?\" for you to review, or the outcome of an automatic creation (created, duplicate, or failed). Without permission you won\'t see them, but matching messages still appear in the app\'s list.</string>
+    <string name="notifications_permission_card_body_blocked">Notifications for this app are turned off in the system settings, so none of the notifications described above can appear. Turn them back on there.</string>
+    <string name="notifications_permission_allow_button">Allow notifications</string>
+    <string name="notifications_permission_blocked_button">Open system settings</string>
 
     <string name="auto_create_channel_name">Auto-create</string>
     <string name="auto_create_channel_description">Transactions created automatically from notifications, without opening the app</string>
