@@ -463,6 +463,30 @@ Single `:app` module, packages under
     auto-creates expense/revenue accounts by exact name, so the two
     differently-spaced names would have ended up as two separate
     accounts in Firefly for what's really one counterparty.
+    `RuleEngine` also takes an optional `allTransactionsTag: String`
+    constructor parameter (default blank, same "callers that don't
+    care can ignore it" shape `currencySymbols` already has) - the
+    user's own request: a tag merged into *every* draft's own
+    `tagsTemplate` output (skipped if already present, same
+    already-present check `rules.applyApproxConversion`'s own
+    `approxTag` merge uses) so a tag wanted on every transaction
+    doesn't have to be repeated inside every single rule's own tags
+    template. A plain `String`, not a `FireflyPrefs`/`Context`
+    reference, for the same "rules stays free of any Android/Firefly
+    dependency" reason `currencySymbols` is injected as plain data
+    rather than read from `CurrenciesDb` internally - every caller that
+    constructs a `RuleEngine` (`ui.MessagesFragment`'s two call sites,
+    `ui.CreateTransactionFragment`, `posting.RuleMatching.matchRule` -
+    shared by `AutoCreateWorker`/`ReviewNotificationWorker`) now also
+    passes `FireflyPrefs.getAllTransactionsTag()`.
+    `ui.TransactionCreationFragment`'s own field for this
+    ("Tag for all transactions") sits after the dedup-window field's
+    own divider, grouped with "Approximate-conversion tag" (moved there
+    from the top of the screen) rather than with auto-create/dedup
+    above - the user's own layout call, kept out of `RuleEditFragment`'s
+    "Test results" preview (that dialog only ever reads the matched
+    `outcome.groups`, never the draft's own `tags`, so passing it there
+    would have had no visible effect).
   - `CurrencyEntry`/`CurrenciesDb` - another user-maintained
     placeholder table (code<->symbol, e.g. `EUR`<->`€`), same idea and
     same "plain SQLite, no ORM, `getInstance(context)` singleton"
@@ -565,9 +589,10 @@ Single `:app` module, packages under
     settings, one prefs class for both even though its UI is now split
     across two screens (`ui.FireflyConnectionFragment` - base URL,
     personal access token; `ui.TransactionCreationFragment` - the
-    approximate-conversion tag name, auto-create toggle, dedup toggle +
-    include-description toggle + window (minutes, default 5) - see the
-    `ui` section below for why they're separate screens now). Base URL
+    all-transactions tag, approximate-conversion tag name, auto-create
+    toggle, dedup toggle + include-description toggle + window
+    (minutes, default 5) - see the `ui` section below for why they're
+    separate screens now). Base URL
     and token are the only genuinely secret values in this app
     (AGENTS.md's Secrets section) - encrypted through `KeystoreCipher`
     before being stored, in an otherwise plain `SharedPreferences`
@@ -2029,12 +2054,19 @@ Single `:app` module, packages under
         Placed at the *bottom* of the form, below Save and behind its
         own divider - the user's own layout call, out of the way of the
         fields someone actually opens this screen to edit.
-      `TransactionCreationFragment` (approx tag, auto-create, dedup -
-      all three) carries no such protection, same explicit Save-button
-      shape as before, not autosave-per-field like
-      `MessageHistoryFragment`'s radio group, since several of these
-      fields are text the user is still typing/correcting rather than a
-      single tap choice. "Test connection" runs
+      `TransactionCreationFragment` (row title shortened to
+      "Transactions", the user's own call - auto-create, dedup, the
+      all-transactions tag, approx tag) carries no such protection,
+      same explicit Save-button shape as before, not autosave-per-field
+      like `MessageHistoryFragment`'s radio group, since several of
+      these fields are text the user is still typing/correcting rather
+      than a single tap choice. Field order: auto-create, a divider,
+      the three dedup fields, a second divider, then the
+      all-transactions tag and approx tag together (see the `rules`
+      section above for what each actually does) - the user's own
+      layout call, grouping the two tag fields together at the bottom
+      rather than splitting one off at the top the way the original
+      combined screen had it. "Test connection" runs
       `FireflyApiClient.testConnection()` on a coroutine
       (`viewLifecycleOwner.lifecycleScope`) against whatever's
       currently typed in the URL/token fields (falling back to the

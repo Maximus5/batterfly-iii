@@ -178,6 +178,22 @@ class RuleEngineTest {
     }
 
     @Test
+    fun `allTransactionsTag is appended to every draft's own tags`() {
+        val r = rule(pattern = """spent (?<amount>[\d,]+) EUR""", tagsTemplate = "recurring")
+        val outcome = RuleEngine(listOf(r), allTransactionsTag = "firefly-importer").match(message()) as ParseOutcome.Matched
+
+        assertEquals(listOf("recurring", "firefly-importer"), outcome.draft.tags)
+    }
+
+    @Test
+    fun `allTransactionsTag is not duplicated when the rule's own tags already include it`() {
+        val r = rule(pattern = """spent (?<amount>[\d,]+) EUR""", tagsTemplate = "firefly-importer, recurring")
+        val outcome = RuleEngine(listOf(r), allTransactionsTag = "firefly-importer").match(message()) as ParseOutcome.Matched
+
+        assertEquals(listOf("firefly-importer", "recurring"), outcome.draft.tags)
+    }
+
+    @Test
     fun `blank category and tags templates produce no category and no tags`() {
         val r = rule(pattern = """spent (?<amount>[\d,]+) EUR""")
         val outcome = RuleEngine(listOf(r)).match(message()) as ParseOutcome.Matched

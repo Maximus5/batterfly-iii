@@ -27,6 +27,15 @@ class FireflyPrefs(context: Context) {
     fun getApproxConversionTag(): String = prefs.getString(KEY_APPROX_TAG, "").orEmpty()
     fun setApproxConversionTag(tag: String) = prefs.edit().putString(KEY_APPROX_TAG, tag).apply()
 
+    /** Appended to *every* transaction this app creates, regardless of which rule matched - the
+     * user's own request, so a tag they want on everything doesn't have to be repeated in every
+     * single rule's own `tagsTemplate`. Merged in by [rules.RuleEngine] itself (a plain `String`
+     * constructor parameter, same "external config injected as data, not a `Context`/`FireflyPrefs`
+     * dependency" shape [rules.RuleEngine]'s own `currencySymbols` already uses) - `rules` stays
+     * free of any Android/Firefly dependency either way. */
+    fun getAllTransactionsTag(): String = prefs.getString(KEY_ALL_TRANSACTIONS_TAG, "").orEmpty()
+    fun setAllTransactionsTag(tag: String) = prefs.edit().putString(KEY_ALL_TRANSACTIONS_TAG, tag).apply()
+
     /** Off by default - posting is a real side effect, the user opts in explicitly rather than
      * it happening the moment a connection is configured. */
     fun isAutoCreateEnabled(): Boolean = prefs.getBoolean(KEY_AUTO_CREATE, false)
@@ -63,6 +72,7 @@ class FireflyPrefs(context: Context) {
         private const val KEY_BASE_URL = "base_url"
         private const val KEY_TOKEN = "token"
         private const val KEY_APPROX_TAG = "approx_conversion_tag"
+        private const val KEY_ALL_TRANSACTIONS_TAG = "all_transactions_tag"
         private const val KEY_AUTO_CREATE = "auto_create"
         private const val KEY_DEDUP_ENABLED = "dedup_enabled"
         private const val KEY_DEDUP_INCLUDE_DESCRIPTION = "dedup_include_description"

@@ -123,10 +123,11 @@ class MessagesFragment : Fragment() {
      * no-match/not-configured cases still show the plain dialog directly - there's nothing to
      * check or review/edit in either. */
     private fun showTestMatch(message: CapturedMessage) {
-        val rules = RulesDb.getInstance(requireContext()).loadAllOrdered()
-        val currencySymbols = CurrenciesDb.getInstance(requireContext()).symbolToCodeMap()
-        val outcome = RuleEngine(rules, currencySymbols).match(message)
         val context = requireContext()
+        val rules = RulesDb.getInstance(context).loadAllOrdered()
+        val currencySymbols = CurrenciesDb.getInstance(context).symbolToCodeMap()
+        val allTransactionsTag = FireflyPrefs(context).getAllTransactionsTag()
+        val outcome = RuleEngine(rules, currencySymbols, allTransactionsTag).match(message)
 
         when (outcome) {
             is ParseOutcome.NoMatch -> {
@@ -653,7 +654,7 @@ class MessagesFragment : Fragment() {
 
             val rules = RulesDb.getInstance(context).loadAllOrdered()
             val currencySymbols = CurrenciesDb.getInstance(context).symbolToCodeMap()
-            val outcome = RuleEngine(rules, currencySymbols).match(message)
+            val outcome = RuleEngine(rules, currencySymbols, prefs.getAllTransactionsTag()).match(message)
             val draft = (outcome as? ParseOutcome.Matched)?.draft
             if (draft == null) {
                 Toast.makeText(context, R.string.messages_check_no_rule_matched, Toast.LENGTH_SHORT).show()

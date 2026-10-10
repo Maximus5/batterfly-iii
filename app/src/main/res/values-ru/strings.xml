@@ -226,6 +226,8 @@
     <string name="firefly_dedup_include_description">Также сравнивать description</string>
     <string name="firefly_field_dedup_window">Окно дедупликации (минут)</string>
     <string name="firefly_dedup_window_invalid">Окно дедупликации должно быть положительным числом минут.</string>
+    <string name="firefly_field_all_transactions_tag">Тег для всех транзакций</string>
+    <string name="firefly_field_all_transactions_tag_example">напр. firefly-importer — добавляется ко всем создаваемым приложением транзакциям, независимо от правила</string>
 
     <string name="settings_notifications_title">Уведомления</string>
     <string name="settings_notifications_subtitle">Что показывают собственные уведомления приложения</string>

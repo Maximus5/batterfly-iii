@@ -45,7 +45,8 @@ fun capturedMessageFrom(data: Data): CapturedMessage = CapturedMessage(
 fun matchRule(context: Context, message: CapturedMessage): TransactionDraft? {
     val rules = RulesDb.getInstance(context).loadAllOrdered()
     val currencySymbols = CurrenciesDb.getInstance(context).symbolToCodeMap()
-    val outcome = RuleEngine(rules, currencySymbols).match(message)
+    val allTransactionsTag = FireflyPrefs(context).getAllTransactionsTag()
+    val outcome = RuleEngine(rules, currencySymbols, allTransactionsTag).match(message)
     return (outcome as? ParseOutcome.Matched)?.draft
 }
 

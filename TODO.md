@@ -1147,3 +1147,18 @@ work.
     testing rules later") shortened to "Manually add a message for
     testing purposes" - also the text now shown above the button on
     `MessageHistoryFragment`.
+- **Done**, the user's own request: a "Tag for all transactions" field
+  on `TransactionCreationFragment` (new `FireflyPrefs.
+  getAllTransactionsTag`/`setAllTransactionsTag`), merged into *every*
+  created transaction's tags regardless of which rule matched - so a
+  tag wanted everywhere doesn't have to be repeated inside every single
+  rule's own tags template, unlike the existing "Approximate-conversion
+  tag" (only ever applied to an amount this app computed from a fetched
+  exchange rate). See ARCHITECTURE.md's `rules` section
+  (`RuleEngine`'s new `allTransactionsTag` constructor parameter) for
+  the full design - kept as a plain `String`, not a
+  `FireflyPrefs`/`Context` reference, same shape `currencySymbols`
+  already uses, so `rules` stays free of any Android/Firefly
+  dependency. Placed after the dedup-window field's own divider,
+  grouped with "Approximate-conversion tag" (moved there from the top
+  of the screen) - the user's own layout call.
