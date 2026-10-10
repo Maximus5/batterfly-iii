@@ -232,57 +232,29 @@ class MessagesFragment : Fragment() {
             .setPositiveButton(android.R.string.ok, null)
         if (existingTransactionId != null) {
             builder.setNeutralButton(R.string.create_open_transaction) { _, _ -> openTransaction(context, existingTransactionId) }
-            builder.setNegativeButton(R.string.create_again) { _, _ -> confirmCreateAgain(context, draft, message, existingTransactionId) }
+            builder.setNegativeButton(R.string.create_again) { _, _ -> startCreate(context, message) }
         }
         builder.show()
     }
 
-    /** Confirms before "Create Again" actually runs - the user's own call, after noticing the tap
-     * had no confirmation at all. [startCreate] below still runs its own preemptive
-     * [checkForDuplicate] (same reasoning as [checkThenOpenCreateOrShowFound]: surface a found
-     * duplicate's info before the user even gets to the editor, rather than only at the very end),
-     * but no longer *posts* on a clean result - every path out of [startCreate] now lands in
-     * [CreateTransactionActivity] for review first, posting is never implicit. This dialog is the
-     * one guaranteed "are you sure", shown every time regardless of dedup settings, since
-     * [existingTransactionId] already proves a transaction exists for this message. Cancel always
-     * rightmost/last (house convention, AGENTS.md). */
-    private fun confirmCreateAgain(context: Context, draft: TransactionDraft, message: CapturedMessage, existingTransactionId: String) {
-        AlertDialog.Builder(context)
-            .setTitle(R.string.create_again_confirm_title)
-            .setMessage(getString(R.string.create_again_confirm_message, existingTransactionId))
-            .setNegativeButton(R.string.create_again) { _, _ -> startCreate(draft, message) }
-            .setPositiveButton(android.R.string.cancel, null)
-            .show()
-    }
-
-    /** Entry point for "Create Again" - gated behind [confirmCreateAgain] above. Never posts
-     * directly (see that function's own KDoc for why this changed): a clean/failed duplicate
-     * check opens [CreateTransactionActivity] for review, same as [checkThenOpenCreateOrShowFound]
-     * does for a fresh match; a found duplicate shows the usual duplicate-confirm dialog instead,
-     * whose own "Create anyway" also opens that same review screen rather than posting from here. */
-    private fun startCreate(draft: TransactionDraft, message: CapturedMessage) {
-        val context = requireContext()
-        if (draft.amount == null) {
-            Toast.makeText(context, R.string.create_amount_not_ready, Toast.LENGTH_SHORT).show()
-            return
-        }
-        viewLifecycleOwner.lifecycleScope.launch {
-            when (val result = checkForDuplicate(context, draft)) {
-                is DuplicateCheckResult.None ->
-                    startActivity(CreateTransactionActivity.intent(context, message))
-                is DuplicateCheckResult.SearchFailed ->
-                    showResultDialog(context, R.string.check_search_failed_title, result.message)
-                is DuplicateCheckResult.Found -> showDuplicateConfirmDialog(context, result.id, message, knownCandidate = result.candidate)
-                is DuplicateCheckResult.FoundMultiple -> {
-                    Toast.makeText(
-                        context,
-                        getString(R.string.create_remote_duplicates_found, result.count),
-                        Toast.LENGTH_LONG,
-                    ).show()
-                    showDuplicateConfirmDialog(context, result.mostRecentId, message, knownCandidate = result.candidate)
-                }
-            }
-        }
+    /** Entry point for "Create Again" - opens [CreateTransactionActivity] directly, no
+     * confirmation dialog and no preemptive duplicate check of its own.
+     *
+     * **Fixed a real "pointless extra step" bug, the user's own catch**: this used to show its own
+     * "this will post a second transaction, are you sure?" confirmation dialog first, then (once
+     * accepted) run its own preemptive [checkForDuplicate] - which, since [existingTransactionId]
+     * already proves a matching transaction exists, would almost always re-find that exact same
+     * transaction and show a *second*, differently-worded "possible duplicate, create anyway?"
+     * dialog for the same thing the user had just confirmed one screen ago. Two redundant gates
+     * before ever reaching the actual review screen. Now there's exactly one: [showTestMatch]
+     * already only offers "Create Again" once [existingTransactionId] has been live-verified (see
+     * [verifyLinkedThenShow]), [CreateTransactionActivity] shows an explicit warning banner instead
+     * of a blocking dialog (informational while editing, not a gate), and the real "are you sure"
+     * naturally happens exactly once, at the point that actually matters: the review screen's own
+     * on-submit [checkForDuplicate] finds the same linked transaction and asks via
+     * `CreateTransactionFragment.confirmCreateAnyway` right before actually posting. */
+    private fun startCreate(context: Context, message: CapturedMessage) {
+        startActivity(CreateTransactionActivity.intent(context, message))
     }
 
     /** Four actions ("Use Created"/"Open"/"Create anyway"/"Cancel", Cancel always last) - more

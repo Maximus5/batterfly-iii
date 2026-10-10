@@ -1458,6 +1458,26 @@ Single `:app` module, packages under
       duplicate still shows `showDuplicateConfirmDialog` first, whose
       own "Create anyway" (below) also opens that same screen rather
       than posting from here.
+      **Superseded, the user's own catch**: `confirmCreateAgain`'s own
+      dialog (described just above) and `startCreate`'s preemptive
+      `checkForDuplicate` are both gone now - between them they produced
+      *two* confirmation gates in a row before the user ever reached the
+      review screen (confirmCreateAgain's "this will post a second
+      transaction", then almost immediately `showDuplicateConfirmDialog`
+      again for the exact same transaction the first dialog already
+      named, since the preemptive check would re-find it). "Create
+      Again" now opens `CreateTransactionActivity` directly - no dialog,
+      no preemptive check - which shows an explicit warning banner
+      instead (`create_tx_already_linked_warning`, red/`?attr/colorError`,
+      informational while editing, not a gate) and relies on its own
+      existing on-submit `checkForDuplicate` (`CreateTransactionFragment.
+      confirmCreateAnyway`) for the one real "are you sure", asked
+      exactly once, at the point that actually matters. `message.
+      fireflyTransactionId` is now carried across the Activity boundary
+      too (`CreateTransactionActivity.intent`'s new
+      `EXTRA_EXISTING_TRANSACTION_ID`) specifically so the fragment can
+      show that banner - previously dropped entirely when crossing into
+      this screen.
     - Nothing linked yet (and Firefly configured): this dialog shows up
       as its *found* variant (`showDuplicateConfirmDialog`, same as
       every other create path's duplicate hit) if the preemptive check
@@ -1565,11 +1585,22 @@ Single `:app` module, packages under
     Again" (`startCreate`) and "Create anyway" (`showDuplicateConfirmDialog`)
     - every manual create path ends up here, per the user's explicit
     rule that only `posting.AutoCreateWorker`'s background path is
-    allowed to post without review. `CreateTransactionFragment` doesn't
-    treat an already-linked `message` (a "Create Again"/"Create anyway"
+    allowed to post without review. Posting itself doesn't treat an
+    already-linked `message` (a "Create Again"/"Create anyway"
     re-launch) specially - it just re-matches and posts, overwriting the
     previous link, same "latest wins" reasoning used everywhere else a
-    message gets re-created.
+    message gets re-created. The screen's *display* does now, the
+    user's own request: `message.fireflyTransactionId`, when present,
+    shows `alreadyLinkedWarningText` (red/`?attr/colorError`, bold,
+    `create_tx_already_linked_warning` - "⚠ This message is already
+    linked to transaction #X. Creating will post a second transaction")
+    right at the top of the form, replacing the separate confirmation
+    dialog `MessagesFragment.confirmCreateAgain` used to show *before*
+    this screen even opened (see `ui` section below, `showMatchedDialog`'s
+    entry, for why that dialog is gone). Purely informational - doesn't
+    block anything - since the screen's own on-submit duplicate check
+    already re-finds the same linked transaction and asks the real "are
+    you sure" right there (`confirmCreateAnyway`, below).
     A single-fragment-host `Activity` (its own class, not reusing
     `SettingsActivity` despite the identical shape - that class is
     named/documented as the settings area specifically, and this screen
@@ -1577,7 +1608,8 @@ Single `:app` module, packages under
     just one screen). `CreateTransactionActivity.intent(context,
     message)`/`.messageFrom(intent)` carry the message across the
     Activity boundary as its own plain fields (packageName/appLabel/
-    title/text/timestampMillis), not a serialized `TransactionDraft` -
+    title/text/timestampMillis/fireflyTransactionId), not a serialized
+    `TransactionDraft` -
     `CreateTransactionFragment` re-parses it fresh via `RuleEngine.match`
     once it's running, the same "reconstruct from primitives, don't try
     to serialize a `BigDecimal`/`Instant`-carrying data class across a

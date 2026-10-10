@@ -20,6 +20,16 @@ import io.github.maximus5.ffnotifyimporter.databinding.ActivityCreateTransaction
  * review screen is only ever allowed for `posting.AutoCreateWorker`'s background
  * auto-create-by-notification path, never for a manual action, including a manual "create anyway"
  * on an already-confirmed duplicate.
+ *
+ * **Fixed a real "pointless extra step" complaint, the user's own catch**: "Create Again" used to
+ * show its own confirmation dialog (`MessagesFragment.confirmCreateAgain`, "this will post a
+ * second transaction, are you sure?") *before* ever reaching this screen - redundant with the
+ * screen's own on-submit duplicate check, which finds the exact same already-linked transaction
+ * again and asks the real "are you sure" at the point that actually matters (about to post), via
+ * [CreateTransactionFragment.confirmCreateAnyway]. That dialog is gone now; "Create Again" opens
+ * this screen directly, which shows an explicit warning banner instead (see
+ * [CreateTransactionFragment] for why) - informational while editing, not a gate, since the real
+ * gate already exists further down the same flow.
  */
 class CreateTransactionActivity : AppCompatActivity() {
 
@@ -50,15 +60,20 @@ class CreateTransactionActivity : AppCompatActivity() {
         private const val EXTRA_TITLE = "title"
         private const val EXTRA_TEXT = "text"
         private const val EXTRA_TIMESTAMP_MILLIS = "timestamp_millis"
+        private const val EXTRA_EXISTING_TRANSACTION_ID = "existing_transaction_id"
 
         /** [message] is passed as its own plain fields, not a `Parcelable`/serialized
          * `CapturedMessage` - [CreateTransactionFragment] re-parses it fresh via `RuleEngine.match`
          * the same way `posting.AutoCreateWorker` reconstructs one from `WorkManager.Data`, rather
          * than trying to carry a `TransactionDraft` (`BigDecimal`/`Instant`/`List<String>`) across
          * process boundaries. [message] may already carry a `fireflyTransactionId` (a "Create
-         * Again"/"Create anyway" re-launch) - the fragment doesn't treat that specially, it just
-         * re-matches and posts, overwriting the link with whatever gets created this time, same
-         * "latest wins" reasoning `MessagesFragment` always used for that case. */
+         * Again" re-launch - always a *verified* one by the time this is reachable, see
+         * `MessagesFragment.showTestMatch`/`verifyLinkedThenShow`) - now carried across as its own
+         * extra too, the user's own request: [CreateTransactionFragment] shows an explicit warning
+         * banner when it's present, rather than the separate confirmation dialog this used to need
+         * before ever reaching this screen. The fragment doesn't otherwise treat it specially - it
+         * just re-matches and posts, overwriting the link with whatever gets created this time,
+         * same "latest wins" reasoning `MessagesFragment` always used for that case. */
         fun intent(context: Context, message: CapturedMessage): Intent =
             Intent(context, CreateTransactionActivity::class.java)
                 .putExtra(EXTRA_PACKAGE_NAME, message.packageName)
@@ -66,6 +81,7 @@ class CreateTransactionActivity : AppCompatActivity() {
                 .putExtra(EXTRA_TITLE, message.title)
                 .putExtra(EXTRA_TEXT, message.text)
                 .putExtra(EXTRA_TIMESTAMP_MILLIS, message.timestampMillis)
+                .putExtra(EXTRA_EXISTING_TRANSACTION_ID, message.fireflyTransactionId)
 
         fun messageFrom(intent: Intent): CapturedMessage =
             CapturedMessage(
@@ -74,6 +90,7 @@ class CreateTransactionActivity : AppCompatActivity() {
                 title = intent.getStringExtra(EXTRA_TITLE).orEmpty(),
                 text = intent.getStringExtra(EXTRA_TEXT).orEmpty(),
                 timestampMillis = intent.getLongExtra(EXTRA_TIMESTAMP_MILLIS, 0L),
+                fireflyTransactionId = intent.getStringExtra(EXTRA_EXISTING_TRANSACTION_ID),
             )
     }
 }

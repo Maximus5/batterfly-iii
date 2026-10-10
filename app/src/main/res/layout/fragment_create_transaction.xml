@@ -11,6 +11,16 @@
         android:padding="16dp">
 
         <TextView
+            android:id="@+id/alreadyLinkedWarningText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:textColor="?attr/colorError"
+            android:textStyle="bold"
+            android:textSize="14sp"
+            android:visibility="gone" />
+
+        <TextView
             android:id="@+id/kindText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

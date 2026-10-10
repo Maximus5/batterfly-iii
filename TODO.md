@@ -868,3 +868,23 @@ work.
     `candidate.foreignCurrencyCode` at all when the *draft* side already
     has a genuine foreign currency, a narrower edge case than "every
     domestic transaction").
+- **Fixed a real "pointless extra step" complaint, the user's own
+  catch**: "Create Again" showed its own confirmation dialog
+  (`confirmCreateAgain`, "this will post a second transaction, are you
+  sure?") *before* the review screen even opened - redundant with that
+  screen's own on-submit duplicate check, which finds the exact same
+  linked transaction again and asks the real "are you sure" right there
+  (`confirmCreateAnyway`), at the point that actually matters. User's
+  own suggested fix: drop the separate dialog, move the warning into
+  the review screen itself as a banner instead. `confirmCreateAgain` is
+  gone; "Create Again" opens `CreateTransactionActivity` directly, which
+  now shows `create_tx_already_linked_warning` ("⚠ This message is
+  already linked to transaction #X...", red/`?attr/colorError`, bold) at
+  the top of the form whenever the message has a linked id - purely
+  informational, not a gate, since the real gate already exists further
+  down the same flow. Required carrying `message.fireflyTransactionId`
+  across the Activity boundary for the first time
+  (`CreateTransactionActivity.intent`'s new
+  `EXTRA_EXISTING_TRANSACTION_ID`) - previously dropped entirely when
+  crossing into this screen, since nothing on that side needed it before
+  now.

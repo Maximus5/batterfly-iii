@@ -108,6 +108,16 @@ class CreateTransactionFragment : Fragment() {
         populateFields(draft)
         updateAccountFieldModes()
 
+        // The user's own request: shown instead of the separate confirmation dialog
+        // "Create Again" used to pop before ever reaching this screen - see
+        // CreateTransactionActivity's own KDoc for why. Informational while editing, not a gate;
+        // the real "are you sure" already happens on submit, via this screen's own
+        // checkForDuplicate finding the same linked transaction again (confirmCreateAnyway below).
+        message.fireflyTransactionId?.let { existingId ->
+            binding.alreadyLinkedWarningText.text = getString(R.string.create_tx_already_linked_warning, existingId)
+            binding.alreadyLinkedWarningText.visibility = View.VISIBLE
+        }
+
         binding.dateTimeButton.setOnClickListener { showDateTimePicker() }
         binding.categoryLayout.setEndIconOnClickListener { showCategoryPicker(binding.categoryInput) }
         binding.createTransactionButton.setOnClickListener { onCreateClicked() }

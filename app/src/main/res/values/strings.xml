@@ -157,8 +157,6 @@
     <string name="create_success_message">Firefly transaction #%1$s.</string>
     <string name="create_open_transaction">Open transaction</string>
     <string name="create_again">Create again</string>
-    <string name="create_again_confirm_title">Create again?</string>
-    <string name="create_again_confirm_message">This message is already linked to transaction #%1$s. Creating another one will post a second transaction in Firefly.</string>
     <string name="create_failed_title">Create failed</string>
 
     <string name="create_tx_title">Create transaction</string>
@@ -180,6 +178,7 @@
     <string name="create_tx_source_required">Source account can\'t be empty.</string>
     <string name="create_tx_destination_required">Destination account can\'t be empty.</string>
     <string name="create_tx_no_rule_matched">No rule matched this message.</string>
+    <string name="create_tx_already_linked_warning">⚠ This message is already linked to transaction #%1$s. Creating will post a second transaction in Firefly.</string>
 
     <string name="settings_currencies_title">Currencies</string>
     <string name="settings_currencies_subtitle">Code↔symbol table, e.g. EUR↔€ - used to read bank notifications</string>
