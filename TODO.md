@@ -894,3 +894,15 @@ work.
   neutral button already used, for consistency between the two dialogs.
   `create_duplicate_open` (the old, now-unused string) removed from
   both locales.
+- **Done**, the user's own request/catch: the per-row overflow menu's
+  "Delete" renamed to "Delete notification" - plain "Delete" risked
+  reading as deleting the *Firefly transaction*, not this app's own
+  captured-notification entry. New `messages_action_delete` string
+  replaces the shared `action_delete` on every message-delete surface
+  (the menu item, both delete-confirm dialogs, `menu_selection.xml`'s
+  multi-select title) - `action_delete` itself untouched, still shared
+  by Currencies/Rules where the ambiguity doesn't exist.
+  Also added, same request, same menu: "Open in Firefly III" - a direct
+  shortcut to `openTransaction` without going through the tap dialog
+  first, disabled (not hidden) when the row has no `fireflyTransactionId`
+  yet.

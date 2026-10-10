@@ -1137,12 +1137,36 @@ Single `:app` module, packages under
     place in the UI that surfaces the link without having to reopen the
     test-match dialog. Each row also has an overflow (⋮) `PopupMenu`
     now, same shape as `RulesListFragment`'s (see its own notes below
-    for why that's the reference pattern) - "Check if created" and
-    "Delete", the latter asking for confirmation (same strings/dialog
-    shape as the multi-select delete below, just one message instead of
-    a selected set). Hidden (`MessagesAdapter.setSelectionMode`) while a
-    multi-select is in progress, since the two interaction modes would
-    otherwise compete for the same tap.
+    for why that's the reference pattern) - "Open in Firefly III",
+    "Check if created", and "Delete notification" (the user's own
+    rename - `action_delete`'s plain "Delete" risked reading as
+    deleting the *Firefly transaction* rather than this app's own
+    captured-notification entry; a dedicated `messages_action_delete`
+    string replaces the shared `action_delete` for every message-delete
+    surface - this menu item, both single/multi delete-confirm dialogs,
+    and `menu_selection.xml`'s own title - without touching
+    `action_delete` itself, still shared by `CurrenciesFragment`/
+    `RuleEditFragment`/`RulesListFragment` where that ambiguity doesn't
+    exist). "Open in Firefly III" (`openTransaction`, same helper every
+    other "open" action in this fragment already uses) is disabled
+    (`MenuItem.isEnabled = false`), not hidden, when the row has no
+    `fireflyTransactionId` yet - visible-but-disabled makes clear the
+    action exists and why it can't be used right now, same reasoning as
+    disabled form controls elsewhere; deliberately does *not* run
+    `verifyLinkedTransaction` first the way the tap/`checkIfCreated`
+    paths do - a quick direct shortcut to a trusted link, same
+    no-preflight-check behavior every other "Open"/"Open transaction"
+    button in this app already has, a stale link surfaces as Firefly's
+    own 404 page rather than this app catching it first. The
+    confirmation dialog still asks "Delete message(s)?" (unchanged,
+    `delete_messages_confirm_title`) - only the *button* label that
+    risked the Firefly mix-up, not the dialog's own already-unambiguous
+    title/body. "Delete" (now "Delete notification") still asks for
+    confirmation (same strings/dialog shape as the multi-select delete
+    below, just one message instead of a selected set). Hidden
+    (`MessagesAdapter.setSelectionMode`) while a multi-select is in
+    progress, since the two interaction modes would otherwise compete
+    for the same tap.
     - "Check if created" (`MessagesFragment.checkIfCreated`) - an
       explicit, user-initiated search, distinct from the preemptive
       check `showTestMatch`/`startCreate` already run before posting.

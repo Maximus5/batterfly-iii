@@ -526,11 +526,15 @@ class MessagesFragment : Fragment() {
     }
 
     private fun showMessageOverflowMenu(message: CapturedMessage, anchor: View) {
-        val popup = PopupMenu(requireContext(), anchor)
-        popup.menu.add(0, ID_CHECK_IF_CREATED, 0, R.string.messages_check_if_created)
-        popup.menu.add(0, ID_DELETE_SINGLE, 1, R.string.action_delete)
+        val context = requireContext()
+        val popup = PopupMenu(context, anchor)
+        popup.menu.add(0, ID_OPEN_IN_FIREFLY, 0, R.string.messages_action_open_in_firefly)
+            .isEnabled = message.fireflyTransactionId != null
+        popup.menu.add(0, ID_CHECK_IF_CREATED, 1, R.string.messages_check_if_created)
+        popup.menu.add(0, ID_DELETE_SINGLE, 2, R.string.messages_action_delete)
         popup.setOnMenuItemClickListener { item ->
             when (item.itemId) {
+                ID_OPEN_IN_FIREFLY -> message.fireflyTransactionId?.let { openTransaction(context, it) }
                 ID_CHECK_IF_CREATED -> checkIfCreated(message)
                 ID_DELETE_SINGLE -> confirmDeleteSingle(message)
                 else -> return@setOnMenuItemClickListener false
@@ -545,7 +549,7 @@ class MessagesFragment : Fragment() {
         AlertDialog.Builder(requireContext())
             .setTitle(R.string.delete_messages_confirm_title)
             .setMessage(R.string.delete_messages_confirm_message)
-            .setNegativeButton(R.string.action_delete) { _, _ -> MessageStore.shared.remove(message) }
+            .setNegativeButton(R.string.messages_action_delete) { _, _ -> MessageStore.shared.remove(message) }
             .setPositiveButton(android.R.string.cancel, null)
             .show()
     }
@@ -768,7 +772,7 @@ class MessagesFragment : Fragment() {
         AlertDialog.Builder(requireContext())
             .setTitle(R.string.delete_messages_confirm_title)
             .setMessage(R.string.delete_messages_confirm_message)
-            .setNegativeButton(R.string.action_delete) { _, _ ->
+            .setNegativeButton(R.string.messages_action_delete) { _, _ ->
                 toDelete.forEach { MessageStore.shared.remove(it) }
                 clearSelectionAndExit()
             }
@@ -793,7 +797,8 @@ class MessagesFragment : Fragment() {
     }
 
     private companion object {
-        const val ID_CHECK_IF_CREATED = 1
-        const val ID_DELETE_SINGLE = 2
+        const val ID_OPEN_IN_FIREFLY = 1
+        const val ID_CHECK_IF_CREATED = 2
+        const val ID_DELETE_SINGLE = 3
     }
 }

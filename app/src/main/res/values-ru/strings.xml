@@ -46,6 +46,8 @@
 
     <string name="action_delete">Удалить</string>
     <string name="messages_selected_count">Выбрано: %1$d</string>
+    <string name="messages_action_open_in_firefly">Открыть в Firefly III</string>
+    <string name="messages_action_delete">Удалить уведомление</string>
     <string name="delete_messages_confirm_title">Удалить сообщения?</string>
     <string name="delete_messages_confirm_message">Отменить нельзя. Если включена локальная история, они будут удалены и оттуда.</string>
     <string name="messages_check_if_created">Проверить в Firefly</string>
