@@ -47,7 +47,7 @@ fun Fragment.addSaveMenu(onDelete: (() -> Unit)? = null, onSave: () -> Unit): Sa
             override fun onCreateMenu(menu: Menu, menuInflater: MenuInflater) {
                 menuInflater.inflate(R.menu.menu_save, menu)
                 // An action-layout item never reaches onMenuItemSelected - its view takes the click.
-                val button = menu.findItem(R.id.action_save).actionView as? Button
+                val button = menu.findItem(R.id.action_save).actionView?.findViewById<Button>(R.id.saveButton)
                 button?.setOnClickListener { onSave() }
                 handle.attach(button)
                 if (onDelete == null) menu.removeItem(R.id.action_delete)
