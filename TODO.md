@@ -587,35 +587,33 @@ work.
     time*, explicitly **not** `RulesDb`/`CurrenciesDb`/`MonitoredAppsPrefs`/
     `FireflyPrefs`/`NotificationPrefs`, which stay config, unaffected -
     see the `RulesDb`/`CurrenciesDb` item further below).
-    Also decided, same follow-up - a UI/default rework of
-    `MessageHistoryFragment` itself, not just the scope above:
+    Also decided, same follow-up - a UI rework of
+    `MessageHistoryFragment` itself, not just the scope above
+    (**confirmed with the user** - the inversion flagged in an earlier
+    pass of this note was real, fixed below):
     - The `RadioGroup` (off/1/3/5/7/30 days) loses its "Don't save"
-      option; a separate switch, "Save in memory only", takes over
-      that meaning instead - checked means ephemeral (today's "Don't
-      save"/`retentionDays = 0`), unchecked means persisted for
-      whichever day-count is currently selected (the day-count control
-      presumably only enabled/meaningful while unchecked - not fully
-      specified yet).
-    - New-install default changes: `3` days, switch **unchecked** -
-      a real behavior change from today's actual default (`0`/off,
-      `RetentionPrefs`'s own KDoc currently documents this as
-      deliberate opt-in-only) - this decision supersedes that for new
-      users specifically, existing installs are migration, below.
-    - Migration for an existing install, explicitly called out as
-      something to get right so nobody's already-kept history gets
-      silently wiped by the UI change alone: "turn the switch on if
-      the old setting *was* 'Keep for 1+ day'" (the user's exact
-      instruction). **Flag before implementing, don't just code this
-      as stated**: read literally, that maps old "persisted" ->
-      switch-on ("memory only"), i.e. migrating an existing persisted
-      user straight into ephemeral mode on upgrade - the opposite of
-      "preserve what they already had" (old "Don't save"/`0` ->
-      switch-on would match that instead). Likely a slip while
-      dictating quickly, not a deliberate inversion, but don't guess
-      either way - confirm the intended mapping with the user before
-      writing any migration code, since getting this backwards is
-      exactly the "silently wipe someone's history" failure this same
-      instruction is trying to avoid.
+      option; a separate switch, **"Keep history only in-memory"**,
+      takes over that meaning instead - checked means ephemeral
+      (today's "Don't save"/`retentionDays = 0`), unchecked means
+      persisted for whichever day-count is currently selected (the
+      day-count control presumably only enabled/meaningful while
+      unchecked - not fully specified yet). Subtitle text under the
+      switch, the user's own wording: explains that while in-memory,
+      notification history is lost on an app or device restart, but
+      that this never affects transactions already created in Firefly
+      - i.e. reassures that toggling this is about losing the
+      *notification log*, not anything already posted.
+    - New-install default: switch **checked** (in-memory only) - this
+      is just today's actual default (`retentionDays = 0`) carried
+      over unchanged, not a behavior change - an earlier pass of this
+      note said "3 days, unchecked" for new installs; the user walked
+      that back in favor of keeping the existing default as-is.
+    - Migration for an existing install, confirmed with the user:
+      switch **unchecked** (still persisted) if the old setting *was*
+      "Keep for 1+ day" - i.e. preserves whatever the install already
+      had, in either direction. (An earlier pass of this note had this
+      backwards and flagged it rather than guessing; the user confirmed
+      the preserve-behavior mapping above is the correct one.)
   - `MessageHistoryDb` already satisfies this (max 30 days via
     `RetentionPrefs`) - no change needed there.
   - `MessageStore`'s in-memory list still has no cap - lower priority
