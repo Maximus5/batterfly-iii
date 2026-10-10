@@ -181,6 +181,8 @@
     <string name="create_tx_edit_title">Edit transaction</string>
     <string name="create_tx_save">Save</string>
     <string name="create_tx_create">Create</string>
+    <string name="create_tx_rate_failed">Couldn\'t fetch the exchange rate - enter the amount manually</string>
+    <string name="messages_checking">Checking…</string>
     <string name="create_tx_field_amount">Amount</string>
     <string name="create_tx_field_currency">Currency</string>
     <string name="create_tx_field_foreign_amount">Foreign amount (optional)</string>

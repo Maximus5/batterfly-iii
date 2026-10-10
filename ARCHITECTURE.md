@@ -2294,7 +2294,20 @@ Single `:app` module, packages under
     resolves - but only if that field is still blank at that point, not
     unconditionally, since the user may have already typed an amount by
     hand while the async fetch was in flight and that shouldn't get
-    silently overwritten.
+    silently overwritten. A failed rate fetch shows a Toast
+    (`create_tx_rate_failed`) and leaves the amount blank for manual
+    entry - never a silent no-op.
+    A foreign-currency message therefore opens this screen immediately
+    from the message list (`MessagesFragment.checkThenOpenCreateOrShowFound`
+    skips the tap-time rate lookup and duplicate check when the draft
+    has no local amount): the duplicate check for those happens on the
+    Create click, with the amount the user actually sees. The tap-time
+    chain (`showTestMatch` -> `matchMessage` -> link verify / duplicate
+    check) is guarded by `openingMessage`, so repeat taps while it is in
+    flight are ignored (previously each tap queued its own chain and
+    every one opened its own screen when the slow network calls
+    finished), and a "Checking…" Toast shows only if the chain takes
+    longer than 1.5 s.
     This paragraph describes create mode's submit (`onCreateClicked`);
     edit mode's "Save" (`onSaveClicked`) validates the form the same way
     but skips straight to posting - see the `editIntent` entry above for

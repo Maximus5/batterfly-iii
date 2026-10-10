@@ -642,7 +642,10 @@ class CreateTransactionFragment : Fragment() {
         val context = requireContext()
         val result = ExchangeRateClient().fetchRate(foreignCurrency, draft.currencyCode, draft.date)
         val binding = binding ?: return
-        if (result !is ExchangeRateClient.Result.Success) return
+        if (result !is ExchangeRateClient.Result.Success) {
+            Toast.makeText(context, R.string.create_tx_rate_failed, Toast.LENGTH_LONG).show()
+            return
+        }
         if (!binding.amountInput.text.isNullOrBlank()) return
         val approxTag = FireflyPrefs(context).getApproxConversionTag()
         val updated = applyApproxConversion(draft, result.rate, approxTag)

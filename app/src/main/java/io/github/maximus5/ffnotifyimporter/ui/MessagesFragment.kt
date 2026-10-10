@@ -53,6 +53,7 @@ import io.github.maximus5.ffnotifyimporter.rules.applyApproxConversion
 import java.math.RoundingMode
 import java.time.Instant
 import java.util.Date
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class MessagesFragment : Fragment() {
@@ -248,31 +249,47 @@ class MessagesFragment : Fragment() {
      * no-match/not-configured cases still show the plain dialog directly - there's nothing to
      * check or review/edit in either. */
     private fun showTestMatch(message: CapturedMessage) {
+        // The checks below can take a while on a slow network; without this a second tap started
+        // a second identical chain and every one of them opened its own screen when it finished.
+        if (openingMessage) return
+        openingMessage = true
         val context = requireContext()
         val fireflyPrefs = FireflyPrefs(context)
         // Launched (Main.immediate - runs inline unless matchMessage actually has to wait on a
         // Firefly currency-symbol lookup, see posting.learnCurrencySymbols).
         viewLifecycleOwner.lifecycleScope.launch {
-            when (val outcome = matchMessage(context, message)) {
-                is ParseOutcome.NoMatch -> {
-                    AlertDialog.Builder(context)
-                        .setTitle(R.string.test_match_no_match_title)
-                        .setMessage(getString(reasonStringRes(outcome.reason)))
-                        .setPositiveButton(android.R.string.ok, null)
-                        .show()
-                }
-                is ParseOutcome.Matched -> {
-                    val configured = fireflyPrefs.isConfigured()
-                    val existingId = message.fireflyTransactionId
-                    when {
-                        existingId == null && configured -> checkThenOpenCreateOrShowFound(context, outcome.draft, message)
-                        existingId != null && configured -> verifyLinkedThenShow(context, outcome, message, existingId)
-                        else -> showMatchedDialog(context, outcome)
+            // Only for a check that's actually slow - a toast on every tap would just flicker.
+            val slowHint = launch {
+                delay(SLOW_CHECK_HINT_MILLIS)
+                Toast.makeText(context, R.string.messages_checking, Toast.LENGTH_SHORT).show()
+            }
+            try {
+                when (val outcome = matchMessage(context, message)) {
+                    is ParseOutcome.NoMatch -> {
+                        AlertDialog.Builder(context)
+                            .setTitle(R.string.test_match_no_match_title)
+                            .setMessage(getString(reasonStringRes(outcome.reason)))
+                            .setPositiveButton(android.R.string.ok, null)
+                            .show()
+                    }
+                    is ParseOutcome.Matched -> {
+                        val configured = fireflyPrefs.isConfigured()
+                        val existingId = message.fireflyTransactionId
+                        when {
+                            existingId == null && configured -> checkThenOpenCreateOrShowFound(context, outcome.draft, message)
+                            existingId != null && configured -> verifyLinkedThenShow(context, outcome, message, existingId)
+                            else -> showMatchedDialog(context, outcome)
+                        }
                     }
                 }
+            } finally {
+                slowHint.cancel()
+                openingMessage = false
             }
         }
     }
+
+    private var openingMessage = false
 
     /** Verifies [existingId] still exists before trusting it, via the one shared
      * `posting.verifyLinkedTransaction` - **fixed a real "pretends everything is fine" bug, the
@@ -293,25 +310,23 @@ class MessagesFragment : Fragment() {
      * failure (network/server error, *not* confirmed gone) shows the error and stops - same
      * "don't guess" rule every dedup check in this file now follows (see `DuplicateCheckResult.
      * SearchFailed`'s KDoc). */
-    private fun verifyLinkedThenShow(context: Context, outcome: ParseOutcome.Matched, message: CapturedMessage, existingId: String) {
-        viewLifecycleOwner.lifecycleScope.launch {
-            when (val result = verifyLinkedTransaction(FireflyPrefs(context), existingId)) {
-                is LinkedTransactionCheck.Found ->
-                    startActivity(CreateTransactionActivity.editIntent(context, message, existingId))
-                is LinkedTransactionCheck.Gone ->
-                    // Deliberately not cleared here - the user's own catch: wiping the stale
-                    // link the instant it's confirmed gone, before any dialog is even shown,
-                    // changes state with no user action behind it at all (a plain Cancel on
-                    // whatever shows next would've silently unlinked the message). The link
-                    // only actually changes as a side effect of the user's own choice: "Use
-                    // Created" overwrites it with the newly found id, a successful create
-                    // (fresh or "Create anyway") overwrites it with the new transaction's id.
-                    // A Cancel leaves the stale id exactly as it was - re-verified the same
-                    // way next time, not silently forgotten.
-                    checkThenOpenCreateOrShowFound(context, outcome.draft, message, staleLinkedId = existingId)
-                is LinkedTransactionCheck.CheckFailed ->
-                    showResultDialog(context, R.string.check_search_failed_title, result.message)
-            }
+    private suspend fun verifyLinkedThenShow(context: Context, outcome: ParseOutcome.Matched, message: CapturedMessage, existingId: String) {
+        when (val result = verifyLinkedTransaction(FireflyPrefs(context), existingId)) {
+            is LinkedTransactionCheck.Found ->
+                startActivity(CreateTransactionActivity.editIntent(context, message, existingId))
+            is LinkedTransactionCheck.Gone ->
+                // Deliberately not cleared here - the user's own catch: wiping the stale
+                // link the instant it's confirmed gone, before any dialog is even shown,
+                // changes state with no user action behind it at all (a plain Cancel on
+                // whatever shows next would've silently unlinked the message). The link
+                // only actually changes as a side effect of the user's own choice: "Use
+                // Created" overwrites it with the newly found id, a successful create
+                // (fresh or "Create anyway") overwrites it with the new transaction's id.
+                // A Cancel leaves the stale id exactly as it was - re-verified the same
+                // way next time, not silently forgotten.
+                checkThenOpenCreateOrShowFound(context, outcome.draft, message, staleLinkedId = existingId)
+            is LinkedTransactionCheck.CheckFailed ->
+                showResultDialog(context, R.string.check_search_failed_title, result.message)
         }
     }
 
@@ -321,7 +336,7 @@ class MessagesFragment : Fragment() {
      * check entirely and opens the review screen directly, same "flag it, don't guess, don't
      * block" fallback used everywhere else `LOCAL_AMOUNT_MISSING` shows up - `transactionDedupHash`
      * requires a resolved amount, there's nothing to hash/search with yet. */
-    private fun checkThenOpenCreateOrShowFound(
+    private suspend fun checkThenOpenCreateOrShowFound(
         context: Context,
         initialDraft: TransactionDraft,
         message: CapturedMessage,
@@ -336,26 +351,24 @@ class MessagesFragment : Fragment() {
         // unchanged let that warning fire with a transaction this exact flow had just confirmed
         // doesn't exist. [cleanMessage] carries that proof forward instead of re-deriving it.
         val cleanMessage = message.copy(fireflyTransactionId = null)
-        viewLifecycleOwner.lifecycleScope.launch {
-            var draft = initialDraft
-            if (DraftIssue.LOCAL_AMOUNT_MISSING in draft.issues) {
-                draft = resolveAmountQuietly(draft)
-            }
-            if (draft.amount == null) {
+        // A foreign-currency draft has no local amount yet: the review screen opens at once and
+        // fetches the exchange rate itself in the background (it can be slow - an external
+        // service), and the duplicate check then happens when the user presses Create, with the
+        // amount actually shown there. Nothing to hash/search with until then.
+        if (initialDraft.amount == null) {
+            startActivity(CreateTransactionActivity.intent(context, cleanMessage, staleLinkedId))
+            return
+        }
+        when (val result = checkForDuplicate(context, initialDraft)) {
+            is DuplicateCheckResult.None ->
                 startActivity(CreateTransactionActivity.intent(context, cleanMessage, staleLinkedId))
-                return@launch
-            }
-            when (val result = checkForDuplicate(context, draft)) {
-                is DuplicateCheckResult.None ->
-                    startActivity(CreateTransactionActivity.intent(context, cleanMessage, staleLinkedId))
-                is DuplicateCheckResult.SearchFailed ->
-                    showResultDialog(context, R.string.check_search_failed_title, result.message)
-                is DuplicateCheckResult.Found ->
-                    showDuplicateConfirmDialog(context, result.id, cleanMessage, knownCandidate = result.candidate, staleLinkedId = staleLinkedId)
-                is DuplicateCheckResult.FoundMultiple -> {
-                    Toast.makeText(context, getString(R.string.create_remote_duplicates_found, result.count), Toast.LENGTH_LONG).show()
-                    showDuplicateConfirmDialog(context, result.mostRecentId, cleanMessage, knownCandidate = result.candidate, staleLinkedId = staleLinkedId)
-                }
+            is DuplicateCheckResult.SearchFailed ->
+                showResultDialog(context, R.string.check_search_failed_title, result.message)
+            is DuplicateCheckResult.Found ->
+                showDuplicateConfirmDialog(context, result.id, cleanMessage, knownCandidate = result.candidate, staleLinkedId = staleLinkedId)
+            is DuplicateCheckResult.FoundMultiple -> {
+                Toast.makeText(context, getString(R.string.create_remote_duplicates_found, result.count), Toast.LENGTH_LONG).show()
+                showDuplicateConfirmDialog(context, result.mostRecentId, cleanMessage, knownCandidate = result.candidate, staleLinkedId = staleLinkedId)
             }
         }
     }
@@ -1011,5 +1024,6 @@ class MessagesFragment : Fragment() {
         const val ID_FORGET_TRANSACTION = 4
         const val ID_COPY_SINGLE = 5
         const val ID_DELETE_SINGLE = 6
+        const val SLOW_CHECK_HINT_MILLIS = 1500L
     }
 }
