@@ -7,6 +7,7 @@ import io.github.maximus5.ffnotifyimporter.network.dedupSearchQuery
 import io.github.maximus5.ffnotifyimporter.prefs.FireflyPrefs
 import io.github.maximus5.ffnotifyimporter.rules.CreatedTransactionsDb
 import io.github.maximus5.ffnotifyimporter.rules.RemoteTransactionCandidate
+import io.github.maximus5.ffnotifyimporter.rules.RuleKind
 import io.github.maximus5.ffnotifyimporter.rules.TransactionDraft
 import io.github.maximus5.ffnotifyimporter.rules.remoteCandidateMatches
 import io.github.maximus5.ffnotifyimporter.rules.transactionDedupHash
@@ -174,4 +175,16 @@ fun FireflyTransactionCandidate.toRemoteCandidate() = RemoteTransactionCandidate
     notes = notes,
     category = category,
     tags = tags,
+    kind = ruleKindFrom(type),
 )
+
+/** Firefly's own lowercase `type` string -> this app's [RuleKind] - defaults to [RuleKind.WITHDRAWAL]
+ * for anything unrecognized (a type this app's own rules never produce, e.g. "opening-balance"/
+ * "reconciliation" - shouldn't happen for a transaction this app itself created, but a real Firefly
+ * instance can have those; same "flag it, don't guess wrong" default `TransactionGroupTransformer`'s
+ * own PHP source uses for a missing type). */
+private fun ruleKindFrom(type: String): RuleKind = when (type.lowercase()) {
+    "deposit" -> RuleKind.DEPOSIT
+    "transfer" -> RuleKind.TRANSFER
+    else -> RuleKind.WITHDRAWAL
+}

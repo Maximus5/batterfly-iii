@@ -15,7 +15,11 @@ import java.time.Instant
  * becomes its own candidate here since this app's own transactions never split but a real one in
  * Firefly might. [notes]/[category]/[tags] - the user's own request: showing an already-linked
  * transaction's real current fields (it may have been edited by hand in Firefly since this app
- * posted it) rather than this app's own re-parsed-from-the-rule guess, which can disagree. */
+ * posted it) rather than this app's own re-parsed-from-the-rule guess, which can disagree.
+ * [type] - the editing feature's own need: Firefly's own lowercase string ("withdrawal"/
+ * "deposit"/"transfer"/...), kept as a raw `String` here rather than `rules.RuleKind` so this
+ * `network`-layer type doesn't have to depend on `rules` - `posting.toRemoteCandidate` maps it
+ * once converting to `rules.RemoteTransactionCandidate`, which already depends on `rules` anyway. */
 data class FireflyTransactionCandidate(
     val groupId: String,
     val date: Instant,
@@ -31,4 +35,5 @@ data class FireflyTransactionCandidate(
     val notes: String?,
     val category: String?,
     val tags: List<String>,
+    val type: String,
 )

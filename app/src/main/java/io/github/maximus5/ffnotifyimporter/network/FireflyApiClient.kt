@@ -206,6 +206,36 @@ class FireflyApiClient(baseUrl: String, private val token: String) {
         }
     }
 
+    /** `PUT /v1/transactions/{id}` - the editing feature (the user's own request). Returns the
+     * updated transaction's id on success, same response shape as [createTransaction] (confirmed
+     * against `UpdateController::update()`'s current source - same `Item`-wrapped resource, so
+     * [parseCreatedTransactionId] already handles it unchanged). A genuine *partial* update - see
+     * [buildTransactionUpdateRequestBody]'s own KDoc for why nothing not sent here gets touched.
+     *
+     * Deliberately **not** wrapped in [withNetworkRetry], same reasoning as [createTransaction]:
+     * no idempotency guarantee on a write, and a timeout after the server already applied the
+     * edit but before the response arrived would otherwise risk a confusing silent retry rather
+     * than a clear "did this save or not" to the user. A failed update surfaces the error and
+     * stops. */
+    suspend fun updateTransaction(id: String, request: FireflyTransactionRequest): Result<String> = withContext(Dispatchers.IO) {
+        try {
+            val connection = openConnection("/api/v1/transactions/$id", "PUT")
+            connection.doOutput = true
+            connection.setRequestProperty("Content-Type", "application/json")
+            connection.outputStream.use { it.write(buildTransactionUpdateRequestBody(request).toByteArray(Charsets.UTF_8)) }
+            val code = connection.responseCode
+            if (code in 200..299) {
+                val body = connection.inputStream.bufferedReader().use { it.readText() }
+                val resultId = parseCreatedTransactionId(body)
+                if (resultId != null) Result.Success(resultId) else Result.Failure("No transaction id in response: $body")
+            } else {
+                Result.Failure(errorMessage(connection, code))
+            }
+        } catch (e: IOException) {
+            Result.Failure(e.message ?: e.javaClass.simpleName)
+        }
+    }
+
     private fun openConnection(path: String, method: String): HttpURLConnection {
         val connection = URL(baseUrl + path).openConnection() as HttpURLConnection
         connection.requestMethod = method

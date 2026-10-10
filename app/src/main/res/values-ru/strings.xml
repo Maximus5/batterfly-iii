@@ -138,7 +138,6 @@
     <string name="no_match_reason_no_rules_for_app">Нет правил для этого приложения.</string>
     <string name="no_match_reason_no_pattern_matched">Ни одно выражение не подошло.</string>
     <string name="no_match_reason_amount_unparsable">Сумму не удалось распознать.</string>
-    <string name="test_match_label_transaction_id">ID транзакции:</string>
     <string name="test_match_label_source">Счёт-источник:</string>
     <string name="test_match_label_destination">Счёт назначения:</string>
     <string name="test_match_label_amount">Сумма:</string>
@@ -167,6 +166,8 @@
     <string name="create_failed_title">Не удалось создать</string>
 
     <string name="create_tx_title">Создание транзакции</string>
+    <string name="create_tx_edit_title">Редактирование транзакции</string>
+    <string name="create_tx_save">Сохранить</string>
     <string name="create_tx_field_amount">Сумма</string>
     <string name="create_tx_field_currency">Валюта</string>
     <string name="create_tx_field_foreign_amount">Сумма в валюте платежа (опционально)</string>
@@ -185,7 +186,6 @@
     <string name="create_tx_source_required">Счёт-источник не может быть пустым.</string>
     <string name="create_tx_destination_required">Счёт назначения не может быть пустым.</string>
     <string name="create_tx_no_rule_matched">Ни одно правило не подошло к этому сообщению.</string>
-    <string name="create_tx_already_linked_warning">⚠ Это сообщение уже связано с транзакцией №%1$s. Создание добавит вторую транзакцию в Firefly.</string>
     <string name="create_tx_stale_linked_warning">⚠ Ранее привязанная транзакция №%1$s не найдена в Firefly - возможно, она была удалена.</string>
 
     <string name="settings_currencies_title">Валюты</string>

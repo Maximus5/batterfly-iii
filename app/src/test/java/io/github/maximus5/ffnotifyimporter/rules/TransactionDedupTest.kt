@@ -136,6 +136,7 @@ class TransactionDedupTest {
         destinationId: String? = "2",
         destinationName: String? = "(no name)",
         date: Instant = Instant.ofEpochMilli(1000),
+        kind: RuleKind = RuleKind.WITHDRAWAL,
     ) = RemoteTransactionCandidate(
         groupId = "99",
         date = date,
@@ -151,6 +152,7 @@ class TransactionDedupTest {
         notes = null,
         category = null,
         tags = emptyList(),
+        kind = kind,
     )
 
     @Test

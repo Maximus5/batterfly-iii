@@ -95,11 +95,11 @@ class MessagesFragment : Fragment() {
      * if created" separately finding it), but tapping the message just opened a blank review
      * screen instead of surfacing that first. Found -> the usual duplicate-confirm dialog; not
      * found (or the remote check failed/was skipped) -> [CreateTransactionActivity] opens as
-     * before. The already-linked case (Open/Create Again) now runs [verifyLinkedThenShow] first -
-     * see its own KDoc for why - instead of trusting the linked id blindly; "Create Again" itself
-     * still leads into [CreateTransactionActivity] (see [startCreate]), same as every other manual
-     * create path. The no-match/not-configured cases still show the plain dialog directly - there's
-     * nothing to check or review/edit in either. */
+     * before. The already-linked case now runs [verifyLinkedThenShow] first - see its own KDoc -
+     * which opens the *editor* directly once the id is confirmed live, the user's own request:
+     * no more read-only info dialog with "Open"/"Create Again" buttons for that case at all. The
+     * no-match/not-configured cases still show the plain dialog directly - there's nothing to
+     * check or review/edit in either. */
     private fun showTestMatch(message: CapturedMessage) {
         val rules = RulesDb.getInstance(requireContext()).loadAllOrdered()
         val currencySymbols = CurrenciesDb.getInstance(requireContext()).symbolToCodeMap()
@@ -120,7 +120,7 @@ class MessagesFragment : Fragment() {
                 when {
                     existingId == null && configured -> checkThenOpenCreateOrShowFound(context, outcome.draft, message)
                     existingId != null && configured -> verifyLinkedThenShow(context, outcome, message, existingId)
-                    else -> showMatchedDialog(context, outcome, message, null)
+                    else -> showMatchedDialog(context, outcome)
                 }
             }
         }
@@ -129,24 +129,27 @@ class MessagesFragment : Fragment() {
     /** Verifies [existingId] still exists before trusting it, via the one shared
      * `posting.verifyLinkedTransaction` - **fixed a real "pretends everything is fine" bug, the
      * user's own catch/report (screenshotted)**: tapping an already-linked message used to go
-     * straight to [showMatchedDialog] with zero verification, so a transaction deleted by hand in
-     * Firefly left "Open transaction" pointing at a dead link with nothing on screen explaining
-     * why. Still there -> [showMatchedDialog], now carrying the live-fetched candidate (see its
-     * own KDoc for why that matters). Confirmed gone -> falls through to the exact same
-     * search-then-show/create flow [checkThenOpenCreateOrShowFound] already runs for a fresh
-     * match - a replacement match, if search finds one, is shown with [showDuplicateConfirmDialog]'s
-     * `staleLinkedId` warning rather than presenting it as if nothing had ever been linked; nothing
-     * found falls through to [CreateTransactionActivity] same as any other fresh match. The stale
-     * link itself is left alone here, deliberately - see the inline comment at the call site for
-     * why (the user's own catch: don't change state before the user's actually chosen something).
-     * A verification failure (network/server error, *not* confirmed gone) shows the error and
-     * stops - same "don't guess" rule every dedup check in this file now follows (see
-     * `DuplicateCheckResult.SearchFailed`'s KDoc). */
+     * straight to a read-only info dialog with zero verification, so a transaction deleted by hand
+     * in Firefly left "Open transaction" pointing at a dead link with nothing on screen explaining
+     * why. Still there -> opens [CreateTransactionActivity] in *edit* mode directly (the user's own
+     * follow-up request - no more read-only dialog with "Open"/"Create Again" buttons for this case
+     * at all; "Create Again" is gone entirely, the user's own call: if the linked transaction is
+     * wrong, fix it here instead of creating a second one and leaving the original behind).
+     * Confirmed gone -> falls through to the exact same search-then-show/create flow
+     * [checkThenOpenCreateOrShowFound] already runs for a fresh match - a replacement match, if
+     * search finds one, is shown with [showDuplicateConfirmDialog]'s `staleLinkedId` warning rather
+     * than presenting it as if nothing had ever been linked; nothing found falls through to
+     * [CreateTransactionActivity] same as any other fresh match. The stale link itself is left
+     * alone here, deliberately - see the inline comment at the call site for why (the user's own
+     * catch: don't change state before the user's actually chosen something). A verification
+     * failure (network/server error, *not* confirmed gone) shows the error and stops - same
+     * "don't guess" rule every dedup check in this file now follows (see `DuplicateCheckResult.
+     * SearchFailed`'s KDoc). */
     private fun verifyLinkedThenShow(context: Context, outcome: ParseOutcome.Matched, message: CapturedMessage, existingId: String) {
         viewLifecycleOwner.lifecycleScope.launch {
             when (val result = verifyLinkedTransaction(FireflyPrefs(context), existingId)) {
                 is LinkedTransactionCheck.Found ->
-                    showMatchedDialog(context, outcome, message, existingId, result.candidate)
+                    startActivity(CreateTransactionActivity.editIntent(context, message, existingId))
                 is LinkedTransactionCheck.Gone ->
                     // Deliberately not cleared here - the user's own catch: wiping the stale
                     // link the instant it's confirmed gone, before any dialog is even shown,
@@ -209,63 +212,17 @@ class MessagesFragment : Fragment() {
         }
     }
 
-    /** Offered once there's a linked transaction to act on and a Firefly connection to post a
-     * re-create to - "Open" sits in the neutral slot, "Create Again" in negative, same reasoning
-     * as before this screen existed: the single most relevant secondary action gets the neutral
-     * slot. [existingTransactionId] is only ever non-null here (see [showTestMatch]) - a fresh,
-     * not-yet-linked, configured match never reaches this dialog at all anymore.
-     *
-     * [candidate] (the user's own catch/report): when [existingTransactionId] is set, it's always
-     * been live-verified by now ([verifyLinkedThenShow]), so its real current fields are already
-     * on hand - [buildCandidateBody] shows *those*, including the transaction id itself (missing
-     * entirely before), instead of [buildMatchedBody]'s rule-re-parsed guess, which can disagree
-     * with reality if the transaction was edited by hand in Firefly since this app posted it.
-     * [candidate] is null only for the not-configured fallback (no id to look anything up with),
-     * where the rule-derived body is the only thing there is to show. */
-    private fun showMatchedDialog(
-        context: Context,
-        outcome: ParseOutcome.Matched,
-        message: CapturedMessage,
-        existingTransactionId: String?,
-        candidate: RemoteTransactionCandidate? = null,
-    ) {
-        val draft = outcome.draft
-        val body = if (existingTransactionId != null && candidate != null) {
-            buildCandidateBody(existingTransactionId, candidate)
-        } else {
-            buildMatchedBody(draft)
-        }
-        val builder = AlertDialog.Builder(context)
+    /** The no-match/not-configured fallback only now - **superseded, the user's own request**:
+     * this used to also handle the already-linked case (Open/Create Again buttons, a found
+     * candidate's real fields), but tapping an already-linked *live* message now opens the editor
+     * directly instead ([verifyLinkedThenShow]) - there's nothing left here to edit or act on,
+     * just the rule-derived read-only summary a no-match/unconfigured tap always showed. */
+    private fun showMatchedDialog(context: Context, outcome: ParseOutcome.Matched) {
+        AlertDialog.Builder(context)
             .setTitle(outcome.rule.label)
-            .setMessage(body)
+            .setMessage(buildMatchedBody(outcome.draft))
             .setPositiveButton(android.R.string.ok, null)
-        if (existingTransactionId != null) {
-            builder.setNeutralButton(R.string.create_open_transaction) { _, _ ->
-                viewLifecycleOwner.lifecycleScope.launch { verifyThenOpenTransaction(context, existingTransactionId) }
-            }
-            builder.setNegativeButton(R.string.create_again) { _, _ -> startCreate(context, message) }
-        }
-        builder.show()
-    }
-
-    /** Entry point for "Create Again" - opens [CreateTransactionActivity] directly, no
-     * confirmation dialog and no preemptive duplicate check of its own.
-     *
-     * **Fixed a real "pointless extra step" bug, the user's own catch**: this used to show its own
-     * "this will post a second transaction, are you sure?" confirmation dialog first, then (once
-     * accepted) run its own preemptive [checkForDuplicate] - which, since [existingTransactionId]
-     * already proves a matching transaction exists, would almost always re-find that exact same
-     * transaction and show a *second*, differently-worded "possible duplicate, create anyway?"
-     * dialog for the same thing the user had just confirmed one screen ago. Two redundant gates
-     * before ever reaching the actual review screen. Now there's exactly one: [showTestMatch]
-     * already only offers "Create Again" once [existingTransactionId] has been live-verified (see
-     * [verifyLinkedThenShow]), [CreateTransactionActivity] shows an explicit warning banner instead
-     * of a blocking dialog (informational while editing, not a gate), and the real "are you sure"
-     * naturally happens exactly once, at the point that actually matters: the review screen's own
-     * on-submit [checkForDuplicate] finds the same linked transaction and asks via
-     * `CreateTransactionFragment.confirmCreateAnyway` right before actually posting. */
-    private fun startCreate(context: Context, message: CapturedMessage) {
-        startActivity(CreateTransactionActivity.intent(context, message))
+            .show()
     }
 
     /** Four actions ("Use Created"/"Open"/"Create anyway"/"Cancel", Cancel always last) - more
@@ -379,9 +336,9 @@ class MessagesFragment : Fragment() {
      * user judge a match independently, not just trust a bare id. Shows the foreign amount/
      * currency alongside the home one when present, for the same reason the home amount alone is
      * unreliable for matching (see `network.dedupSearchQuery`'s KDoc) - it's informative here too,
-     * not just for searching. Bold field labels, same [boldField] helper [buildMatchedBody]/
-     * [buildCandidateBody] use - the user's own catch: this one used to be plain text, reading
-     * inconsistently next to the other two field-summary dialogs in this fragment. */
+     * not just for searching. Bold field labels, same [boldField] helper [buildMatchedBody] uses -
+     * the user's own catch: this one used to be plain text, reading inconsistently next to the
+     * other field-summary dialog in this fragment. */
     private fun buildFoundTransactionInfo(candidate: RemoteTransactionCandidate): CharSequence {
         val amountText = if (candidate.foreignAmount != null && candidate.foreignCurrencyCode != null) {
             "${candidate.amount.toPlainString()} ${candidate.currencyCode} " +
@@ -403,7 +360,7 @@ class MessagesFragment : Fragment() {
     }
 
     /** Shared bold-label field appender behind every field-summary dialog in this fragment
-     * ([buildMatchedBody]/[buildCandidateBody]/[buildFoundTransactionInfo]) - appends "\n<label>
+     * ([buildMatchedBody]/[buildFoundTransactionInfo]) - appends "\n<label>
      * <value>" to [text] (no leading newline the very first time), bolding just the label, so a
      * multi-field dialog reads as a list of fields rather than a wall of same-weight text. */
     private fun boldField(text: SpannableStringBuilder): (String, String) -> Unit = { label, value ->
@@ -481,32 +438,6 @@ class MessagesFragment : Fragment() {
                 },
             )
         }
-        return text
-    }
-
-    /** Real-data counterpart to [buildMatchedBody] - same bold-label field-summary style, but
-     * built from a live-verified [RemoteTransactionCandidate] instead of a freshly re-parsed
-     * [TransactionDraft]. The user's own catch/report: the rule-derived draft can disagree with
-     * what's actually in Firefly if the transaction was edited by hand there since this app
-     * posted it, so showing the draft's own fields next to a dialog about an already-*existing*
-     * transaction was actively misleading. Leads with the transaction id itself - previously
-     * missing from this dialog entirely. */
-    private fun buildCandidateBody(transactionId: String, candidate: RemoteTransactionCandidate): CharSequence {
-        val text = SpannableStringBuilder()
-        val field = boldField(text)
-
-        field(getString(R.string.test_match_label_transaction_id), "#$transactionId")
-        candidate.sourceName?.let { field(getString(R.string.test_match_label_source), it) }
-        candidate.destinationName?.let { field(getString(R.string.test_match_label_destination), it) }
-        field(getString(R.string.test_match_label_amount), "${candidate.amount.toPlainString()} ${candidate.currencyCode}")
-        if (candidate.foreignAmount != null && candidate.foreignCurrencyCode != null) {
-            field(getString(R.string.test_match_label_foreign), "${candidate.foreignAmount.toPlainString()} ${candidate.foreignCurrencyCode}")
-        }
-        field(getString(R.string.test_match_label_date), formatDraftDate(candidate.date))
-        field(getString(R.string.test_match_label_description), candidate.description)
-        candidate.notes?.takeIf { it.isNotBlank() }?.let { field(getString(R.string.test_match_label_notes), it) }
-        candidate.category?.let { field(getString(R.string.test_match_label_category), it) }
-        if (candidate.tags.isNotEmpty()) field(getString(R.string.test_match_label_tags), candidate.tags.joinToString(", "))
         return text
     }
 

@@ -73,7 +73,10 @@ fun transactionDedupHash(draft: TransactionDraft, includeDescription: Boolean): 
 /** One Firefly transaction split as returned by `network.FireflyApiClient.
  * searchNearbyTransactions`, stripped down to plain values so this file (like the rest of
  * `rules`) stays free of a `network` dependency - the caller (`ui.MessagesFragment`) maps
- * `network.FireflyTransactionCandidate` into this before calling [remoteCandidateMatches]. */
+ * `network.FireflyTransactionCandidate` into this before calling [remoteCandidateMatches].
+ * [kind] - the editing feature's own need (`ui.CreateTransactionFragment`'s edit mode): this type
+ * is where `network.FireflyTransactionCandidate.type`'s raw string finally becomes a real
+ * [RuleKind], since `network` itself can't depend on `rules` but this file already does. */
 data class RemoteTransactionCandidate(
     val groupId: String,
     val date: Instant,
@@ -89,6 +92,7 @@ data class RemoteTransactionCandidate(
     val notes: String?,
     val category: String?,
     val tags: List<String>,
+    val kind: RuleKind,
 )
 
 /**

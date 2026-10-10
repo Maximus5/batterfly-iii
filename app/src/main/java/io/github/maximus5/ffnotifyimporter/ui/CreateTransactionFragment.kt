@@ -24,12 +24,15 @@ import io.github.maximus5.ffnotifyimporter.network.FireflyApiClient
 import io.github.maximus5.ffnotifyimporter.network.FireflyCategory
 import io.github.maximus5.ffnotifyimporter.network.FireflyTransactionRequest
 import io.github.maximus5.ffnotifyimporter.posting.DuplicateCheckResult
+import io.github.maximus5.ffnotifyimporter.posting.LinkedTransactionCheck
 import io.github.maximus5.ffnotifyimporter.posting.checkForDuplicate
+import io.github.maximus5.ffnotifyimporter.posting.verifyLinkedTransaction
 import io.github.maximus5.ffnotifyimporter.prefs.FireflyPrefs
 import io.github.maximus5.ffnotifyimporter.rules.CreatedTransactionsDb
 import io.github.maximus5.ffnotifyimporter.rules.CurrenciesDb
 import io.github.maximus5.ffnotifyimporter.rules.DraftIssue
 import io.github.maximus5.ffnotifyimporter.rules.ParseOutcome
+import io.github.maximus5.ffnotifyimporter.rules.RemoteTransactionCandidate
 import io.github.maximus5.ffnotifyimporter.rules.RuleEngine
 import io.github.maximus5.ffnotifyimporter.rules.RuleKind
 import io.github.maximus5.ffnotifyimporter.rules.RulesDb
@@ -44,19 +47,28 @@ import java.util.Calendar
 import java.util.Date
 
 /**
- * Pre-create review/edit screen for a matched rule - replaces what used to be
- * `MessagesFragment.showTestMatch`'s read-only test-match dialog for a *fresh* match, per the
- * user's own request (see TODO.md's dedup history): every field is editable before posting,
- * category in particular picked from Firefly's own real category list
+ * Pre-create review/edit screen - two modes, same fields/layout, decided by which
+ * `CreateTransactionActivity` factory built the launching `Intent` (see its own KDoc):
+ *
+ * - **Create**: replaces what used to be `MessagesFragment.showTestMatch`'s read-only test-match
+ *   dialog for a *fresh* match, per the user's own request (see TODO.md's dedup history) - every
+ *   field editable before posting, re-parsed via [RuleEngine.match] the same way
+ *   `posting.AutoCreateWorker` reconstructs a draft from `WorkManager.Data` (plain fields across
+ *   the Activity boundary, not a serialized `TransactionDraft`).
+ * - **Edit**: the user's own request - editing a transaction Firefly already has, fields
+ *   populated from its *real* current data (`posting.verifyLinkedTransaction`), not a rule-derived
+ *   guess, and saved via `FireflyApiClient.updateTransaction` (`PUT`) instead of `createTransaction`
+ *   (`POST`) - deliberately a genuine *partial* update (see that function's own KDoc): this screen
+ *   only ever sends the fields it exposes, so anything else already on the transaction (budget,
+ *   piggy bank, SEPA fields, reconciliation state, ...) is left exactly as it was. No duplicate
+ *   check before saving - unlike create, there's no "might this already exist" question here, the
+ *   whole point is editing a transaction that's already confirmed to exist.
+ *
+ * Category in particular picked from Firefly's own real category list
  * ([FireflyApiClient.listCategories]) instead of only ever being free text via `ParseRule.
  * categoryTemplate` - visual style (end-icon picker on a [TextInputLayout], cached-per-screen
  * account/category list) is deliberately the same shape as [RuleEditFragment]'s own asset-account
  * picker, the user's own suggested starting point.
- *
- * Re-parses the message fresh via [RuleEngine.match] rather than receiving a [TransactionDraft]
- * directly - [CreateTransactionActivity] only ever passes the message's own plain fields across
- * the Activity boundary, same "reconstruct from primitives, don't serialize a BigDecimal/Instant-
- * carrying data class" approach `posting.AutoCreateWorker` already uses for the same reason.
  */
 class CreateTransactionFragment : Fragment() {
 
@@ -91,6 +103,19 @@ class CreateTransactionFragment : Fragment() {
         val context = requireContext()
 
         message = CreateTransactionActivity.messageFrom(requireActivity().intent)
+        binding.dateTimeButton.setOnClickListener { showDateTimePicker() }
+        binding.categoryLayout.setEndIconOnClickListener { showCategoryPicker(binding.categoryInput) }
+
+        val editId = CreateTransactionActivity.editTransactionIdFrom(requireActivity().intent)
+        if (editId != null) {
+            loadForEdit(context, editId)
+        } else {
+            loadForCreate(context)
+        }
+    }
+
+    private fun loadForCreate(context: Context) {
+        val binding = binding ?: return
         val rules = RulesDb.getInstance(context).loadAllOrdered()
         val currencySymbols = CurrenciesDb.getInstance(context).symbolToCodeMap()
         val outcome = RuleEngine(rules, currencySymbols).match(message)
@@ -98,7 +123,8 @@ class CreateTransactionFragment : Fragment() {
         if (draft == null) {
             // Shouldn't happen in practice - this screen is only ever launched right after a
             // successful match - but the message could in theory have been edited away from under
-            // it (it can't be, there's no edit feature) or a rule deleted/disabled in between.
+            // it (it can't be, there's no edit feature for the *notification* itself) or a rule
+            // deleted/disabled in between.
             Toast.makeText(context, R.string.create_tx_no_rule_matched, Toast.LENGTH_SHORT).show()
             requireActivity().finish()
             return
@@ -108,35 +134,58 @@ class CreateTransactionFragment : Fragment() {
         populateFields(draft)
         updateAccountFieldModes()
 
-        // The user's own request: shown instead of the separate confirmation dialog
-        // "Create Again" used to pop before ever reaching this screen - see
-        // CreateTransactionActivity's own KDoc for why. Informational while editing, not a gate;
-        // the real "are you sure" already happens on submit, via this screen's own
-        // checkForDuplicate finding the same linked transaction again (confirmCreateAnyway below).
+        // The user's own follow-up catch: falling through here because a previously-linked id
+        // was just confirmed gone (MessagesFragment.verifyLinkedThenShow) used to show no warning
+        // at all - silently dropping the fact that something *had* been linked, instead of saying
+        // so. "Already linked" itself is gone as a concept here - that case now opens the editor
+        // directly instead (see CreateTransactionActivity's own KDoc) - so this banner only ever
+        // has one thing left to say.
         val staleLinkedId = CreateTransactionActivity.staleLinkedIdFrom(requireActivity().intent)
-        when {
-            message.fireflyTransactionId != null -> {
-                binding.alreadyLinkedWarningText.text =
-                    getString(R.string.create_tx_already_linked_warning, message.fireflyTransactionId)
-                binding.alreadyLinkedWarningText.visibility = View.VISIBLE
-            }
-            // The user's own follow-up catch: falling through here because a previously-linked
-            // id was just confirmed gone (MessagesFragment.verifyLinkedThenShow) used to show no
-            // warning at all - silently dropping the fact that something *had* been linked,
-            // instead of saying so. Same banner, different wording - "already linked" would be
-            // false here, this is specifically what was just disproven.
-            staleLinkedId != null -> {
-                binding.alreadyLinkedWarningText.text = getString(R.string.create_tx_stale_linked_warning, staleLinkedId)
-                binding.alreadyLinkedWarningText.visibility = View.VISIBLE
-            }
+        if (staleLinkedId != null) {
+            binding.alreadyLinkedWarningText.text = getString(R.string.create_tx_stale_linked_warning, staleLinkedId)
+            binding.alreadyLinkedWarningText.visibility = View.VISIBLE
         }
 
-        binding.dateTimeButton.setOnClickListener { showDateTimePicker() }
-        binding.categoryLayout.setEndIconOnClickListener { showCategoryPicker(binding.categoryInput) }
+        binding.createTransactionButton.text = getString(R.string.test_match_create)
         binding.createTransactionButton.setOnClickListener { onCreateClicked() }
 
         if (DraftIssue.LOCAL_AMOUNT_MISSING in draft.issues) {
             viewLifecycleOwner.lifecycleScope.launch { resolveApproxConversion(draft) }
+        }
+    }
+
+    /** Edit mode - the user's own request: tapping an already-linked message with a *live* id
+     * opens straight in here instead of the old read-only "Open Transaction"/"Create Again" info
+     * dialog. Re-verifies [transactionId] itself rather than trusting the caller's own earlier
+     * check (`MessagesFragment.verifyLinkedThenShow`) - see `CreateTransactionActivity.
+     * editIntent`'s KDoc for why that's not redundant: it closes the race where the transaction
+     * gets deleted in the gap between the list-row tap and this screen's own network round-trip.
+     * Confirmed gone or a check failure both just back out - nothing to edit either way, and
+     * `CreateTransactionActivity.intent` (the fresh-match path) isn't the right fallback either,
+     * since there's no [TransactionDraft] here to fall back to showing. */
+    private fun loadForEdit(context: Context, transactionId: String) {
+        viewLifecycleOwner.lifecycleScope.launch {
+            when (val result = verifyLinkedTransaction(FireflyPrefs(context), transactionId)) {
+                is LinkedTransactionCheck.Found -> {
+                    val binding = binding ?: return@launch
+                    kind = result.candidate.kind
+                    populateFieldsFromCandidate(result.candidate)
+                    updateAccountFieldModes()
+                    binding.createTransactionButton.text = getString(R.string.create_tx_save)
+                    binding.createTransactionButton.setOnClickListener { onSaveClicked(transactionId) }
+                }
+                is LinkedTransactionCheck.Gone -> {
+                    Toast.makeText(context, getString(R.string.open_transaction_gone_message, transactionId), Toast.LENGTH_LONG).show()
+                    requireActivity().finish()
+                }
+                is LinkedTransactionCheck.CheckFailed -> {
+                    AlertDialog.Builder(context)
+                        .setTitle(R.string.check_search_failed_title)
+                        .setMessage(result.message)
+                        .setPositiveButton(android.R.string.ok) { _, _ -> requireActivity().finish() }
+                        .show()
+                }
+            }
         }
     }
 
@@ -169,6 +218,43 @@ class CreateTransactionFragment : Fragment() {
         binding.notesInput.setText(draft.notes)
         binding.categoryInput.setText(draft.category.orEmpty())
         binding.tagsInput.setText(draft.tags.joinToString(", "))
+    }
+
+    /** Edit mode's counterpart to [populateFields] - same fields, sourced from a live-verified
+     * [RemoteTransactionCandidate] instead of a freshly re-parsed [TransactionDraft]. Kept as its
+     * own function rather than unifying the two behind a shared interface - the two source types
+     * (`TransactionDraft` vs `RemoteTransactionCandidate`) differ enough (nullable amount/kind-as-
+     * enum vs not, no `foreignAmount` precision concerns here) that forcing one shape on both
+     * would cost more than the few duplicated lines save. */
+    private fun populateFieldsFromCandidate(candidate: RemoteTransactionCandidate) {
+        val binding = binding ?: return
+        val context = requireContext()
+
+        binding.kindText.text = getString(
+            when (kind) {
+                RuleKind.WITHDRAWAL -> R.string.rule_kind_withdrawal
+                RuleKind.DEPOSIT -> R.string.rule_kind_deposit
+                RuleKind.TRANSFER -> R.string.rule_kind_transfer
+            },
+        ) + " · " + message.appLabel
+
+        binding.amountInput.setText(candidate.amount.toPlainString())
+        binding.currencyCodeInput.setText(candidate.currencyCode)
+        binding.foreignAmountInput.setText(candidate.foreignAmount?.toPlainString().orEmpty())
+        binding.foreignCurrencyCodeInput.setText(candidate.foreignCurrencyCode.orEmpty())
+
+        selectedTimestampMillis = candidate.date.toEpochMilli()
+        updateDateTimeButtonText(context)
+
+        binding.sourceAccountInput.setText(candidate.sourceName.orEmpty())
+        binding.destinationAccountInput.setText(candidate.destinationName.orEmpty())
+        sourceAccountPick = candidate.sourceId?.let { PickedAccount(it, candidate.sourceName.orEmpty()) }
+        destinationAccountPick = candidate.destinationId?.let { PickedAccount(it, candidate.destinationName.orEmpty()) }
+
+        binding.descriptionInput.setText(candidate.description)
+        binding.notesInput.setText(candidate.notes.orEmpty())
+        binding.categoryInput.setText(candidate.category.orEmpty())
+        binding.tagsInput.setText(candidate.tags.joinToString(", "))
     }
 
     /** Only the asset side of the pair gets the account picker (`FireflyApiClient.
@@ -241,9 +327,9 @@ class CreateTransactionFragment : Fragment() {
     }
 
     /** No id-staleness tracking needed here the way accounts have it - `FireflyTransactionRequest.
-     * categoryName` is the only field Firefly's create-transaction endpoint accepts for category
-     * (no `category_id`, confirmed against `buildTransactionRequestBody`), so picking just fills
-     * in a real name, nothing more to reconcile at build time. */
+     * categoryName` is the only field Firefly's create/update-transaction endpoints accept for
+     * category (no `category_id`, confirmed against `buildTransactionSplit`), so picking just
+     * fills in a real name, nothing more to reconcile at build time. */
     private fun showCategoryPicker(target: EditText) {
         val context = requireContext()
         val prefs = FireflyPrefs(context)
@@ -323,7 +409,8 @@ class CreateTransactionFragment : Fragment() {
     /** Same exchange-rate resolution `MessagesFragment.resolveAmountQuietly` does - but only fills
      * [FragmentCreateTransactionBinding.amountInput] if it's still blank once the fetch resolves,
      * not unconditionally: the user may already have typed an amount by hand while the async fetch
-     * was in flight, and that shouldn't get silently overwritten. */
+     * was in flight, and that shouldn't get silently overwritten. Create mode only - edit mode
+     * always has a real amount already, nothing to resolve. */
     private suspend fun resolveApproxConversion(draft: TransactionDraft) {
         val foreignCurrency = draft.foreignCurrencyCode ?: return
         val context = requireContext()
@@ -388,53 +475,88 @@ class CreateTransactionFragment : Fragment() {
         val context = requireContext()
         val prefs = FireflyPrefs(context)
         val amount = draft.amount ?: return
-        val request = FireflyTransactionRequest(
-            type = draft.kind.name.lowercase(),
-            dateIso = draft.date.toString(),
-            amount = amount.toPlainString(),
-            description = draft.description,
-            currencyCode = draft.currencyCode,
-            sourceId = draft.sourceAccountId,
-            sourceName = draft.sourceName,
-            destinationId = draft.destinationAccountId,
-            destinationName = draft.destinationName,
-            categoryName = draft.category,
-            tags = draft.tags,
-            notes = draft.notes.takeIf { it.isNotBlank() },
-            foreignAmount = draft.foreignAmount?.toPlainString(),
-            foreignCurrencyCode = draft.foreignCurrencyCode,
-        )
+        val request = buildTransactionRequest(draft, amount)
         val client = FireflyApiClient(prefs.getBaseUrl(), prefs.getToken())
         when (val result = client.createTransaction(request)) {
-            is FireflyApiClient.Result.Success -> {
-                CreatedTransactionsDb.getInstance(context).recordCreated(
-                    hashWithDescription = transactionDedupHash(draft, true),
-                    hashWithoutDescription = transactionDedupHash(draft, false),
-                    transactionDateMillis = draft.date.toEpochMilli(),
-                    fireflyTransactionId = result.value,
-                )
-                MessageStore.shared.setTransactionId(message, result.value)
-                Toast.makeText(context, getString(R.string.create_success_message, result.value), Toast.LENGTH_LONG).show()
-                requireActivity().finish()
-            }
-            is FireflyApiClient.Result.Failure -> {
-                binding.createTransactionButton.isEnabled = true
-                AlertDialog.Builder(context)
-                    .setTitle(R.string.create_failed_title)
-                    .setMessage(result.message)
-                    .setPositiveButton(android.R.string.ok, null)
-                    .show()
-            }
+            is FireflyApiClient.Result.Success -> onSaveSuccess(context, draft, result.value)
+            is FireflyApiClient.Result.Failure -> onSaveFailure(context, binding, result.message)
         }
     }
 
+    /** Edit mode's submit - no duplicate check first, unlike [onCreateClicked]: there's no
+     * "might this already exist" question when the whole point is editing a transaction already
+     * confirmed to exist. */
+    private fun onSaveClicked(transactionId: String) {
+        val binding = binding ?: return
+        val draft = buildDraft() ?: return
+        binding.createTransactionButton.isEnabled = false
+        viewLifecycleOwner.lifecycleScope.launch { save(draft, transactionId) }
+    }
+
+    private suspend fun save(draft: TransactionDraft, transactionId: String) {
+        val binding = binding ?: return
+        val context = requireContext()
+        val prefs = FireflyPrefs(context)
+        val amount = draft.amount ?: return
+        val request = buildTransactionRequest(draft, amount)
+        val client = FireflyApiClient(prefs.getBaseUrl(), prefs.getToken())
+        when (val result = client.updateTransaction(transactionId, request)) {
+            is FireflyApiClient.Result.Success -> onSaveSuccess(context, draft, result.value)
+            is FireflyApiClient.Result.Failure -> onSaveFailure(context, binding, result.message)
+        }
+    }
+
+    private fun buildTransactionRequest(draft: TransactionDraft, amount: BigDecimal) = FireflyTransactionRequest(
+        type = draft.kind.name.lowercase(),
+        dateIso = draft.date.toString(),
+        amount = amount.toPlainString(),
+        description = draft.description,
+        currencyCode = draft.currencyCode,
+        sourceId = draft.sourceAccountId,
+        sourceName = draft.sourceName,
+        destinationId = draft.destinationAccountId,
+        destinationName = draft.destinationName,
+        categoryName = draft.category,
+        tags = draft.tags,
+        notes = draft.notes.takeIf { it.isNotBlank() },
+        foreignAmount = draft.foreignAmount?.toPlainString(),
+        foreignCurrencyCode = draft.foreignCurrencyCode,
+    )
+
+    /** Shared by [post] (create) and [save] (edit) - recording the dedup hash and linking the
+     * message is identical either way: a successful edit's fields are exactly as likely to need
+     * matching against later as a freshly-created one's, so the stored hash gets refreshed here
+     * too rather than only ever reflecting the transaction's *original* fields. */
+    private fun onSaveSuccess(context: Context, draft: TransactionDraft, transactionId: String) {
+        CreatedTransactionsDb.getInstance(context).recordCreated(
+            hashWithDescription = transactionDedupHash(draft, true),
+            hashWithoutDescription = transactionDedupHash(draft, false),
+            transactionDateMillis = draft.date.toEpochMilli(),
+            fireflyTransactionId = transactionId,
+        )
+        MessageStore.shared.setTransactionId(message, transactionId)
+        Toast.makeText(context, getString(R.string.create_success_message, transactionId), Toast.LENGTH_LONG).show()
+        requireActivity().finish()
+    }
+
+    private fun onSaveFailure(context: Context, binding: FragmentCreateTransactionBinding, message: String) {
+        binding.createTransactionButton.isEnabled = true
+        AlertDialog.Builder(context)
+            .setTitle(R.string.create_failed_title)
+            .setMessage(message)
+            .setPositiveButton(android.R.string.ok, null)
+            .show()
+    }
+
     /** Builds the final [TransactionDraft] from the current field values, validating as it goes -
-     * [kind]/[message] carry over from the original match unchanged (kind isn't user-editable, see
-     * this class's own KDoc), everything else is read fresh from the form. `issues` is always
-     * empty - the two [DraftIssue] flags were about automated-parse uncertainty, which no longer
-     * applies once a human has directly reviewed/filled in the fields. Returns null (after showing
-     * the relevant field's error) on the first validation failure - same "stop at the first
-     * problem" shape `FireflySettingsFragment.save` already uses. */
+     * [kind]/[message] carry over from the original match/fetch unchanged (kind isn't
+     * user-editable in either mode, see this class's own KDoc), everything else is read fresh
+     * from the form. `issues` is always empty - the two [DraftIssue] flags were about
+     * automated-parse uncertainty, which no longer applies once a human has directly
+     * reviewed/filled in the fields (true in edit mode from the start - there was never a parse
+     * to begin with). Returns null (after showing the relevant field's error) on the first
+     * validation failure - same "stop at the first problem" shape `FireflySettingsFragment.save`
+     * already uses. */
     private fun buildDraft(): TransactionDraft? {
         val binding = binding ?: return null
 

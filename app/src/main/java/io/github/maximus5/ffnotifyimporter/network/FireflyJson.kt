@@ -61,40 +61,60 @@ fun totalPages(body: String): Int = try {
     1
 }
 
+/** The one `transactions[]` split object shared by [buildTransactionRequestBody] (create) and
+ * [buildTransactionUpdateRequestBody] (edit) - same fields either way, only the wrapper around it
+ * differs. */
+private fun buildTransactionSplit(request: FireflyTransactionRequest): JSONObject = JSONObject().apply {
+    put("type", request.type)
+    put("date", request.dateIso)
+    put("amount", request.amount)
+    put("description", request.description)
+    put("currency_code", request.currencyCode)
+    // Firefly's own docs: "Submit either this or source_name" - an ID, when we have one,
+    // survives a Firefly-side account rename that would silently break a name-only match, so
+    // it's sent *instead of* the name, not alongside it.
+    if (request.sourceId != null) put("source_id", request.sourceId) else request.sourceName?.let { put("source_name", it) }
+    if (request.destinationId != null) {
+        put("destination_id", request.destinationId)
+    } else {
+        request.destinationName?.let { put("destination_name", it) }
+    }
+    request.categoryName?.let { put("category_name", it) }
+    if (request.tags.isNotEmpty()) put("tags", JSONArray(request.tags))
+    request.notes?.let { put("notes", it) }
+    request.foreignAmount?.let { put("foreign_amount", it) }
+    request.foreignCurrencyCode?.let { put("foreign_currency_code", it) }
+    request.externalId?.let { put("external_id", it) }
+}
+
 /**
  * Builds the JSON body `POST /v1/transactions` expects - a `transactions` array wrapping a single
  * split (Firefly supports splitting one transaction into several, this client never does), plus
  * `error_if_duplicate_hash: true` as a free extra safety net on top of this app's own dedup check
  * (see TODO.md) - Firefly rejects the request outright if *it* also thinks this is a duplicate.
  */
-fun buildTransactionRequestBody(request: FireflyTransactionRequest): String {
-    val split = JSONObject().apply {
-        put("type", request.type)
-        put("date", request.dateIso)
-        put("amount", request.amount)
-        put("description", request.description)
-        put("currency_code", request.currencyCode)
-        // Firefly's own docs: "Submit either this or source_name" - an ID, when we have one,
-        // survives a Firefly-side account rename that would silently break a name-only match, so
-        // it's sent *instead of* the name, not alongside it.
-        if (request.sourceId != null) put("source_id", request.sourceId) else request.sourceName?.let { put("source_name", it) }
-        if (request.destinationId != null) {
-            put("destination_id", request.destinationId)
-        } else {
-            request.destinationName?.let { put("destination_name", it) }
-        }
-        request.categoryName?.let { put("category_name", it) }
-        if (request.tags.isNotEmpty()) put("tags", JSONArray(request.tags))
-        request.notes?.let { put("notes", it) }
-        request.foreignAmount?.let { put("foreign_amount", it) }
-        request.foreignCurrencyCode?.let { put("foreign_currency_code", it) }
-        request.externalId?.let { put("external_id", it) }
-    }
-    return JSONObject()
+fun buildTransactionRequestBody(request: FireflyTransactionRequest): String =
+    JSONObject()
         .put("error_if_duplicate_hash", true)
-        .put("transactions", JSONArray().put(split))
+        .put("transactions", JSONArray().put(buildTransactionSplit(request)))
         .toString()
-}
+
+/**
+ * Builds the JSON body `PUT /v1/transactions/{id}` expects, for the editing feature (the user's
+ * own request) - same single-split shape as [buildTransactionRequestBody], no
+ * `error_if_duplicate_hash` (store-only, not one of `UpdateRequest`'s recognized top-level keys -
+ * confirmed against its current source, not assumed). Confirmed genuinely *partial*: `UpdateRequest.
+ * getTransactionData()`'s own comment is "default response is to update nothing in the
+ * transaction" - every field is copied into Firefly's update data only if `array_key_exists` in
+ * what's sent here, so this app's own form only ever touches the fields it actually exposes
+ * (amount/currency/date/accounts/description/notes/category/tags) - anything else already on the
+ * transaction (budget, piggy bank, SEPA fields, reconciliation state, ...) is left exactly as it
+ * was, since this never includes those keys at all.
+ */
+fun buildTransactionUpdateRequestBody(request: FireflyTransactionRequest): String =
+    JSONObject()
+        .put("transactions", JSONArray().put(buildTransactionSplit(request)))
+        .toString()
 
 /** `POST /v1/transactions`'s success body is `{"data": {"id": "...", ...}}` - the created
  * transaction's ID, for this app's own "created transactions" log. */
@@ -105,15 +125,16 @@ fun parseCreatedTransactionId(body: String): String? = try {
 }
 
 /** `GET /v1/accounts/{id}/transactions`'s body is `{"data": [{"id": "<group id>", "attributes":
- * {"transactions": [{"date", "amount", "currency_code", "foreign_amount",
+ * {"transactions": [{"type", "date", "amount", "currency_code", "foreign_amount",
  * "foreign_currency_code", "description", "source_id", "source_name", "destination_id",
  * "destination_name", "notes", "tags", "category_name", ...}, ...]}}, ...], "meta": {...}}` -
  * exact field names confirmed against `TransactionGroupTransformer`'s current source, not assumed
- * (`notes`/`tags`/`category_name` specifically: the user's own request, to show an already-linked
- * transaction's real current fields rather than this app's own rule-derived guess). Flattens every
- * group's splits into one list (each keeping its own group's id - this app's own transactions
- * never split, but Firefly/a manual entry might), skipping anything missing a field this app
- * actually needs (malformed entry, not the whole list). */
+ * (`notes`/`tags`/`category_name`/`type`: the user's own request, to show an already-linked
+ * transaction's real current fields - and, for `type`, let the edit screen know its real kind -
+ * rather than this app's own rule-derived guess). Flattens every group's splits into one list
+ * (each keeping its own group's id - this app's own transactions never split, but Firefly/a
+ * manual entry might), skipping anything missing a field this app actually needs (malformed
+ * entry, not the whole list). */
 fun parseTransactionList(body: String): List<FireflyTransactionCandidate> = try {
     val data = JSONObject(body).optJSONArray("data")
     if (data == null) {
@@ -181,6 +202,7 @@ private fun parseTransactionSplit(groupId: String, split: JSONObject?): FireflyT
         notes = split.optStringOrNull("notes"),
         category = split.optStringOrNull("category_name"),
         tags = tags,
+        type = split.optString("type", "withdrawal"),
     )
 }
 

@@ -381,9 +381,10 @@ Single `:app` module, packages under
     `groupId`, no `foreignAmount`/asset-counterparty ids - see
     `network.FireflyTransactionCandidate`, which `MessagesFragment`
     maps into this plain, `network`-free form; `notes`/`category`/`tags`
-    *are* on both now, added so an already-linked transaction's dialog
-    can show its real current fields, not just a rule-derived guess),
-    and
+    *are* on both now, added so an already-linked transaction's editor
+    (`ui.CreateTransactionFragment`'s edit mode, see `ui` section below)
+    can start from its real current fields, not just a rule-derived
+    guess), and
     `transactionDedupHash` deliberately doesn't cover date at all (the
     window check here is its own explicit thing, same reason
     `CreatedTransactionsDb.findWithinWindow` does its own SQL `BETWEEN`
@@ -403,6 +404,16 @@ Single `:app` module, packages under
     *also* has one for - otherwise it's compared by name instead, same
     as `draft` itself is, so a real counterparty match isn't rejected
     just because this app never had an id for it.
+    `RemoteTransactionCandidate` also now carries `kind: RuleKind`
+    (`TransactionGroupTransformer`'s own `type` field,
+    `withdrawal`/`deposit`/`transfer`, confirmed against its current
+    source - `network.FireflyTransactionCandidate.type` stays the raw
+    string, mapped to `RuleKind` by `posting.DuplicateChecker`'s private
+    `ruleKindFrom`, same layering reason `FireflyTransactionRequest.type`
+    isn't `RuleKind` either) - needed once `ui.CreateTransactionFragment`
+    edit mode (see `ui` section below) had to know which account side is
+    the asset side for an already-existing transaction, not just a
+    freshly-matched draft's own `kind`.
     **Fixed a third real bug, a foreign-currency false negative the
     user caught on a HKD Amex notification**: when `draft` has
     `foreignAmount`/`foreignCurrencyCode` set, its own `amount`/
@@ -714,6 +725,37 @@ Single `:app` module, packages under
     `foreign_amount` already happened to be safe by accident (`"null"`
     isn't valid `BigDecimal` syntax, so `toBigDecimalOrNull()` silently
     produced a real `null` anyway), but the others had no such luck.
+    `updateTransaction(id, FireflyTransactionRequest)` (`PUT
+    /v1/transactions/{id}`, routed to `UpdateController@update`,
+    confirmed against `routes/api.php`'s current source) - the user's
+    own request: edit an already-linked transaction's fields in place
+    instead of only ever being able to create a new one. Reuses
+    `parseCreatedTransactionId` unchanged (an update's response is the
+    same `Item`-wrapped resource shape a create's is) and a new
+    `FireflyJson.buildTransactionUpdateRequestBody`, which shares
+    `buildTransactionRequestBody`'s split-building (`buildTransactionSplit`,
+    factored out of both) but skips the `error_if_duplicate_hash`
+    wrapper key - not a key `UpdateRequest` recognizes, confirmed against
+    its current source. That source also confirms `UpdateRequest.
+    getTransactionData()` is a genuine *partial* update - every field
+    group (`integerFields`/`stringFields`/`textareaFields`/`dateFields`/
+    `booleanFields`/`arrayFields`/`floatFields`) is only copied into the
+    update if the submitted JSON has that exact key at all
+    (`array_key_exists`), so this app's update request - which never
+    includes fields it doesn't expose (budget, piggy bank, SEPA fields,
+    `internal_reference`, reconciliation state, ...) - leaves all of
+    those untouched automatically, with no need for this app to fetch
+    and round-trip them itself. **Deliberately not wrapped in
+    `withNetworkRetry`**, same reasoning as `createTransaction` above -
+    confirmed non-idempotent the same way (no `Idempotency-Key`, same
+    content-based `DuplicateTransactionException` heuristic would also
+    apply if a retried update happened to reproduce another existing
+    transaction's fields). Firefly's own `preventUpdateReconciled`
+    validator rejects `source`/`destination`/`amount`/`foreign_amount`
+    changes outright on a reconciled transaction - deliberately *not*
+    pre-detected or restricted client-side (the user's own choice, asked
+    directly): this app just lets that request fail and shows Firefly's
+    real error, rather than guessing which fields are locked.
   - `withNetworkRetry` (`network/NetworkRetry.kt`) - up to 3 attempts,
     exponential backoff (500ms/1000ms), retrying only on `IOException`
     (a genuine network-level failure - no connection, timeout, DNS) and
@@ -1314,10 +1356,9 @@ Single `:app` module, packages under
       `#<id>` on its own gave the user no way to independently judge the
       match without leaving the app. **Fixed a real inconsistency, the
       user's own catch**: `buildFoundTransactionInfo` used to be plain
-      text, reading differently from `buildMatchedBody`/
-      `buildCandidateBody`'s bold-label style elsewhere in the same
-      fragment - now built via the same shared `boldField` helper all
-      three use.
+      text, reading differently from `buildMatchedBody`'s bold-label
+      style elsewhere in the same fragment - now built via the same
+      shared `boldField` helper both use.
       **Fixed a real "offers a pointless choice" bug, the user's own
       catch**: "Use Created" used to always show, even when `foundId`
       already *is* the message's own linked id - a pure no-op in that
@@ -1376,9 +1417,13 @@ Single `:app` module, packages under
     unconditionally for a fresh match, skipping the check entirely - a
     transaction that genuinely already existed (confirmed separately by
     "Check if created" finding it) went unnoticed until the user tapped
-    "Create transaction" on the review screen itself. Everything else
-    (no match, an already-linked message, or Firefly not configured)
-    still shows the result (source/destination account, amounts/
+    "Create transaction" on the review screen itself. An already-linked
+    *live* message (`verifyLinkedThenShow`, below) and a no-match/
+    not-configured tap are the only cases left that still show a dialog
+    here at all - everything else (a fresh match, or a stale link just
+    confirmed gone) ends up at `CreateTransactionActivity` one way or
+    another instead. The no-match/not-configured dialog shows the
+    result (source/destination account, amounts/
     currencies, rendered description/notes, issues) in a dialog - "test
     match". The dialog's
     *title* is the outcome itself: the matched rule's own label, or
@@ -1404,135 +1449,96 @@ Single `:app` module, packages under
     (`rules.applyApproxConversion`), or the original body plus an
     explicit "lookup failed: <reason>" line on failure.
 
-    The dialog's buttons depend on whether *this message*
-    (`message.fireflyTransactionId`, not the draft) already has a
-    linked transaction - only added when the match produced a draft
-    *and* `FireflyPrefs.isConfigured()`, not shown at all for a no-match
-    or an unconfigured connection:
-    - Already linked: **fixed a real "pretends everything is fine" bug,
-      the user's own catch/report (screenshotted)** - reaching this
-      dialog used to trust `message.fireflyTransactionId` blindly, with
-      zero verification, so a transaction deleted by hand in Firefly
-      left "Open Transaction" pointing at a dead link with nothing on
-      screen explaining why. `showTestMatch` now routes the already-
-      linked case through `verifyLinkedThenShow` first, which checks via
-      the one shared `posting.verifyLinkedTransaction` (`LinkedTransactionCheck`
-      - `Found(candidate)`/`Gone`/`CheckFailed`, see the `posting` section
-      below): still there -> this dialog, now built from the live
-      `candidate`'s own real fields via `buildCandidateBody` (see its own
-      note just below) instead of the rule-re-parsed draft; confirmed
+    This dialog only ever shows for a no-match or an unconfigured
+    connection now - plain `OK`, no secondary buttons at all
+    (`showMatchedDialog`). An already-linked message, and a fresh match
+    with Firefly configured, both skip it entirely:
+    - Already linked (`message.fireflyTransactionId != null` and
+      Firefly configured): **fixed a real "pretends everything is fine"
+      bug, the user's own catch/report (screenshotted)** - this path
+      used to trust `message.fireflyTransactionId` blindly, with zero
+      verification, so a transaction deleted by hand in Firefly left
+      "Open Transaction" pointing at a dead link with nothing on screen
+      explaining why. `showTestMatch` routes this case through
+      `verifyLinkedThenShow` first, which checks via the one shared
+      `posting.verifyLinkedTransaction` (`LinkedTransactionCheck` -
+      `Found(candidate)`/`Gone`/`CheckFailed`, see the `posting` section
+      below): still there -> **the user's own later request** - opens
+      `CreateTransactionActivity` straight into *edit* mode
+      (`editIntent`, see that class's own entry below) on the live
+      `candidate`'s real current fields, no dialog at all; confirmed
       gone -> control falls through to `checkThenOpenCreateOrShowFound`
       (the same fresh-match search-then-show/create flow below), now
       carrying a `staleLinkedId` parameter so a replacement match (if
       search finds one) shows `check_linked_transaction_gone_warning`
       ("⚠ Linked transaction #X no longer exists in Firefly") instead of
       presenting the new match as if nothing had ever been linked;
-      nothing found falls through to `CreateTransactionActivity`, same
-      as any other fresh match. **Fixed a real "changes state before the
-      user agreed to anything" bug, the user's own catch, same day**: the
-      stale link used to be cleared (`MessageStore.
-      setTransactionId(message, null)`) the instant the `404` was
-      confirmed, before any dialog even showed - a plain Cancel on
-      whatever came next would've silently unlinked the message with no
-      action behind it. Nothing clears it proactively now; the link only
-      ever changes as a side effect of the user's own choice - "Use
-      Created" overwrites it with the newly found id, a successful
-      create (fresh or "Create anyway") overwrites it with the new
+      nothing found falls through to `CreateTransactionActivity` in
+      *create* mode, same as any other fresh match. **Fixed a real
+      "changes state before the user agreed to anything" bug, the
+      user's own catch, same day**: the stale link used to be cleared
+      (`MessageStore.setTransactionId(message, null)`) the instant the
+      `404` was confirmed, before anything was even shown - a plain
+      Cancel on whatever came next would've silently unlinked the
+      message with no action behind it. Nothing clears it proactively
+      now; the link only ever changes as a side effect of the user's
+      own choice - "Use Created" overwrites it with the newly found id,
+      a successful create or edit overwrites it with its own
       transaction's id, and a Cancel leaves the stale id exactly as it
       was, re-verified the same way next time rather than silently
       forgotten. A verification failure (network/server error, *not*
       confirmed gone) shows the error and stops - same "don't guess"
       rule every dedup check in this file follows.
-      **Fixed two more real bugs, the same catch/report**: the dialog's
-      body used to show `buildMatchedBody(draft)` - fields freshly
-      re-parsed from the rule - even once a live candidate was on hand,
-      which can disagree with reality if the transaction was edited by
-      hand in Firefly since this app posted it (the user's own example:
-      changed description/notes), and never showed the transaction id at
-      all. `buildCandidateBody` fixes both - built from the verified
-      `candidate`'s own current fields, id included, same bold-label
-      style as `buildMatchedBody`, now with `notes`/`category`/`tags`
-      also available on `RemoteTransactionCandidate`/
-      `FireflyTransactionCandidate` (parsed from Firefly's own
-      `notes`/`tags`/`category_name` response fields, confirmed against
-      `TransactionGroupTransformer`'s current source) where they weren't
-      before. `MessagesFragment.checkIfCreated` got the equivalent fix
-      too - and a further one, the user's own catch: it used to always
-      run a full content search regardless of whether `message` already
-      had a linked id, so an edited transaction whose content no longer
-      hashed/queried the same could make it report a *different* id as
-      the match, ignoring the known-good one entirely. It now checks the
-      linked id first via the same `verifyLinkedTransaction`, same as
-      `verifyLinkedThenShow`: still there -> shown directly
+      `MessagesFragment.checkIfCreated` runs the equivalent
+      linked-id-first check before its own content search, same
+      reasoning: it used to always run a full content search regardless
+      of whether `message` already had a linked id, so an edited
+      transaction whose content no longer hashed/queried the same could
+      make it report a *different* id as the match, ignoring the
+      known-good one entirely. It now checks the linked id first via
+      the same `verifyLinkedTransaction`: still there -> shown directly
       (`showDuplicateConfirmDialog` with the live candidate), the search
       below skipped entirely; confirmed gone -> falls through to the
       search, now carrying the gone id as `staleLinkedId` so a
       replacement match says so explicitly, same warning as above.
-      Neutral = "Open Transaction" (same
-      `network.transactionUrl`/`ACTION_VIEW` as the success dialog's own
-      button, factored into one `openTransaction(context, id)` helper
-      every "open" button in this fragment calls - **fixed a real
-      "silent dead link" bug, the user's own catch, found on the first
-      real end-to-end round-trip test (create -> auto-create posts it ->
-      delete it by hand in Firefly)**: Firefly's own web UI doesn't show
-      a 404 for a deleted transaction, it silently redirects to the home
-      page, so an `ACTION_VIEW` launch alone gives the user no sign
-      anything was wrong. Every "open" action (this button, the
-      duplicate-confirm dialog's, "Open in Firefly III" on the overflow
-      menu) now goes through `verifyThenOpenTransaction` first - the
-      same shared `posting.verifyLinkedTransaction`, confirmed-gone ->
-      an explicit `open_transaction_gone_*` dialog instead of the
-      ambiguous redirect, same "don't guess" rule every dedup check in
-      this file already follows - and only calls `openTransaction`
-      itself once existence is confirmed), negative =
-      "Create Again" - kept out of the neutral slot on purpose, so the
-      single most relevant secondary action always sits there (create
-      when nothing's linked, open when something is) and "do it again"
-      stays a deliberate second choice, not the default. **Fixed a real
-      "no confirmation at all" gap, the user's own catch**: "Create
-      Again" used to jump straight to `startCreate` on tap, reasoning
-      that re-creating from an already-linked message was already an
-      explicit "yes, another one anyway" decision - but `startCreate`'s
-      own `checkForDuplicate` safety net is best-effort only (silently
-      skipped entirely when `FireflyPrefs.isDedupEnabled()` is off, or
-      when the dedup window has since lapsed), so in practice the tap
-      itself had no guaranteed confirmation at all. `confirmCreateAgain`
-      now shows an explicit "Create again? This will post a second
-      transaction" dialog first, every time, regardless of dedup
-      settings - `startCreate` only runs after that's accepted, keeping
-      its own `checkForDuplicate` call as an additional (not a
-      replacement) safety net. **Fixed a second real gap, the user's
-      own catch, same day**: `startCreate` used to post straight to
-      Firefly from the draft exactly as originally matched, with no
-      review/edit step at all - the user's explicit rule is that
-      bypassing the review screen is only ever allowed for
-      `posting.AutoCreateWorker`'s background auto-create-by-notification
-      path, never for a manual action. `startCreate` now opens
-      `CreateTransactionActivity` on a clean/failed duplicate check
-      instead of posting (see that class's own entry below); a found
-      duplicate still shows `showDuplicateConfirmDialog` first, whose
-      own "Create anyway" (below) also opens that same screen rather
-      than posting from here.
-      **Superseded, the user's own catch**: `confirmCreateAgain`'s own
-      dialog (described just above) and `startCreate`'s preemptive
-      `checkForDuplicate` are both gone now - between them they produced
-      *two* confirmation gates in a row before the user ever reached the
-      review screen (confirmCreateAgain's "this will post a second
-      transaction", then almost immediately `showDuplicateConfirmDialog`
-      again for the exact same transaction the first dialog already
-      named, since the preemptive check would re-find it). "Create
-      Again" now opens `CreateTransactionActivity` directly - no dialog,
-      no preemptive check - which shows an explicit warning banner
-      instead (`create_tx_already_linked_warning`, red/`?attr/colorError`,
-      informational while editing, not a gate) and relies on its own
-      existing on-submit `checkForDuplicate` (`CreateTransactionFragment.
-      confirmCreateAnyway`) for the one real "are you sure", asked
-      exactly once, at the point that actually matters. `message.
-      fireflyTransactionId` is now carried across the Activity boundary
-      too (`CreateTransactionActivity.intent`'s new
-      `EXTRA_EXISTING_TRANSACTION_ID`) specifically so the fragment can
-      show that banner - previously dropped entirely when crossing into
-      this screen.
+      "Open Transaction" (same `network.transactionUrl`/`ACTION_VIEW` as
+      the success dialog's own button, factored into one
+      `openTransaction(context, id)` helper every "open" button in this
+      fragment calls) - **fixed a real "silent dead link" bug, the
+      user's own catch, found on the first real end-to-end round-trip
+      test (create -> auto-create posts it -> delete it by hand in
+      Firefly)**: Firefly's own web UI doesn't show a 404 for a deleted
+      transaction, it silently redirects to the home page, so an
+      `ACTION_VIEW` launch alone gives the user no sign anything was
+      wrong. Every "open" action (the duplicate-confirm dialog's, "Open
+      in Firefly III" on the overflow menu) goes through
+      `verifyThenOpenTransaction` first - the same shared
+      `posting.verifyLinkedTransaction`, confirmed-gone -> an explicit
+      `open_transaction_gone_*` dialog instead of the ambiguous
+      redirect, same "don't guess" rule every dedup check in this file
+      already follows - and only calls `openTransaction` itself once
+      existence is confirmed.
+      **Superseded, the user's own later request, kept for context**:
+      this used to be a read-only info dialog with "Open
+      Transaction"/"Create Again" buttons (`buildCandidateBody` built
+      its body from the live candidate's fields, same bold-label style
+      `buildMatchedBody` uses) instead of opening straight into the
+      editor. "Create Again" itself went through its own history first -
+      no confirmation at all originally (`startCreate` posted straight
+      from the tap), then an explicit "Create again? This will post a
+      second transaction" dialog (`confirmCreateAgain`), then dropped
+      the dialog in favor of opening `CreateTransactionActivity` for
+      review before posting (same rule as every other manual create
+      path: bypassing review is only ever allowed for
+      `posting.AutoCreateWorker`'s background path) with an
+      `create_tx_already_linked_warning` banner at the top warning that
+      creating would post a second transaction. All of that is gone now:
+      once a tap opens the editor directly, "fix the wrong transaction"
+      replaces "create a second one and leave the original behind" as
+      the answer to an already-linked message being wrong - the user's
+      own call, made explicitly when asked. `buildCandidateBody`,
+      `startCreate`, `confirmCreateAgain`, and the already-linked
+      warning banner/string are all deleted, not kept dead.
     - Nothing linked yet (and Firefly configured): this dialog shows up
       as its *found* variant (`showDuplicateConfirmDialog`, same as
       every other create path's duplicate hit) if the preemptive check
@@ -1632,79 +1638,120 @@ Single `:app` module, packages under
     even on an already-confirmed duplicate. `showDuplicateConfirmDialog`
     itself no longer takes a `draft` parameter at all as a result -
     nothing left in it needs one.
-  - `CreateTransactionActivity`/`CreateTransactionFragment` - the
-    pre-create review/edit screen (TODO.md's dedup history). Originally
-    opened only by `MessagesFragment.showTestMatch`/
-    `checkThenOpenCreateOrShowFound` for a fresh match (nothing linked
-    yet, Firefly configured); now also the destination of "Create
-    Again" (`startCreate`) and "Create anyway" (`showDuplicateConfirmDialog`)
-    - every manual create path ends up here, per the user's explicit
-    rule that only `posting.AutoCreateWorker`'s background path is
-    allowed to post without review. Posting itself doesn't treat an
-    already-linked `message` (a "Create Again"/"Create anyway"
-    re-launch) specially - it just re-matches and posts, overwriting the
-    previous link, same "latest wins" reasoning used everywhere else a
-    message gets re-created. The screen's *display* does now, the
-    user's own request: `message.fireflyTransactionId`, when present,
-    shows `alreadyLinkedWarningText` (red/`?attr/colorError`, bold,
-    `create_tx_already_linked_warning` - "⚠ This message is already
-    linked to transaction #X. Creating will post a second transaction")
-    right at the top of the form, replacing the separate confirmation
-    dialog `MessagesFragment.confirmCreateAgain` used to show *before*
-    this screen even opened (see `ui` section below, `showMatchedDialog`'s
-    entry, for why that dialog is gone). Purely informational - doesn't
-    block anything - since the screen's own on-submit duplicate check
-    **A second, distinct banner variant, the user's own follow-up
-    request**: when there's no *currently* linked id but a previous one
-    was just confirmed gone (`MessagesFragment.verifyLinkedThenShow`'s
-    `Gone` branch, carried here as `staleLinkedId` - a new, separate
-    `CreateTransactionActivity.intent` parameter/extra, deliberately
-    *not* folded into `message.fireflyTransactionId` itself, since
-    that's exactly what was just disproven), the same banner view shows
-    `create_tx_stale_linked_warning` instead - "⚠ Previously linked
-    transaction #X was not found in Firefly" - rather than the
-    "already linked" wording, which would be false here. Checked in
-    that order (`fireflyTransactionId` first, `staleLinkedId` only as a
-    fallback) since a single message is only ever in one of those two
-    states by construction.
-    already re-finds the same linked transaction and asks the real "are
-    you sure" right there (`confirmCreateAnyway`, below).
-    **Fixed a real "warns about a transaction we just proved doesn't
-    exist" bug, the user's own catch, same end-to-end round-trip test**:
-    `checkThenOpenCreateOrShowFound` used to pass the original
-    `CapturedMessage` straight through to `CreateTransactionActivity.intent`
-    on every path, including the one reached *after* confirming a
-    previously-linked id is gone (`verifyLinkedThenShow`'s `Gone`
-    branch, falling through here) - that message still carried the
-    now-disproven `fireflyTransactionId`, so this screen's own warning
-    banner fired for an id the exact same flow had just finished
-    disproving. `checkThenOpenCreateOrShowFound` now builds a
-    `cleanMessage` (`fireflyTransactionId = null`) once and uses it for
-    every path onward - safe unconditionally, since every call site
-    reachable there already knows there's no *currently valid* link by
-    construction (either never had one, or just disproved it).
+  - `CreateTransactionActivity`/`CreateTransactionFragment` - two
+    modes, same fields/layout, decided purely by which factory
+    (`intent`/`editIntent`) built the launching `Intent`:
+    - **Create** (`intent`) - the pre-create review/edit screen
+      (TODO.md's dedup history). Opened by `MessagesFragment.showTestMatch`/
+      `checkThenOpenCreateOrShowFound` for a fresh match (nothing linked
+      yet, Firefly configured), and by "Create anyway"
+      (`showDuplicateConfirmDialog`) - every manual *create* path ends
+      up here, per the user's explicit rule that only
+      `posting.AutoCreateWorker`'s background path is allowed to post
+      without review. `CreateTransactionFragment.loadForCreate`
+      re-matches the message fresh (`RuleEngine.match`) and populates
+      the form from the resulting `TransactionDraft`
+      (`populateFields`). `staleLinkedId`, when present
+      (`CreateTransactionActivity.intent`'s own parameter, *not* folded
+      into `message.fireflyTransactionId` - see below for why), shows
+      `alreadyLinkedWarningText` (red/`?attr/colorError`, bold,
+      `create_tx_stale_linked_warning` - "⚠ Previously linked
+      transaction #X was not found in Firefly") at the top of the form -
+      purely informational, doesn't block anything, since the screen's
+      own on-submit duplicate check (`onCreateClicked` ->
+      `checkForDuplicate` -> `confirmCreateAnyway` on a hit) already
+      re-finds whatever's actually there now and asks the real "are you
+      sure" right there. **Superseded, the user's own later call, kept
+      for context**: this banner used to have a second variant,
+      `create_tx_already_linked_warning` ("⚠ This message is already
+      linked to transaction #X. Creating will post a second
+      transaction"), shown whenever `message.fireflyTransactionId` was
+      non-null - reachable back when "Create Again" opened this screen
+      on an already-linked message. Once a tap on a *live* link opens
+      straight into **edit** mode instead (below), that case can't reach
+      *this* mode at all any more, so the warning (and the string
+      itself) is gone - `message.fireflyTransactionId` is never even
+      read here now, and `messageFrom(intent)` doesn't carry it across
+      the Activity boundary at all.
+      **Fixed a real "warns about a transaction we just proved doesn't
+      exist" bug, the user's own catch, same end-to-end round-trip
+      test**: `checkThenOpenCreateOrShowFound` used to pass the original
+      `CapturedMessage` straight through to `CreateTransactionActivity.
+      intent` on every path, including the one reached *after*
+      confirming a previously-linked id is gone (`verifyLinkedThenShow`'s
+      `Gone` branch, falling through here) - that message still carried
+      the now-disproven `fireflyTransactionId`. `checkThenOpenCreateOrShowFound`
+      now builds a `cleanMessage` (`fireflyTransactionId = null`) once
+      and uses it for every path onward - safe unconditionally, since
+      every call site reachable there already knows there's no
+      *currently valid* link by construction (either never had one, or
+      just disproved it).
+    - **Edit** (`editIntent`) - the user's own request: a tap that finds
+      a *currently valid* linked transaction
+      (`MessagesFragment.verifyLinkedThenShow`'s `Found` branch) opens
+      straight into editing that real transaction, instead of the old
+      read-only "Open Transaction"/"Create Again" info dialog (see the
+      `ui` section above for that history). "Create Again" itself is
+      gone entirely - the user's own call: if the linked transaction is
+      wrong, fix it here instead of creating a second one and leaving
+      the original behind. `CreateTransactionFragment.loadForEdit`
+      re-verifies `transactionId` itself on load, via the same shared
+      `posting.verifyLinkedTransaction` - not redundant even though
+      `verifyLinkedThenShow` just checked it: it closes the race where
+      the transaction gets deleted in the gap between the list-row tap
+      and this screen's own network round-trip. Still there ->
+      populates the form from the live `RemoteTransactionCandidate`'s
+      real current fields (`populateFieldsFromCandidate`, kept as its
+      own function rather than unifying with `populateFields` behind a
+      shared interface - the two source shapes differ enough that
+      forcing one on both costs more than the duplication saves) and
+      `kind` comes from `candidate.kind` (`RemoteTransactionCandidate`'s
+      own field, see the `rules`/`posting` sections above) rather than a
+      freshly re-parsed draft's; confirmed gone -> toasts and finishes,
+      nothing left to edit; a check failure shows the error and
+      finishes too. Saving (`onSaveClicked` -> `save`) calls the new
+      `FireflyApiClient.updateTransaction` (`PUT`, see the `network`
+      section above) instead of `createTransaction` (`POST`), and
+      **skips the duplicate check entirely** - unlike `onCreateClicked`,
+      there's no "might this already exist" question when the whole
+      point is editing a transaction already confirmed to exist.
+      `onSaveSuccess` (shared with create's own `onSaveSuccess` path)
+      still refreshes the `CreatedTransactionsDb` dedup hash for
+      `transactionId` even on an edit - the edited fields are exactly as
+      likely to need matching against later as a freshly-created
+      transaction's, so the stored hash shouldn't keep reflecting only
+      the transaction's *original* fields. Firefly's own
+      `preventUpdateReconciled` validator (see the `network` section
+      above) isn't pre-checked here either - same reasoning, the user's
+      own choice: let the API reject it and show the real error, rather
+      than guessing client-side which fields a reconciled transaction
+      has locked.
     A single-fragment-host `Activity` (its own class, not reusing
     `SettingsActivity` despite the identical shape - that class is
     named/documented as the settings area specifically, and this screen
     has no multi-level back-stack navigation to need `openScreen` for,
-    just one screen). `CreateTransactionActivity.intent(context,
-    message)`/`.messageFrom(intent)` carry the message across the
-    Activity boundary as its own plain fields (packageName/appLabel/
-    title/text/timestampMillis/fireflyTransactionId), not a serialized
+    just one screen). `intent(context, message, staleLinkedId)`/
+    `editIntent(context, message, transactionId)`/`.messageFrom(intent)`
+    carry the message across the Activity boundary as its own plain
+    fields (packageName/appLabel/title/text/timestampMillis - no
+    `fireflyTransactionId`, see above for why), not a serialized
     `TransactionDraft` -
     `CreateTransactionFragment` re-parses it fresh via `RuleEngine.match`
-    once it's running, the same "reconstruct from primitives, don't try
-    to serialize a `BigDecimal`/`Instant`-carrying data class across a
-    process/Activity boundary" approach `posting.AutoCreateWorker`
-    already uses for the identical reason.
+    once it's running (create mode only - edit mode never needs to,
+    it already has the real transaction), the same "reconstruct from
+    primitives, don't try to serialize a `BigDecimal`/`Instant`-carrying
+    data class across a process/Activity boundary" approach
+    `posting.AutoCreateWorker` already uses for the identical reason.
     Every `TransactionDraft` field is editable - the user's own explicit
     scope call, not just category: amount, currency, foreign amount/
     currency, date/time (chained `DatePickerDialog`+`TimePickerDialog`,
     same pattern `AddTestMessageFragment` already has), source/
-    destination account, description, notes, category, tags. `kind`
+    destination account, description, notes, category, tags, in both
+    modes. `kind`
     itself stays fixed/read-only (shown as plain text, not a field) -
-    it's a property of which rule matched, not something this screen
-    lets you reassign. Visual style and the asset-account picker itself
+    it's a property of which rule matched (create) or of the real
+    transaction's own type (edit), not something this screen lets you
+    reassign. Visual style and the asset-account picker itself
     are deliberately copied from `RuleEditFragment` (the user's own
     suggested starting point): an end-icon `TextInputLayout` opening an
     `AlertDialog.setSingleChoiceItems` picker, `FireflyApiClient.
@@ -1729,7 +1776,10 @@ Single `:app` module, packages under
     unconditionally, since the user may have already typed an amount by
     hand while the async fetch was in flight and that shouldn't get
     silently overwritten.
-    "Create transaction" is always enabled (no preemptive "Checking…"
+    This paragraph describes create mode's submit (`onCreateClicked`);
+    edit mode's "Save" (`onSaveClicked`) validates the form the same way
+    but skips straight to posting - see the `editIntent` entry above for
+    why. "Create transaction" is always enabled (no preemptive "Checking…"
     dance the way the old dialog's neutral button had - see
     `MainActivity`'s own entry above for why that's no longer needed):
     tapping it validates the form (amount parses, description non-blank,

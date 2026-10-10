@@ -964,3 +964,37 @@ work.
   shows the same warning banner with different wording -
   `create_tx_stale_linked_warning`, "⚠ Previously linked transaction #X
   was not found in Firefly" - instead of "already linked".
+- **Done**, the user's own request: tapping a message with a *live*
+  linked transaction now opens straight into editing that real
+  transaction (`CreateTransactionActivity.editIntent`,
+  `CreateTransactionFragment.loadForEdit` - see ARCHITECTURE.md's `ui`
+  section for the full flow) instead of the old read-only "Open
+  Transaction"/"Create Again" info dialog. Fields load from the real
+  transaction's current data (`posting.verifyLinkedTransaction`, which
+  re-verifies the id itself rather than trusting the caller's earlier
+  check - closes a race with the transaction getting deleted in
+  between), not a rule-derived guess; saving calls the new
+  `FireflyApiClient.updateTransaction` (`PUT /v1/transactions/{id}`,
+  confirmed against `UpdateController@update`'s current source - a
+  genuine partial update, every other field on the transaction is left
+  untouched) instead of `createTransaction`, and skips the duplicate
+  check entirely - editing an already-confirmed-existing transaction
+  isn't a duplicate question. "Create Again" is gone entirely as a
+  result (the user's own call: fix the wrong transaction via edit
+  instead of creating a second one and leaving the original behind) -
+  `buildCandidateBody`, `startCreate`, `confirmCreateAgain`, and the
+  `create_tx_already_linked_warning` string are all deleted. The
+  no-link and stale-link tap paths (create-mode review screen, or the
+  "Use Created" duplicate-confirm dialog on a fresh match) are
+  unchanged, as is "Create anyway" on that same dialog - both were
+  explicitly confirmed out of scope for this change. Firefly's own
+  `preventUpdateReconciled` validator (rejects source/destination/
+  amount changes on a reconciled transaction) isn't pre-detected
+  client-side - the user's own choice, asked directly: let the API
+  reject it and show the real error rather than guessing which fields
+  are locked. `network.FireflyTransactionCandidate`/
+  `rules.RemoteTransactionCandidate` also now carry the transaction's
+  own `type` (raw string)/`kind` (`RuleKind`, mapped by
+  `posting.DuplicateChecker.ruleKindFrom`) - needed so the editor knows
+  which account side is the asset side for an existing transaction, not
+  just a freshly-matched draft.
