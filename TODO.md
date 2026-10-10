@@ -953,3 +953,14 @@ work.
   title (app label bold, then title/text - same fields the row already
   shows); multi-select's title now carries the actual count instead of
   a generic "(s)".
+- **Done**, the user's own follow-up request: tapping an already-linked
+  message whose transaction had just been confirmed gone fell through
+  to `CreateTransactionActivity` with no warning at all once `cleanMessage`
+  (v0.106) correctly stopped it claiming a false "already linked" -
+  the real state ("there *was* a link, it's gone now") went unreported
+  entirely instead. New `staleLinkedId` parameter on
+  `CreateTransactionActivity.intent` (a separate extra, not folded into
+  `message.fireflyTransactionId` - that's exactly what was disproven)
+  shows the same warning banner with different wording -
+  `create_tx_stale_linked_warning`, "⚠ Previously linked transaction #X
+  was not found in Firefly" - instead of "already linked".

@@ -191,12 +191,12 @@ class MessagesFragment : Fragment() {
                 draft = resolveAmountQuietly(draft)
             }
             if (draft.amount == null) {
-                startActivity(CreateTransactionActivity.intent(context, cleanMessage))
+                startActivity(CreateTransactionActivity.intent(context, cleanMessage, staleLinkedId))
                 return@launch
             }
             when (val result = checkForDuplicate(context, draft)) {
                 is DuplicateCheckResult.None ->
-                    startActivity(CreateTransactionActivity.intent(context, cleanMessage))
+                    startActivity(CreateTransactionActivity.intent(context, cleanMessage, staleLinkedId))
                 is DuplicateCheckResult.SearchFailed ->
                     showResultDialog(context, R.string.check_search_failed_title, result.message)
                 is DuplicateCheckResult.Found ->
@@ -356,7 +356,7 @@ class MessagesFragment : Fragment() {
         }
         if (showCreateAnyway) {
             view.findViewById<View>(R.id.createAnywayButton).setOnClickListener {
-                startActivity(CreateTransactionActivity.intent(context, message))
+                startActivity(CreateTransactionActivity.intent(context, message, staleLinkedId))
                 dialog.dismiss()
             }
         }

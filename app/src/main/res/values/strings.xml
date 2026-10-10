@@ -186,6 +186,7 @@
     <string name="create_tx_destination_required">Destination account can\'t be empty.</string>
     <string name="create_tx_no_rule_matched">No rule matched this message.</string>
     <string name="create_tx_already_linked_warning">⚠ This message is already linked to transaction #%1$s. Creating will post a second transaction in Firefly.</string>
+    <string name="create_tx_stale_linked_warning">⚠ Previously linked transaction #%1$s was not found in Firefly - it may have been deleted.</string>
 
     <string name="settings_currencies_title">Currencies</string>
     <string name="settings_currencies_subtitle">Code↔symbol table, e.g. EUR↔€ - used to read bank notifications</string>

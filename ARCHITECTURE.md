@@ -1654,6 +1654,19 @@ Single `:app` module, packages under
     this screen even opened (see `ui` section below, `showMatchedDialog`'s
     entry, for why that dialog is gone). Purely informational - doesn't
     block anything - since the screen's own on-submit duplicate check
+    **A second, distinct banner variant, the user's own follow-up
+    request**: when there's no *currently* linked id but a previous one
+    was just confirmed gone (`MessagesFragment.verifyLinkedThenShow`'s
+    `Gone` branch, carried here as `staleLinkedId` - a new, separate
+    `CreateTransactionActivity.intent` parameter/extra, deliberately
+    *not* folded into `message.fireflyTransactionId` itself, since
+    that's exactly what was just disproven), the same banner view shows
+    `create_tx_stale_linked_warning` instead - "⚠ Previously linked
+    transaction #X was not found in Firefly" - rather than the
+    "already linked" wording, which would be false here. Checked in
+    that order (`fireflyTransactionId` first, `staleLinkedId` only as a
+    fallback) since a single message is only ever in one of those two
+    states by construction.
     already re-finds the same linked transaction and asks the real "are
     you sure" right there (`confirmCreateAnyway`, below).
     **Fixed a real "warns about a transaction we just proved doesn't

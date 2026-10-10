@@ -186,6 +186,7 @@
     <string name="create_tx_destination_required">Счёт назначения не может быть пустым.</string>
     <string name="create_tx_no_rule_matched">Ни одно правило не подошло к этому сообщению.</string>
     <string name="create_tx_already_linked_warning">⚠ Это сообщение уже связано с транзакцией №%1$s. Создание добавит вторую транзакцию в Firefly.</string>
+    <string name="create_tx_stale_linked_warning">⚠ Ранее привязанная транзакция №%1$s не найдена в Firefly - возможно, она была удалена.</string>
 
     <string name="settings_currencies_title">Валюты</string>
     <string name="settings_currencies_subtitle">Таблица код↔символ, напр. EUR↔€ — для чтения банковских уведомлений</string>

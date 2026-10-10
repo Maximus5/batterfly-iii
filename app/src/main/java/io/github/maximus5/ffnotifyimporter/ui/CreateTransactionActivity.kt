@@ -61,6 +61,7 @@ class CreateTransactionActivity : AppCompatActivity() {
         private const val EXTRA_TEXT = "text"
         private const val EXTRA_TIMESTAMP_MILLIS = "timestamp_millis"
         private const val EXTRA_EXISTING_TRANSACTION_ID = "existing_transaction_id"
+        private const val EXTRA_STALE_LINKED_ID = "stale_linked_id"
 
         /** [message] is passed as its own plain fields, not a `Parcelable`/serialized
          * `CapturedMessage` - [CreateTransactionFragment] re-parses it fresh via `RuleEngine.match`
@@ -73,8 +74,17 @@ class CreateTransactionActivity : AppCompatActivity() {
          * banner when it's present, rather than the separate confirmation dialog this used to need
          * before ever reaching this screen. The fragment doesn't otherwise treat it specially - it
          * just re-matches and posts, overwriting the link with whatever gets created this time,
-         * same "latest wins" reasoning `MessagesFragment` always used for that case. */
-        fun intent(context: Context, message: CapturedMessage): Intent =
+         * same "latest wins" reasoning `MessagesFragment` always used for that case.
+         *
+         * [staleLinkedId] is a *different* thing, carried separately rather than folded into
+         * [message]'s own `fireflyTransactionId` - the user's own follow-up request: when a tap
+         * falls through here because a previously-linked id was just confirmed gone
+         * (`MessagesFragment.verifyLinkedThenShow`'s `Gone` branch, `checkThenOpenCreateOrShowFound`'s
+         * `cleanMessage`), the screen should still say so, just with different wording than "already
+         * linked" (which would be false - that's exactly what was just disproven). Null whenever
+         * there's nothing stale to report (a genuinely fresh match, or a "Create Again" re-launch,
+         * which uses [message]'s own `fireflyTransactionId` instead). */
+        fun intent(context: Context, message: CapturedMessage, staleLinkedId: String? = null): Intent =
             Intent(context, CreateTransactionActivity::class.java)
                 .putExtra(EXTRA_PACKAGE_NAME, message.packageName)
                 .putExtra(EXTRA_APP_LABEL, message.appLabel)
@@ -82,6 +92,7 @@ class CreateTransactionActivity : AppCompatActivity() {
                 .putExtra(EXTRA_TEXT, message.text)
                 .putExtra(EXTRA_TIMESTAMP_MILLIS, message.timestampMillis)
                 .putExtra(EXTRA_EXISTING_TRANSACTION_ID, message.fireflyTransactionId)
+                .putExtra(EXTRA_STALE_LINKED_ID, staleLinkedId)
 
         fun messageFrom(intent: Intent): CapturedMessage =
             CapturedMessage(
@@ -92,5 +103,7 @@ class CreateTransactionActivity : AppCompatActivity() {
                 timestampMillis = intent.getLongExtra(EXTRA_TIMESTAMP_MILLIS, 0L),
                 fireflyTransactionId = intent.getStringExtra(EXTRA_EXISTING_TRANSACTION_ID),
             )
+
+        fun staleLinkedIdFrom(intent: Intent): String? = intent.getStringExtra(EXTRA_STALE_LINKED_ID)
     }
 }

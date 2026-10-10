@@ -113,9 +113,22 @@ class CreateTransactionFragment : Fragment() {
         // CreateTransactionActivity's own KDoc for why. Informational while editing, not a gate;
         // the real "are you sure" already happens on submit, via this screen's own
         // checkForDuplicate finding the same linked transaction again (confirmCreateAnyway below).
-        message.fireflyTransactionId?.let { existingId ->
-            binding.alreadyLinkedWarningText.text = getString(R.string.create_tx_already_linked_warning, existingId)
-            binding.alreadyLinkedWarningText.visibility = View.VISIBLE
+        val staleLinkedId = CreateTransactionActivity.staleLinkedIdFrom(requireActivity().intent)
+        when {
+            message.fireflyTransactionId != null -> {
+                binding.alreadyLinkedWarningText.text =
+                    getString(R.string.create_tx_already_linked_warning, message.fireflyTransactionId)
+                binding.alreadyLinkedWarningText.visibility = View.VISIBLE
+            }
+            // The user's own follow-up catch: falling through here because a previously-linked
+            // id was just confirmed gone (MessagesFragment.verifyLinkedThenShow) used to show no
+            // warning at all - silently dropping the fact that something *had* been linked,
+            // instead of saying so. Same banner, different wording - "already linked" would be
+            // false here, this is specifically what was just disproven.
+            staleLinkedId != null -> {
+                binding.alreadyLinkedWarningText.text = getString(R.string.create_tx_stale_linked_warning, staleLinkedId)
+                binding.alreadyLinkedWarningText.visibility = View.VISIBLE
+            }
         }
 
         binding.dateTimeButton.setOnClickListener { showDateTimePicker() }
