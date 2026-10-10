@@ -3022,6 +3022,22 @@ Single `:app` module, packages under
       per the user's own call on list-interface consistency; delete
       asks for confirmation the same way it always did
       (`confirmDelete`, unchanged).
+  - First-run setup checklist (`ui.MessagesFragment`'s `setupChecklist`
+    block, `fragment_messages.xml`, `prefs.SetupChecklistPrefs`) - shown
+    in place of the "nothing captured yet" text while the message list is
+    empty, three rows (Firefly connected, a monitored app chosen, default
+    currency + default source account set) with a done/not-done icon,
+    recomputed on every `onResume` so returning from a settings screen
+    updates it. Tapping a row starts `SettingsActivity` with its
+    `EXTRA_SCREEN` (`SettingsActivity.SetupScreen`), which opens that one
+    screen as the activity's root with no back-stack entry, so back lands
+    on Messages. The checklist is *retired for good* (`SetupChecklistPrefs
+    .retire`, never cleared) the first time any message exists - set at
+    capture time in `BankNotificationListenerService` and
+    `AddTestMessageFragment`, and again whenever the Messages listener sees
+    a non-empty list (covers restore) - or when the user taps "Hide this
+    guide"; an empty list alone isn't enough, since retention expiring
+    every message also empties it and the guide must not come back then.
   - `SystemBarInsets.kt` - `useClassicSystemBars(root)`, the shared
     edge-to-edge-but-padded-back-to-classic logic both activities call
     (see Known bugs/gotchas below for why it's done this way). Also

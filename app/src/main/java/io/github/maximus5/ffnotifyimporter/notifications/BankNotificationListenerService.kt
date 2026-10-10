@@ -7,6 +7,7 @@ import io.github.maximus5.ffnotifyimporter.data.MessageStore
 import io.github.maximus5.ffnotifyimporter.posting.AutoCreateScheduler
 import io.github.maximus5.ffnotifyimporter.posting.ReviewNotificationScheduler
 import io.github.maximus5.ffnotifyimporter.prefs.MonitoredAppsPrefs
+import io.github.maximus5.ffnotifyimporter.prefs.SetupChecklistPrefs
 
 /** `onNotificationPosted` is not only called for a genuinely new notification - the system also
  * replays every currently-active notification still sitting in the shade whenever this listener
@@ -41,6 +42,9 @@ class BankNotificationListenerService : NotificationListenerService() {
         // reconnect (see this class's own KDoc) - "now" would make a stale replay of the exact
         // same notification look brand new every time, well outside any dedup window.
         val recorded = MessageStore.shared.add(packageName, appLabel, title, text, sbn.postTime) ?: return
+        // Retired here, not only when the Messages screen sees a non-empty list: a first message
+        // can be captured and expire by retention before the app is ever opened.
+        SetupChecklistPrefs(applicationContext).retire()
         AutoCreateScheduler.scheduleIfEnabled(applicationContext, recorded)
         ReviewNotificationScheduler.scheduleIfNeeded(applicationContext, recorded)
     }

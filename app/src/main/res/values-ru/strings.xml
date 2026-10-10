@@ -294,4 +294,15 @@
     <string name="settings_about_title">О программе</string>
     <string name="about_version">Версия %1$s</string>
     <string name="about_github_url">https://github.com/Maximus5</string>
+
+    <string name="setup_title">Начало работы</string>
+    <string name="setup_subtitle">Несколько шагов, и приложение начнёт ловить банковские уведомления.</string>
+    <string name="setup_step_firefly">Подключитесь к Firefly III</string>
+    <string name="setup_step_firefly_sub">Адрес сервера и токен доступа</string>
+    <string name="setup_step_apps">Выберите приложения для мониторинга</string>
+    <string name="setup_step_apps_sub">Отметьте приложение вашего банка</string>
+    <string name="setup_step_defaults">Задайте валюту и счёт по умолчанию</string>
+    <string name="setup_step_defaults_sub">Используются, если правило их не задаёт</string>
+    <string name="setup_hint">Затем дождитесь уведомления от приложения или добавьте тестовое сообщение: Настройки → История сообщений.</string>
+    <string name="setup_hide">Скрыть подсказку</string>
 </resources>

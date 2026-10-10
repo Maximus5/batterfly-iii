@@ -11,6 +11,7 @@ import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import io.github.maximus5.ffnotifyimporter.R
+import io.github.maximus5.ffnotifyimporter.prefs.SetupChecklistPrefs
 import io.github.maximus5.ffnotifyimporter.data.MessageStore
 import io.github.maximus5.ffnotifyimporter.databinding.FragmentAddTestMessageBinding
 import io.github.maximus5.ffnotifyimporter.notifications.AppLabelResolver
@@ -131,6 +132,7 @@ class AddTestMessageFragment : Fragment() {
         Toast.makeText(context, resultMessage, Toast.LENGTH_SHORT).show()
 
         if (added != null) {
+            SetupChecklistPrefs(context).retire()
             // "Exactly like a real notification would" (this file's own KDoc) - includes
             // triggering auto-create the same way BankNotificationListenerService does.
             AutoCreateScheduler.scheduleIfEnabled(context, added)

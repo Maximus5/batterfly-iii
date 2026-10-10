@@ -1375,3 +1375,9 @@ work.
   existing drop-and-recreate `onUpgrade`) plus list/dialog changes; also
   nothing tells the user when a symbol stays unresolved and Firefly rejects
   the post for it.
+- **Done**, the user's own request (onboarding): a setup checklist on the
+  Messages screen while the list is empty, retired permanently once any
+  message has existed (see ARCHITECTURE.md). **Deferred**: autofilling the
+  default currency / default source account after a successful "Test
+  connection", a hint about where to create the Firefly access token, and
+  a "now add a test message" prompt after the first successful setup.

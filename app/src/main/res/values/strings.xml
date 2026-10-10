@@ -294,4 +294,15 @@
     <string name="settings_about_title">About</string>
     <string name="about_version">Version %1$s</string>
     <string name="about_github_url">https://github.com/Maximus5</string>
+
+    <string name="setup_title">Get started</string>
+    <string name="setup_subtitle">A few quick steps and the app can start catching bank notifications.</string>
+    <string name="setup_step_firefly">Connect to Firefly III</string>
+    <string name="setup_step_firefly_sub">Server address and access token</string>
+    <string name="setup_step_apps">Choose apps to monitor</string>
+    <string name="setup_step_apps_sub">Pick your bank\'s app</string>
+    <string name="setup_step_defaults">Set default currency and account</string>
+    <string name="setup_step_defaults_sub">Used when a rule doesn\'t specify them</string>
+    <string name="setup_hint">Then wait for a notification from the app, or add a test message in Settings → Message history.</string>
+    <string name="setup_hide">Hide this guide</string>
 </resources>

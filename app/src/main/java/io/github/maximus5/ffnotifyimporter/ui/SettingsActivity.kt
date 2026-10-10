@@ -1,5 +1,7 @@
 package io.github.maximus5.ffnotifyimporter.ui
 
+import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
@@ -40,9 +42,19 @@ class SettingsActivity : AppCompatActivity() {
         onBackPressedDispatcher.addCallback(this, backPressedCallback)
 
         if (savedInstanceState == null) {
-            supportFragmentManager.beginTransaction()
-                .replace(R.id.fragmentContainer, SettingsRootFragment())
-                .commit()
+            val direct = intent.getStringExtra(EXTRA_SCREEN)?.let(SetupScreen::fromName)
+            if (direct != null) {
+                // No back-stack entry: back/up leaves Settings and lands on whoever launched it
+                // (the Messages setup checklist), not on the Settings list.
+                setScreenTitle(direct.titleRes)
+                supportFragmentManager.beginTransaction()
+                    .replace(R.id.fragmentContainer, direct.newFragment())
+                    .commit()
+            } else {
+                supportFragmentManager.beginTransaction()
+                    .replace(R.id.fragmentContainer, SettingsRootFragment())
+                    .commit()
+            }
         }
     }
 
@@ -99,5 +111,24 @@ class SettingsActivity : AppCompatActivity() {
         } else {
             finish()
         }
+    }
+
+    /** Settings screens the Messages setup checklist can open directly, as the activity's root. */
+    enum class SetupScreen(val titleRes: Int, val newFragment: () -> Fragment) {
+        FIREFLY(R.string.settings_firefly_title, ::FireflyConnectionFragment),
+        APPS(R.string.settings_monitored_apps_title, ::AppsFragment),
+        TRANSACTIONS(R.string.settings_transaction_creation_title, ::TransactionCreationFragment),
+        ;
+
+        companion object {
+            fun fromName(name: String): SetupScreen? = entries.firstOrNull { it.name == name }
+        }
+    }
+
+    companion object {
+        private const val EXTRA_SCREEN = "screen"
+
+        fun intentFor(context: Context, screen: SetupScreen): Intent =
+            Intent(context, SettingsActivity::class.java).putExtra(EXTRA_SCREEN, screen.name)
     }
 }

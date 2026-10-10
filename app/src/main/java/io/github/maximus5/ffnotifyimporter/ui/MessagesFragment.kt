@@ -36,6 +36,8 @@ import io.github.maximus5.ffnotifyimporter.posting.findDuplicate
 import io.github.maximus5.ffnotifyimporter.posting.matchMessage
 import io.github.maximus5.ffnotifyimporter.posting.verifyLinkedTransaction
 import io.github.maximus5.ffnotifyimporter.prefs.FireflyPrefs
+import io.github.maximus5.ffnotifyimporter.prefs.MonitoredAppsPrefs
+import io.github.maximus5.ffnotifyimporter.prefs.SetupChecklistPrefs
 import io.github.maximus5.ffnotifyimporter.rules.DraftIssue
 import io.github.maximus5.ffnotifyimporter.rules.NoMatchReason
 import io.github.maximus5.ffnotifyimporter.rules.ParseOutcome
@@ -55,10 +57,68 @@ class MessagesFragment : Fragment() {
 
     private val listener: (List<CapturedMessage>) -> Unit = { messages ->
         adapter.submitList(messages)
-        binding?.messagesEmptyText?.visibility = if (messages.isEmpty()) View.VISIBLE else View.GONE
+        if (messages.isNotEmpty()) SetupChecklistPrefs(requireContext()).retire()
+        updateEmptyState(messages.isEmpty())
         if (inSelectionMode) {
             if (adapter.selectedCount() == 0) clearSelectionAndExit() else updateSelectionCountDisplay()
         }
+    }
+
+    private var listIsEmpty = true
+
+    /** While the list is empty: the first-run setup checklist (until [SetupChecklistPrefs] retires
+     * it - see its KDoc for why an empty list alone isn't enough), otherwise the plain "nothing
+     * captured yet" text. */
+    private fun updateEmptyState(isEmpty: Boolean = listIsEmpty) {
+        listIsEmpty = isEmpty
+        val binding = binding ?: return
+        val showChecklist = isEmpty && !SetupChecklistPrefs(requireContext()).isRetired()
+        binding.setupChecklist.visibility = if (showChecklist) View.VISIBLE else View.GONE
+        binding.messagesEmptyText.visibility = if (isEmpty && !showChecklist) View.VISIBLE else View.GONE
+        if (showChecklist) refreshChecklist(binding)
+    }
+
+    private fun refreshChecklist(binding: FragmentMessagesBinding) {
+        val context = requireContext()
+        val firefly = FireflyPrefs(context)
+        bindStep(
+            binding.stepFirefly.root,
+            done = firefly.isConfigured(),
+            titleRes = R.string.setup_step_firefly,
+            subtitleRes = R.string.setup_step_firefly_sub,
+            screen = SettingsActivity.SetupScreen.FIREFLY,
+        )
+        bindStep(
+            binding.stepApps.root,
+            done = MonitoredAppsPrefs(context).getMonitoredPackages().isNotEmpty(),
+            titleRes = R.string.setup_step_apps,
+            subtitleRes = R.string.setup_step_apps_sub,
+            screen = SettingsActivity.SetupScreen.APPS,
+        )
+        bindStep(
+            binding.stepDefaults.root,
+            done = firefly.getDefaultAccountCurrency().isNotBlank() && firefly.getDefaultSourceAccount().isNotBlank(),
+            titleRes = R.string.setup_step_defaults,
+            subtitleRes = R.string.setup_step_defaults_sub,
+            screen = SettingsActivity.SetupScreen.TRANSACTIONS,
+        )
+        binding.setupChecklistHide.setOnClickListener {
+            SetupChecklistPrefs(context).retire()
+            updateEmptyState()
+        }
+    }
+
+    private fun bindStep(row: View, done: Boolean, titleRes: Int, subtitleRes: Int, screen: SettingsActivity.SetupScreen) {
+        row.findViewById<android.widget.ImageView>(R.id.stepIcon)
+            .setImageResource(if (done) R.drawable.ic_check_circle else R.drawable.ic_circle_outline)
+        row.findViewById<android.widget.TextView>(R.id.stepTitle).setText(titleRes)
+        row.findViewById<android.widget.TextView>(R.id.stepSubtitle).setText(subtitleRes)
+        row.setOnClickListener { startActivity(SettingsActivity.intentFor(requireContext(), screen)) }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        updateEmptyState()
     }
 
     override fun onCreateView(
