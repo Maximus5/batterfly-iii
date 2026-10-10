@@ -53,6 +53,32 @@ fun parseCategoryList(body: String): List<FireflyCategory> = try {
     emptyList()
 }
 
+/** `GET /v1/currencies`'s body is the same `{"id": ..., "attributes": {"code": ..., "enabled":
+ * ..., ...}}` shape as [parseAccountList]/[parseCategoryList] - confirmed against
+ * `CurrencyTransformer`'s current source for the `code`/`enabled` field names, not assumed.
+ * `ui.TransactionCreationFragment`'s "Default account currency" picker source - the user's own
+ * request, to pick from the currencies actually enabled in the user's own Firefly instance rather
+ * than type a code by hand (or this app's own separate, locally-maintained `CurrenciesDb` table,
+ * which `ui.RuleEditFragment`'s own currency picker already uses for a different purpose - that
+ * one's a user-maintained symbol<->code lookup, not a live "what does my Firefly actually have
+ * switched on" list). Skips any entry missing a `code`, same "malformed entry, not the whole
+ * list" shape every other list parser here uses. */
+fun parseCurrencyList(body: String): List<FireflyCurrency> = try {
+    val data = JSONObject(body).optJSONArray("data")
+    if (data == null) {
+        emptyList()
+    } else {
+        (0 until data.length()).mapNotNull { i ->
+            val entry = data.optJSONObject(i) ?: return@mapNotNull null
+            val attributes = entry.optJSONObject("attributes") ?: return@mapNotNull null
+            val code = attributes.optString("code").takeIf { it.isNotBlank() } ?: return@mapNotNull null
+            FireflyCurrency(code, attributes.optBoolean("enabled", false))
+        }
+    }
+} catch (e: JSONException) {
+    emptyList()
+}
+
 /** `meta.pagination.total_pages` - defaults to 1 (i.e. "no more pages") for anything that isn't
  * shaped the way a real paginated response is, so a malformed response doesn't spin forever. */
 fun totalPages(body: String): Int = try {

@@ -839,6 +839,22 @@ Single `:app` module, packages under
     `ui` section below for why this exists (a free-typed category can
     be posted misspelled with nothing flagging it, unlike the
     asset-account side which already had a picker).
+    `listCurrencies()` - `GET /v1/currencies` (`ShowController@index`,
+    confirmed against Firefly's current `routes/api.php`) - unlike
+    `listAssetAccounts`/`listCategories`, this endpoint has **no
+    server-side "enabled only" filter** at all (`repository->getAll()`,
+    confirmed against the controller's current source - every currency
+    Firefly has ever known about, enabled or not), so `FireflyJson.
+    parseCurrencyList`'s own `enabled` field (`CurrencyTransformer`'s
+    current source confirms the name, not guessed) is what callers
+    filter on client-side. `ui.TransactionCreationFragment`'s "Default
+    account currency" picker source (see TODO.md for why that setting
+    exists) - deliberately a *different* data source from `ui.
+    RuleEditFragment`'s own currency picker, which reads this app's
+    own locally-maintained `rules.CurrenciesDb` symbol<->code table
+    instead - that one's for typing a rule's `homeCurrency` by hand
+    without a typo, this one's "what does my actual Firefly instance
+    have switched on right now".
   - Cleartext (`http://`) support: Android blocks it by default at
     API 28+. `res/xml/network_security_config.xml` allows it globally
     (`<base-config cleartextTrafficPermitted="true" />`) rather than

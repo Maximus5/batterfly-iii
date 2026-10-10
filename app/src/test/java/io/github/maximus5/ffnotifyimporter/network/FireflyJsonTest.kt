@@ -44,6 +44,38 @@ class FireflyJsonTest {
     }
 
     @Test
+    fun `parseCurrencyList extracts code and enabled from a real-shaped response`() {
+        val body = """
+            {"data": [
+                {"id": "1", "attributes": {"code": "EUR", "enabled": true}},
+                {"id": "2", "attributes": {"code": "USD", "enabled": false}}
+            ], "meta": {"pagination": {"total_pages": 1}}}
+        """.trimIndent()
+
+        val currencies = parseCurrencyList(body)
+
+        assertEquals(listOf(FireflyCurrency("EUR", true), FireflyCurrency("USD", false)), currencies)
+    }
+
+    @Test
+    fun `parseCurrencyList skips an entry missing a code rather than failing the whole list`() {
+        val body = """
+            {"data": [
+                {"id": "1", "attributes": {"code": "EUR", "enabled": true}},
+                {"id": "2", "attributes": {"enabled": true}}
+            ]}
+        """.trimIndent()
+
+        assertEquals(listOf(FireflyCurrency("EUR", true)), parseCurrencyList(body))
+    }
+
+    @Test
+    fun `parseCurrencyList returns empty for malformed input instead of throwing`() {
+        assertTrue(parseCurrencyList("not json").isEmpty())
+        assertTrue(parseCurrencyList("""{"nope": true}""").isEmpty())
+    }
+
+    @Test
     fun `parseCategoryList extracts id and name from a real-shaped response`() {
         val body = """
             {"data": [

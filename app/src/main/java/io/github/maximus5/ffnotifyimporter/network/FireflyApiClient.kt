@@ -103,6 +103,36 @@ class FireflyApiClient(baseUrl: String, private val token: String) {
         }
     }
 
+    /**
+     * Every currency Firefly knows about (`GET /v1/currencies`, `ShowController@index`, confirmed
+     * against `routes/api.php`'s current source) - the endpoint itself has no server-side "enabled
+     * only" filter (`repository->getAll()`, unconditional), so [parseCurrencyList]'s own `enabled`
+     * field is what callers actually filter on. `ui.TransactionCreationFragment`'s "Default
+     * account currency" picker source - see TODO.md for why this setting exists. Same
+     * `meta.pagination`-following shape as [listAssetAccounts]/[listCategories].
+     */
+    suspend fun listCurrencies(): Result<List<FireflyCurrency>> = withContext(Dispatchers.IO) {
+        try {
+            val currencies = mutableListOf<FireflyCurrency>()
+            var page = 1
+            var totalPagesSeen: Int
+            do {
+                val body = withNetworkRetry {
+                    val connection = openConnection("/api/v1/currencies?page=$page", "GET")
+                    val code = connection.responseCode
+                    if (code !in 200..299) return@withContext Result.Failure(errorMessage(connection, code))
+                    connection.inputStream.bufferedReader().use { it.readText() }
+                }
+                currencies += parseCurrencyList(body)
+                totalPagesSeen = totalPages(body)
+                page++
+            } while (page <= totalPagesSeen)
+            Result.Success(currencies)
+        } catch (e: IOException) {
+            Result.Failure(e.message ?: e.javaClass.simpleName)
+        }
+    }
+
     /** `POST /v1/transactions` - returns the created transaction's ID on success, for this app's
      * own "created transactions" log (dedup + "already created" state, see TODO.md).
      *
