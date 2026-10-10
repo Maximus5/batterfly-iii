@@ -227,7 +227,8 @@
     <string name="firefly_test_connection_failure">Connection failed: %1$s</string>
     <string name="firefly_url_required">Base URL can\'t be empty.</string>
     <string name="firefly_token_required">Personal access token can\'t be empty.</string>
-    <string name="firefly_connection_intro">Base URL is the address you open your Firefly III in a browser, without /api (e.g. https://firefly.example.com). To get a token, open Firefly III → Options → Profile → OAuth tab → Personal Access Tokens → Create new token, then copy it here - Firefly shows it only once.</string>
+    <string name="firefly_field_url_help">The address you open your Firefly III at in a browser, without /api.</string>
+    <string name="firefly_field_token_help">To get a token, open Firefly III → Options → Profile → OAuth tab → Personal Access Tokens → Create new token. Firefly shows it only once, so copy it here right away.</string>
     <string name="firefly_settings_saved">Saved</string>
 
     <string name="settings_transaction_creation_title">Transactions</string>
