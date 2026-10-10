@@ -49,7 +49,9 @@
     <string name="messages_action_open_in_firefly">Open in Firefly III</string>
     <string name="messages_action_forget_transaction">Forget linked transaction</string>
     <string name="messages_forget_transaction_cleared">Transaction #%1$s no longer exists - link removed.</string>
-    <string name="messages_forget_transaction_still_exists">Transaction #%1$s still exists in Firefly - link not removed.</string>
+    <string name="messages_forget_transaction_confirm_title">Still linked</string>
+    <string name="messages_forget_transaction_confirm_message">Transaction #%1$s still exists in Firefly. If this message was matched to it incorrectly, you can forget the link anyway - this only removes it from this app, it won\'t change or delete anything in Firefly.</string>
+    <string name="messages_forget_transaction_confirm_button">Forget anyway</string>
     <string name="messages_action_delete">Delete notification</string>
     <string name="delete_notification_confirm_title">Delete notification?</string>
     <string name="delete_notifications_confirm_title">Delete %1$d notification(s)?</string>

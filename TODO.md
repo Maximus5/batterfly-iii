@@ -1051,3 +1051,49 @@ work.
   rejection error (does it name the existing transaction's id?) and
   offer the same link-to-existing recovery there too, instead of just
   surfacing it as a bare creation failure.
+- **Fixed two more real bugs, the user's own catch on the same
+  two-notification round-trip**:
+  - `ReviewNotifications.createTransactionIntent` built every message's
+    `PendingIntent` with a hardcoded `requestCode = 0` - `PendingIntent`
+    identity/caching is `(component, requestCode, action/data/
+    categories)`, extras are never part of it, and the target
+    (`MainActivity.checkMessageIntent`) has no distinguishing action/
+    data of its own, just extras. A *second* review notification's
+    action silently reused the *first* one's cached `PendingIntent`,
+    extras included - tapping the second notification's "Create
+    transaction" opened straight into editing the *first* message's
+    already-linked transaction (saved there), while the second
+    notification's own entry was never touched (stayed in the shade,
+    never linked). Fixed by using the already-unique-per-message
+    `notificationId(message)` as the request code too - see
+    ARCHITECTURE.md's `ReviewNotifications` entry.
+  - "Forget linked transaction" refused to clear a link whenever the id
+    was confirmed still *live* in Firefly, with no way out at all - but
+    a live link can still be the *wrong* one (a false-positive dedup
+    match), and once linked, a tap only opens the editor for that
+    transaction, never the create screen. A still-valid link now shows
+    an explicit "still linked, forget anyway?" confirmation instead of
+    silently refusing - unlinking here never touches Firefly itself,
+    only this app's own record.
+- Raised by the user, not yet decided/built: dedup at the *notification*
+  level, before any transaction exists at all - catch a message,
+  always add it to history (unchanged), but if "show notifications" is
+  on: match rules first; no match -> no notification at all; a match ->
+  compute `rules.transactionDedupHash` the same way `CreatedTransactionsDb`
+  already does, check it against a new small "already notified" window
+  table (same shape/window as the existing dedup tables, just for
+  messages that have been *shown*, not yet *created*) - already shown
+  recently -> skip showing a second notification/action for it (the
+  message still lands in history either way); not shown yet -> record
+  the hash and show the notification (auto-create or the review
+  action, whichever's configured) as normal. Confirmed with the user:
+  counterparty-name normalization already happens before the hash is
+  computed (`RuleEngine.renderOptional`, see its own `whitespaceRun`
+  fix above), so this reuses the same, already-normalized hash, not a
+  new one; a same-amount/same-counterparty coincidence within the
+  window suppressing a second, genuinely separate notification was
+  explicitly accepted as a fine trade-off (the message still reaches
+  history regardless). Doesn't fix the deeper issue two items above
+  (this app's own hash/search can still miss what Firefly's own
+  hash catches) - purely a "don't spam two notifications for what's
+  probably the same payment" UX layer on top.

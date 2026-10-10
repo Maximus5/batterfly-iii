@@ -49,7 +49,9 @@
     <string name="messages_action_open_in_firefly">Открыть в Firefly III</string>
     <string name="messages_action_forget_transaction">Забыть привязанную транзакцию</string>
     <string name="messages_forget_transaction_cleared">Транзакция №%1$s больше не существует - связь удалена.</string>
-    <string name="messages_forget_transaction_still_exists">Транзакция №%1$s всё ещё существует в Firefly - связь не удалена.</string>
+    <string name="messages_forget_transaction_confirm_title">Связь всё ещё активна</string>
+    <string name="messages_forget_transaction_confirm_message">Транзакция №%1$s всё ещё существует в Firefly. Если сообщение привязалось к ней ошибочно, можно забыть связь всё равно - это удалит её только в этом приложении, в Firefly ничего не изменится и не удалится.</string>
+    <string name="messages_forget_transaction_confirm_button">Забыть всё равно</string>
     <string name="messages_action_delete">Удалить уведомление</string>
     <string name="delete_notification_confirm_title">Удалить уведомление?</string>
     <string name="delete_notifications_confirm_title">Удалить уведомлений: %1$d?</string>

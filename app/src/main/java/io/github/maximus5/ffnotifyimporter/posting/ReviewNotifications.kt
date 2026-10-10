@@ -93,9 +93,22 @@ object ReviewNotifications {
      * the very notification it's meant to dismiss. */
     private fun notificationId(message: CapturedMessage): Int = message.copy(fireflyTransactionId = null).hashCode()
 
+    /** **Fixed a real "wrong message's extras" bug, the user's own catch**: `PendingIntent.
+     * getActivity`'s identity (whether it returns a fresh `PendingIntent` or hands back an
+     * already-cached one) is `(component, requestCode, action/data/categories)` - **extras are not
+     * part of that comparison at all**. [MainActivity.checkMessageIntent]'s target (`MainActivity`,
+     * no distinguishing action/data, just extras) is identical for every message, so a hardcoded
+     * `requestCode = 0` here meant a *second* review notification's action silently reused the
+     * *first* one's cached `PendingIntent` - extras included - rather than building a new one with
+     * its own message's identity. In practice: tapping the second notification's "Create
+     * transaction" opened straight into editing the *first* message's already-linked transaction,
+     * saved there instead, and left the second notification's own entry completely untouched
+     * (still showing in the shade, never linked in the app). [notificationId] is already a stable,
+     * unique-per-message int (used for the notification id itself) - reusing it as the request code
+     * here gives every message's action its own distinct `PendingIntent`. */
     private fun createTransactionIntent(context: Context, message: CapturedMessage): PendingIntent {
         val intent = MainActivity.checkMessageIntent(context, message)
-        return PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_IMMUTABLE)
+        return PendingIntent.getActivity(context, notificationId(message), intent, PendingIntent.FLAG_IMMUTABLE)
     }
 
     private fun ensureChannel(context: Context) {

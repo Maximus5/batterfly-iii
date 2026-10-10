@@ -538,12 +538,22 @@ class MessagesFragment : Fragment() {
     /** "Forget linked transaction" - the user's own request, after noticing "Check if created"
      * could confirm a cached id was gone with no way to actually clear it (the not-found dialog
      * has nothing to clear *to* - a fresh search already came up empty too). Verifies first via
-     * the shared `posting.verifyLinkedTransaction`, the user's own explicit choice over clearing
-     * unconditionally: confirmed gone -> clears the link (`MessageStore.setTransactionId` to
-     * `null`) and says so; still there -> leaves it alone and says that instead, so this can never
-     * accidentally wipe a link that's actually still valid (a stale cache or a race since the menu
-     * opened); a check failure shows the real reason and touches nothing, same "don't guess" rule
-     * every dedup check in this file already follows. */
+     * the shared `posting.verifyLinkedTransaction`: confirmed gone -> clears the link
+     * (`MessageStore.setTransactionId` to `null`) immediately and says so, no confirmation needed
+     * - there's nothing left to protect, the link was already pointing at nothing.
+     *
+     * **Fixed a real "stuck forever" gap, the user's own catch**: still-valid used to just leave
+     * the link alone unconditionally, with no way out at all - but a *live* link can still be the
+     * *wrong* one (a false-positive dedup match, auto-create or a notification-tap matching this
+     * message to someone else's real, still-existing transaction) - and once linked, a tap only
+     * ever opens the editor for that (wrong) transaction, never the create screen, so there was no
+     * way back to create the actually-correct one short of fixing it by hand in Firefly first. A
+     * still-valid link now shows an explicit confirmation (`messages_forget_transaction_confirm_*`,
+     * Cancel rightmost per house convention) instead of silently refusing - unlinking here never
+     * touches Firefly itself, only this app's own record of which transaction this message points
+     * to, so it's safe to allow outright once the user's explicitly said so. A check failure shows
+     * the real reason and touches nothing either way, same "don't guess" rule every dedup check in
+     * this file already follows. */
     private fun forgetLinkedTransactionIfGone(context: Context, message: CapturedMessage) {
         val existingId = message.fireflyTransactionId ?: return
         viewLifecycleOwner.lifecycleScope.launch {
@@ -552,8 +562,17 @@ class MessagesFragment : Fragment() {
                     MessageStore.shared.setTransactionId(message, null)
                     Toast.makeText(context, getString(R.string.messages_forget_transaction_cleared, existingId), Toast.LENGTH_SHORT).show()
                 }
-                is LinkedTransactionCheck.Found ->
-                    Toast.makeText(context, getString(R.string.messages_forget_transaction_still_exists, existingId), Toast.LENGTH_SHORT).show()
+                is LinkedTransactionCheck.Found -> {
+                    AlertDialog.Builder(context)
+                        .setTitle(R.string.messages_forget_transaction_confirm_title)
+                        .setMessage(getString(R.string.messages_forget_transaction_confirm_message, existingId))
+                        .setNegativeButton(R.string.messages_forget_transaction_confirm_button) { _, _ ->
+                            MessageStore.shared.setTransactionId(message, null)
+                            Toast.makeText(context, getString(R.string.messages_forget_transaction_cleared, existingId), Toast.LENGTH_SHORT).show()
+                        }
+                        .setPositiveButton(android.R.string.cancel, null)
+                        .show()
+                }
                 is LinkedTransactionCheck.CheckFailed ->
                     showResultDialog(context, R.string.check_search_failed_title, result.message)
             }

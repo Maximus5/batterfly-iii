@@ -1178,6 +1178,25 @@ Single `:app` module, packages under
       `hashCode()` (used as the notification id) would otherwise change
       the moment that field was set, making `cancel` silently miss the
       very notification it's meant to dismiss.
+    - **Fixed a third real bug, the user's own catch on a real two-
+      notification round-trip**: `createTransactionIntent`'s
+      `PendingIntent.getActivity(context, requestCode, ...)` used a
+      hardcoded `requestCode = 0` for every message. `PendingIntent`
+      identity/caching is `(component, requestCode, action/data/
+      categories)` - **extras are not part of that comparison at all** -
+      and `MainActivity.checkMessageIntent`'s target has no
+      distinguishing action/data, just extras, so a *second* review
+      notification's action silently got handed back the *first* one's
+      already-cached `PendingIntent`, extras included, instead of a new
+      one carrying its own message's identity. On-device symptom:
+      tapping the second notification's "Create transaction" opened
+      straight into editing the *first* message's already-linked
+      transaction and saved there, while the second notification's own
+      entry was never touched at all (stayed in the shade, never
+      linked). Fixed by passing `notificationId(message)` - already a
+      stable, unique-per-message int, used for the notification id
+      itself - as the request code too, so every message's action gets
+      its own distinct `PendingIntent`.
 - `notifications` - `BankNotificationListenerService`
   (`NotificationListenerService` subclass): for every posted
   notification, checks `MonitoredAppsPrefs`, pulls `EXTRA_TITLE`/
@@ -1255,14 +1274,25 @@ Single `:app` module, packages under
     after "Check if created" could confirm a cached id was gone with no
     way to actually act on that (its own not-found dialog has nothing to
     clear *to*): `forgetLinkedTransactionIfGone` runs the same shared
-    `posting.verifyLinkedTransaction` first, the user's own explicit
-    choice over clearing unconditionally - confirmed gone -> clears the
-    link (`MessageStore.setTransactionId` to `null`) and says so in a
-    Toast; still there -> leaves it alone and says that instead, so this
-    can never accidentally wipe a link that's actually still valid (a
-    stale local cache, or a race since the menu opened); a check failure
-    shows the real reason and touches nothing, same "don't guess" rule
-    every dedup check in this file already follows. "Delete" (now
+    `posting.verifyLinkedTransaction` first - confirmed gone -> clears
+    the link (`MessageStore.setTransactionId` to `null`) immediately and
+    says so in a Toast, no confirmation needed since there's nothing
+    left to protect; a check failure shows the real reason and touches
+    nothing, same "don't guess" rule every dedup check in this file
+    already follows. **Fixed a real "stuck forever" gap, the user's own
+    catch**: a still-*valid* link used to just get left alone
+    unconditionally, with no way out - but a live link can still be the
+    *wrong* one (a false-positive dedup match linking this message to
+    someone else's real, still-existing transaction), and once linked, a
+    tap only ever opens the editor for that transaction, never the
+    create screen - so there was no way back to create the actually-
+    correct one short of fixing it by hand in Firefly first. A still-
+    valid link now shows an explicit confirm dialog
+    (`messages_forget_transaction_confirm_*`, "Forget anyway"/Cancel,
+    Cancel rightmost per house convention) instead of silently refusing
+    - unlinking here never touches Firefly itself, only this app's own
+    record of which transaction a message points to, so allowing it
+    outright once the user's explicitly confirmed is safe. "Delete" (now
     "Delete notification") still asks for confirmation (same
     strings/dialog shape as the multi-select delete below, just one
     message instead of a selected set).
