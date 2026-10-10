@@ -1138,27 +1138,35 @@ Single `:app` module, packages under
     test-match dialog. Each row also has an overflow (⋮) `PopupMenu`
     now, same shape as `RulesListFragment`'s (see its own notes below
     for why that's the reference pattern) - "Open in Firefly III",
-    "Check if created", and "Delete notification" (the user's own
-    rename - `action_delete`'s plain "Delete" risked reading as
-    deleting the *Firefly transaction* rather than this app's own
-    captured-notification entry; a dedicated `messages_action_delete`
-    string replaces the shared `action_delete` for every message-delete
-    surface - this menu item, both single/multi delete-confirm dialogs,
-    and `menu_selection.xml`'s own title - without touching
-    `action_delete` itself, still shared by `CurrenciesFragment`/
-    `RuleEditFragment`/`RulesListFragment` where that ambiguity doesn't
-    exist). "Open in Firefly III" (`openTransaction`, same helper every
-    other "open" action in this fragment already uses) is disabled
-    (`MenuItem.isEnabled = false`), not hidden, when the row has no
-    `fireflyTransactionId` yet - visible-but-disabled makes clear the
-    action exists and why it can't be used right now, same reasoning as
-    disabled form controls elsewhere; deliberately does *not* run
-    `verifyLinkedTransaction` first the way the tap/`checkIfCreated`
-    paths do - a quick direct shortcut to a trusted link, same
-    no-preflight-check behavior every other "Open"/"Open transaction"
-    button in this app already has, a stale link surfaces as Firefly's
-    own 404 page rather than this app catching it first. The
-    confirmation dialog still asks "Delete message(s)?" (unchanged,
+    "Check if created", "Forget linked transaction", and "Delete
+    notification" (the user's own rename - `action_delete`'s plain
+    "Delete" risked reading as deleting the *Firefly transaction*
+    rather than this app's own captured-notification entry; a dedicated
+    `messages_action_delete` string replaces the shared `action_delete`
+    for every message-delete surface - this menu item, both single/multi
+    delete-confirm dialogs, and `menu_selection.xml`'s own title -
+    without touching `action_delete` itself, still shared by
+    `CurrenciesFragment`/`RuleEditFragment`/`RulesListFragment` where
+    that ambiguity doesn't exist). "Open in Firefly III"
+    (`verifyThenOpenTransaction` - see its own entry above for why it's
+    no longer a direct `openTransaction` shortcut) and "Forget linked
+    transaction" are both disabled (`MenuItem.isEnabled = false`), not
+    hidden, when the row has no `fireflyTransactionId` yet -
+    visible-but-disabled makes clear the action exists and why it can't
+    be used right now, same reasoning as disabled form controls
+    elsewhere. "Forget linked transaction" - the user's own request,
+    after "Check if created" could confirm a cached id was gone with no
+    way to actually act on that (its own not-found dialog has nothing to
+    clear *to*): `forgetLinkedTransactionIfGone` runs the same shared
+    `posting.verifyLinkedTransaction` first, the user's own explicit
+    choice over clearing unconditionally - confirmed gone -> clears the
+    link (`MessageStore.setTransactionId` to `null`) and says so in a
+    Toast; still there -> leaves it alone and says that instead, so this
+    can never accidentally wipe a link that's actually still valid (a
+    stale local cache, or a race since the menu opened); a check failure
+    shows the real reason and touches nothing, same "don't guess" rule
+    every dedup check in this file already follows. The confirmation
+    dialog still asks "Delete message(s)?" (unchanged,
     `delete_messages_confirm_title`) - only the *button* label that
     risked the Firefly mix-up, not the dialog's own already-unambiguous
     title/body. "Delete" (now "Delete notification") still asks for

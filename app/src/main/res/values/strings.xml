@@ -47,6 +47,9 @@
     <string name="action_delete">Delete</string>
     <string name="messages_selected_count">%1$d selected</string>
     <string name="messages_action_open_in_firefly">Open in Firefly III</string>
+    <string name="messages_action_forget_transaction">Forget linked transaction</string>
+    <string name="messages_forget_transaction_cleared">Transaction #%1$s no longer exists - link removed.</string>
+    <string name="messages_forget_transaction_still_exists">Transaction #%1$s still exists in Firefly - link not removed.</string>
     <string name="messages_action_delete">Delete notification</string>
     <string name="delete_messages_confirm_title">Delete message(s)?</string>
     <string name="delete_messages_confirm_message">This can\'t be undone. If local history is enabled, they\'re removed there too.</string>

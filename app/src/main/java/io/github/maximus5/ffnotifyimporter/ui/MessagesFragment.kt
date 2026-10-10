@@ -563,19 +563,47 @@ class MessagesFragment : Fragment() {
         popup.menu.add(0, ID_OPEN_IN_FIREFLY, 0, R.string.messages_action_open_in_firefly)
             .isEnabled = message.fireflyTransactionId != null
         popup.menu.add(0, ID_CHECK_IF_CREATED, 1, R.string.messages_check_if_created)
-        popup.menu.add(0, ID_DELETE_SINGLE, 2, R.string.messages_action_delete)
+        popup.menu.add(0, ID_FORGET_TRANSACTION, 2, R.string.messages_action_forget_transaction)
+            .isEnabled = message.fireflyTransactionId != null
+        popup.menu.add(0, ID_DELETE_SINGLE, 3, R.string.messages_action_delete)
         popup.setOnMenuItemClickListener { item ->
             when (item.itemId) {
                 ID_OPEN_IN_FIREFLY -> message.fireflyTransactionId?.let { id ->
                     viewLifecycleOwner.lifecycleScope.launch { verifyThenOpenTransaction(context, id) }
                 }
                 ID_CHECK_IF_CREATED -> checkIfCreated(message)
+                ID_FORGET_TRANSACTION -> forgetLinkedTransactionIfGone(context, message)
                 ID_DELETE_SINGLE -> confirmDeleteSingle(message)
                 else -> return@setOnMenuItemClickListener false
             }
             true
         }
         popup.show()
+    }
+
+    /** "Forget linked transaction" - the user's own request, after noticing "Check if created"
+     * could confirm a cached id was gone with no way to actually clear it (the not-found dialog
+     * has nothing to clear *to* - a fresh search already came up empty too). Verifies first via
+     * the shared `posting.verifyLinkedTransaction`, the user's own explicit choice over clearing
+     * unconditionally: confirmed gone -> clears the link (`MessageStore.setTransactionId` to
+     * `null`) and says so; still there -> leaves it alone and says that instead, so this can never
+     * accidentally wipe a link that's actually still valid (a stale cache or a race since the menu
+     * opened); a check failure shows the real reason and touches nothing, same "don't guess" rule
+     * every dedup check in this file already follows. */
+    private fun forgetLinkedTransactionIfGone(context: Context, message: CapturedMessage) {
+        val existingId = message.fireflyTransactionId ?: return
+        viewLifecycleOwner.lifecycleScope.launch {
+            when (val result = verifyLinkedTransaction(FireflyPrefs(context), existingId)) {
+                is LinkedTransactionCheck.Gone -> {
+                    MessageStore.shared.setTransactionId(message, null)
+                    Toast.makeText(context, getString(R.string.messages_forget_transaction_cleared, existingId), Toast.LENGTH_SHORT).show()
+                }
+                is LinkedTransactionCheck.Found ->
+                    Toast.makeText(context, getString(R.string.messages_forget_transaction_still_exists, existingId), Toast.LENGTH_SHORT).show()
+                is LinkedTransactionCheck.CheckFailed ->
+                    showResultDialog(context, R.string.check_search_failed_title, result.message)
+            }
+        }
     }
 
     private fun confirmDeleteSingle(message: CapturedMessage) {
@@ -833,6 +861,7 @@ class MessagesFragment : Fragment() {
     private companion object {
         const val ID_OPEN_IN_FIREFLY = 1
         const val ID_CHECK_IF_CREATED = 2
-        const val ID_DELETE_SINGLE = 3
+        const val ID_FORGET_TRANSACTION = 3
+        const val ID_DELETE_SINGLE = 4
     }
 }

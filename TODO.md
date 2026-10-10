@@ -932,3 +932,15 @@ work.
     already knows there's no *currently valid* link by construction
     (either never had one, or just disproved it), so this is always
     safe, not a per-branch judgment call.
+- **Done** - the third issue from that same round-trip test, option B
+  of the three proposed: "Check if created" could confirm a cached id
+  was gone but had no way to actually act on that (its own not-found
+  dialog has nothing to clear *to*). New overflow-menu item "Forget
+  linked transaction" (`forgetLinkedTransactionIfGone`), enabled
+  whenever the row has a `fireflyTransactionId` - independent of
+  running "Check if created" first, the user's own pick over a
+  dialog-button variant scoped to that one flow. Verifies via
+  `posting.verifyLinkedTransaction` before touching anything: confirmed
+  gone -> clears the link with a Toast saying so; still there -> leaves
+  it alone and says *that* instead, so this can never clear a link
+  that's actually still valid.
