@@ -28,6 +28,7 @@ import io.github.maximus5.ffnotifyimporter.network.searchUrl
 import io.github.maximus5.ffnotifyimporter.network.transactionUrl
 import io.github.maximus5.ffnotifyimporter.posting.DuplicateCheckResult
 import io.github.maximus5.ffnotifyimporter.posting.LinkedTransactionCheck
+import io.github.maximus5.ffnotifyimporter.posting.ReviewNotifications
 import io.github.maximus5.ffnotifyimporter.posting.checkForDuplicate
 import io.github.maximus5.ffnotifyimporter.posting.findDuplicate
 import io.github.maximus5.ffnotifyimporter.posting.verifyLinkedTransaction
@@ -74,6 +75,27 @@ class MessagesFragment : Fragment() {
         adapter = MessagesAdapter(onClick = ::handleClick, onLongClick = ::handleLongClick, onOverflowClick = ::showMessageOverflowMenu)
         binding?.messagesRecyclerView?.layoutManager = LinearLayoutManager(requireContext())
         binding?.messagesRecyclerView?.adapter = adapter
+        consumePendingMessageCheck()
+    }
+
+    /** `ReviewNotifications`'s "Create transaction" action - see `MainActivity.checkMessageIntent`'s
+     * own KDoc for why it lands here instead of opening [CreateTransactionActivity] directly. Looks
+     * up the live entry in [MessageStore] by the same identity fields `MessageStore.setTransactionId`
+     * already matches on, rather than trusting the reconstructed message's own (always-null)
+     * `fireflyTransactionId` - the message may have picked up a link since the notification was
+     * posted (created by hand in the meantime, say); falls back to the reconstructed message
+     * itself if it's no longer in the store at all (deleted, or the process was killed and restarted
+     * with message retention off) rather than failing silently - [showTestMatch] still works fine
+     * on it, same as any other fresh match. */
+    fun consumePendingMessageCheck() {
+        val reconstructed = MainActivity.consumeCheckMessageIntent(requireActivity().intent) ?: return
+        val live = MessageStore.shared.snapshot().firstOrNull {
+            it.packageName == reconstructed.packageName &&
+                it.title == reconstructed.title &&
+                it.text == reconstructed.text &&
+                it.timestampMillis == reconstructed.timestampMillis
+        } ?: reconstructed
+        showTestMatch(live)
     }
 
     private fun handleClick(message: CapturedMessage) {
@@ -304,6 +326,7 @@ class MessagesFragment : Fragment() {
         } else {
             useCreatedButton.setOnClickListener {
                 MessageStore.shared.setTransactionId(message, foundId)
+                ReviewNotifications.cancel(context, message)
                 Toast.makeText(context, getString(R.string.create_already_created_linked, foundId), Toast.LENGTH_SHORT).show()
                 dialog.dismiss()
             }
@@ -757,6 +780,7 @@ class MessagesFragment : Fragment() {
         if (onlyCandidate != null) {
             useAnywayButton.setOnClickListener {
                 MessageStore.shared.setTransactionId(message, onlyCandidate.groupId)
+                ReviewNotifications.cancel(context, message)
                 Toast.makeText(context, getString(R.string.create_already_created_linked, onlyCandidate.groupId), Toast.LENGTH_SHORT).show()
                 dialog.dismiss()
             }

@@ -1,6 +1,7 @@
 package io.github.maximus5.ffnotifyimporter.ui
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.view.Menu
@@ -9,6 +10,7 @@ import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import io.github.maximus5.ffnotifyimporter.R
+import io.github.maximus5.ffnotifyimporter.data.CapturedMessage
 import io.github.maximus5.ffnotifyimporter.databinding.ActivityMainBinding
 import io.github.maximus5.ffnotifyimporter.posting.isNotificationPermissionGranted
 import io.github.maximus5.ffnotifyimporter.prefs.FireflyPrefs
@@ -99,6 +101,17 @@ class MainActivity : AppCompatActivity() {
         return true
     }
 
+    /** Standard `Intent` launch mode recreates this activity (`onCreate`) rather than reusing an
+     * existing instance for most real-world launches of [checkMessageIntent]'s `FLAG_ACTIVITY_
+     * CLEAR_TOP`, so [MessagesFragment.consumePendingMessageCheck] firing from its own
+     * `onViewCreated` already covers that common case - this is the fallback for whichever launch
+     * mode/OEM combination instead reuses a still-running instance and delivers here instead. */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        (supportFragmentManager.findFragmentById(R.id.fragmentContainer) as? MessagesFragment)?.consumePendingMessageCheck()
+    }
+
     /**
      * Swaps the toolbar into "N selected" + a delete action, replacing its normal title/menu in
      * place - the *same* single top bar, not a second one stacked above it. `startSupportActionMode`
@@ -127,5 +140,62 @@ class MainActivity : AppCompatActivity() {
         supportActionBar?.setDisplayHomeAsUpEnabled(false)
         supportActionBar?.title = getString(R.string.app_name)
         invalidateOptionsMenu()
+    }
+
+    companion object {
+        private const val EXTRA_CHECK_PACKAGE_NAME = "check_message_package_name"
+        private const val EXTRA_CHECK_APP_LABEL = "check_message_app_label"
+        private const val EXTRA_CHECK_TITLE = "check_message_title"
+        private const val EXTRA_CHECK_TEXT = "check_message_text"
+        private const val EXTRA_CHECK_TIMESTAMP_MILLIS = "check_message_timestamp_millis"
+
+        /** `ReviewNotifications`'s "Create transaction" action - the user's own request: run the
+         * exact same preemptive dedup check a normal tap on the message's own row runs
+         * (`MessagesFragment.showTestMatch`/`checkThenOpenCreateOrShowFound`), rather than jumping
+         * straight into `CreateTransactionActivity` with no check at all (the original design,
+         * documented in `ReviewNotifications`'s own history) - a likely duplicate now surfaces the
+         * same "Use Created"/"Open"/"Create anyway"/"Cancel" dialog a list tap would, instead of
+         * silently walking into a blank create screen that only finds out it's a duplicate if/when
+         * Firefly's own server-side hash check rejects the post. Opens [MainActivity] rather than
+         * running the check from inside a notification action's own `PendingIntent` receiver -
+         * `AlertDialog`s need a foreground `Activity`, and `MessagesFragment` already owns every
+         * piece of UI this check can show. [MessagesFragment.consumeCheckMessageIntent] is the
+         * other half - reads these extras back out (and clears them) once the fragment's view is
+         * ready to act on them. */
+        fun checkMessageIntent(context: Context, message: CapturedMessage): Intent =
+            Intent(context, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                putExtra(EXTRA_CHECK_PACKAGE_NAME, message.packageName)
+                putExtra(EXTRA_CHECK_APP_LABEL, message.appLabel)
+                putExtra(EXTRA_CHECK_TITLE, message.title)
+                putExtra(EXTRA_CHECK_TEXT, message.text)
+                putExtra(EXTRA_CHECK_TIMESTAMP_MILLIS, message.timestampMillis)
+            }
+
+        /** Reconstructs the message [checkMessageIntent] carried (same plain-fields shape
+         * `CreateTransactionActivity.messageFrom` uses, for the same "don't serialize a
+         * `CapturedMessage` across an Activity boundary, there's nothing to serialize" reason -
+         * not that there would be here anyway, `CapturedMessage` has no exotic field types) and
+         * clears those extras from [intent] in place - without that, rotating the screen or coming
+         * back from a dialog's "Open" button (which backgrounds this activity to show Firefly in a
+         * browser) would re-run the same check again on every recreation/resume, popping the dialog
+         * a second time unprompted. Null when [intent] carries none of this - the normal case, a
+         * plain app launch or any other notification's own tap target. */
+        fun consumeCheckMessageIntent(intent: Intent): CapturedMessage? {
+            val packageName = intent.getStringExtra(EXTRA_CHECK_PACKAGE_NAME) ?: return null
+            val message = CapturedMessage(
+                packageName = packageName,
+                appLabel = intent.getStringExtra(EXTRA_CHECK_APP_LABEL).orEmpty(),
+                title = intent.getStringExtra(EXTRA_CHECK_TITLE).orEmpty(),
+                text = intent.getStringExtra(EXTRA_CHECK_TEXT).orEmpty(),
+                timestampMillis = intent.getLongExtra(EXTRA_CHECK_TIMESTAMP_MILLIS, 0L),
+            )
+            intent.removeExtra(EXTRA_CHECK_PACKAGE_NAME)
+            intent.removeExtra(EXTRA_CHECK_APP_LABEL)
+            intent.removeExtra(EXTRA_CHECK_TITLE)
+            intent.removeExtra(EXTRA_CHECK_TEXT)
+            intent.removeExtra(EXTRA_CHECK_TIMESTAMP_MILLIS)
+            return message
+        }
     }
 }

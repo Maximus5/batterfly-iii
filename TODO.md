@@ -604,6 +604,28 @@ work.
   way it is). A fullscreen *setting* just needs to make that padding
   conditional (skip it, or only reserve space for one bar) rather than
   redo the insets plumbing.
+- **P1** - a dedicated "Notifications" settings screen, the user's own
+  request. Not started. Three rows:
+  - "Show notifications" - a toggle, with a subtitle explaining what it
+    actually controls: when a bank notification is caught and matches a
+    rule, this app shows its own notification about creating a
+    transaction from it (`ReviewNotifications`/`AutoCreateNotifications`
+    - see ARCHITECTURE.md). Right now there's no way to turn that off
+    short of muting the channel from system settings directly (see the
+    third row below) - this row is the in-app equivalent.
+  - "Show financial information in notification" - for Google Play
+    compliance (financial apps are expected to let the user hide
+    amount/description from a notification that can show on a locked
+    device). Needs a decision on *how* it degrades when off - a generic
+    "A transaction was created" with no amount/description/counterparty,
+    vs. Android's own `setVisibility(VISIBILITY_PRIVATE)` lock-screen
+    redaction (shows a system-provided placeholder only on the lock
+    screen, full content once unlocked) - not the same guarantee, worth
+    checking what Play's review actually expects before picking one.
+  - A link/button that opens this app's system notification settings
+    page directly (`Settings.ACTION_APP_NOTIFICATION_SETTINGS` with
+    `Settings.EXTRA_APP_PACKAGE`) - channel-level mute/importance/sound
+    controls this screen won't duplicate.
 - Template fields (description/notes/category/tags/account names) have
   no conditional logic - only flat `{macro}` substitution. Raised by
   the user: sometimes only *one* field should vary depending on what a
@@ -998,3 +1020,34 @@ work.
   `posting.DuplicateChecker.ruleKindFrom`) - needed so the editor knows
   which account side is the asset side for an existing transaction, not
   just a freshly-matched draft.
+- **Fixed two more real bugs, the user's own catch/report**: tapping
+  "Create transaction" on a `ReviewNotifications` system notification
+  (shown when auto-create is off) created the transaction successfully
+  but left the notification sitting in the shade; a second such
+  notification for what was really the same payment (seen twice,
+  worded differently by two different source apps) walked into the
+  create screen with no warning and only found out it was a duplicate
+  when Firefly's own server-side `error_if_duplicate_hash` check
+  rejected the `POST` outright - a bare error, not this app's own
+  "Use Created" choice. See ARCHITECTURE.md's `posting` section
+  (`ReviewNotifications`) for the fix: the notification is now
+  dismissed explicitly once a transaction actually gets linked
+  (`ReviewNotifications.cancel`), not via `setAutoCancel` (which never
+  fired for an action-button tap); the "Create transaction" action now
+  runs the exact same preemptive duplicate check a list tap already
+  runs (`ui.MainActivity.checkMessageIntent`/`MessagesFragment.
+  consumePendingMessageCheck`) before deciding whether to show the
+  duplicate-confirm dialog or open the create screen, instead of
+  skipping straight to the create screen with no check at all.
+  **Open question, not yet resolved**: on the user's own second
+  real-world test, this app's own preemptive check (local log + remote
+  search by account name/amount/date(+description)) still missed a
+  duplicate that Firefly's own server-side hash check caught - the two
+  checks use different criteria (this app's local/remote search is
+  scoped by account *name*, which can genuinely differ between two
+  apps' notifications for the same real payment; Firefly's own hash is
+  computed server-side on different grounds entirely) and aren't
+  guaranteed to agree. Worth deciding: parse Firefly's own duplicate-
+  rejection error (does it name the existing transaction's id?) and
+  offer the same link-to-existing recovery there too, instead of just
+  surfacing it as a bare creation failure.

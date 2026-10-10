@@ -25,6 +25,7 @@ import io.github.maximus5.ffnotifyimporter.network.FireflyCategory
 import io.github.maximus5.ffnotifyimporter.network.FireflyTransactionRequest
 import io.github.maximus5.ffnotifyimporter.posting.DuplicateCheckResult
 import io.github.maximus5.ffnotifyimporter.posting.LinkedTransactionCheck
+import io.github.maximus5.ffnotifyimporter.posting.ReviewNotifications
 import io.github.maximus5.ffnotifyimporter.posting.checkForDuplicate
 import io.github.maximus5.ffnotifyimporter.posting.verifyLinkedTransaction
 import io.github.maximus5.ffnotifyimporter.prefs.FireflyPrefs
@@ -530,7 +531,9 @@ class CreateTransactionFragment : Fragment() {
     /** Shared by [post] (create) and [save] (edit) - recording the dedup hash and linking the
      * message is identical either way: a successful edit's fields are exactly as likely to need
      * matching against later as a freshly-created one's, so the stored hash gets refreshed here
-     * too rather than only ever reflecting the transaction's *original* fields. */
+     * too rather than only ever reflecting the transaction's *original* fields. [ReviewNotifications.
+     * cancel] is a no-op when this screen wasn't opened from one (a plain in-app tap, or auto-create
+     * on) - see that function's own KDoc. */
     private fun onSaveSuccess(context: Context, draft: TransactionDraft, transactionId: String) {
         CreatedTransactionsDb.getInstance(context).recordCreated(
             hashWithDescription = transactionDedupHash(draft, true),
@@ -539,6 +542,7 @@ class CreateTransactionFragment : Fragment() {
             fireflyTransactionId = transactionId,
         )
         MessageStore.shared.setTransactionId(message, transactionId)
+        ReviewNotifications.cancel(context, message)
         Toast.makeText(context, getString(R.string.create_success_message, transactionId), Toast.LENGTH_LONG).show()
         requireActivity().finish()
     }

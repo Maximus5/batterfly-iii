@@ -1122,20 +1122,62 @@ Single `:app` module, packages under
     (`ReviewNotifications`, its own `review_match` channel, separate from
     `auto_create`'s so the two are independently mutable/configurable)
     with an app/amount/currency/description summary and a "Create
-    transaction" action (and whole-notification tap) that deep-links
-    into `ui.CreateTransactionActivity.intent(context, message)` - the
-    same review/edit screen the manual flow uses, picking a category
-    right from the notification's own flow rather than a bare "open the
-    app and find it yourself" prompt. Deliberately does **not** run a
-    duplicate check first and does **not** join `AutoCreateScheduler`'s
-    unique `APPEND` work chain: there's no shared mutable state here (no
-    Firefly `POST`, no dedup-log write) for two in-flight instances to
-    race over, so suppressing a likely-duplicate match before notifying
-    isn't worth the extra complexity - that judgment is left to the user
-    once they open `CreateTransactionActivity`, which already runs its
-    own duplicate check on tapping "Create transaction" there, so the
-    worst case is one extra tap before finding out, not a silently
-    wrong post.
+    transaction" action (and whole-notification tap). Deliberately does
+    **not** join `AutoCreateScheduler`'s unique `APPEND` work chain:
+    there's no shared mutable state here (no Firefly `POST`, no
+    dedup-log write) for two in-flight instances to race over.
+    **Fixed two real bugs, the user's own catch/report on a real
+    duplicate round-trip**:
+    - The action used to deep-link straight into
+      `ui.CreateTransactionActivity.intent(context, message)` with no
+      duplicate check at all - deliberate by the original design (left
+      entirely to the screen's own on-submit `checkForDuplicate`, same
+      reasoning `AutoCreateNotifications`'s own entry above never needed
+      since that path already dedups before posting). In practice that
+      meant a message that actually *was* a duplicate of something
+      already created walked the user into a blank create screen that
+      only found out when Firefly's own server-side `error_if_duplicate_
+      hash` check rejected the `POST` outright - a bare rejection error,
+      not the richer "Use Created"/"Open"/"Create anyway"/"Cancel"
+      choice a list tap on the same message would have shown. The action
+      now opens `ui.MainActivity.checkMessageIntent(context, message)`
+      instead - `MainActivity.onNewIntent`/`MessagesFragment.
+      consumePendingMessageCheck` (called from the fragment's own
+      `onViewCreated`, covering the common case where standard launch
+      mode recreates the activity rather than reusing it) reconstruct
+      the message from the intent's extras, look it up in `MessageStore`
+      by the same identity fields `setTransactionId` already matches on
+      (falling back to the reconstructed message itself if it's no
+      longer in the store - process killed and restarted with retention
+      off, say), and run it through `showTestMatch` - the *exact* same
+      preemptive-check code path a tap on the message's own row in the
+      list already runs. A likely duplicate now shows the same
+      duplicate-confirm dialog a list tap gets; nothing found still ends
+      up at `CreateTransactionActivity`, same as before. `AlertDialog`
+      needs a foreground `Activity` to show in, and `MessagesFragment`
+      already owns every piece of UI this check can show, which is why
+      this redirects through `MainActivity` rather than running the
+      check from inside the notification action's own `PendingIntent`
+      receiver.
+    - `setAutoCancel(true)` only ever dismisses a notification on a tap
+      of its *content* area, not an *action* button's own tap (what
+      "Create transaction" is) - so the notification sat in the shade
+      even after a transaction was successfully created from it.
+      `setAutoCancel` is gone now; `ReviewNotifications.cancel(context,
+      message)` is called explicitly instead, from every place that
+      actually links a transaction to a message (`CreateTransactionFragment.
+      onSaveSuccess` for a create or edit, `MessagesFragment`'s "Use
+      Created"/"Use anyway" button handlers for a dedup hit) - a no-op
+      when there's nothing to cancel (a plain in-app tap with no review
+      notification behind it, or one already dismissed). Both `notifyMatch`
+      and `cancel` compute the notification id via a private
+      `notificationId(message)` that always zeroes `CapturedMessage.
+      fireflyTransactionId` before hashing, rather than relying on every
+      caller to remember to pass a pre-link message - `cancel` is always
+      called *after* the link is set, and `CapturedMessage`'s default
+      `hashCode()` (used as the notification id) would otherwise change
+      the moment that field was set, making `cancel` silently miss the
+      very notification it's meant to dismiss.
 - `notifications` - `BankNotificationListenerService`
   (`NotificationListenerService` subclass): for every posted
   notification, checks `MonitoredAppsPrefs`, pulls `EXTRA_TITLE`/
