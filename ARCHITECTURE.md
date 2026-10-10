@@ -450,6 +450,19 @@ Single `:app` module, packages under
     `DraftIssue.DATE_UNPARSABLE` and keeps the notification's own time,
     same "flag it, don't guess, don't block the match" shape
     `LOCAL_AMOUNT_MISSING` already uses.
+    `renderOptional` (the local helper behind `sourceName`/
+    `destinationName`/`category`) now also collapses any run of
+    whitespace down to one space (`whitespaceRun`, a top-level
+    `Regex("\\s+")`), on top of its existing `.trim()` - **fixed a real
+    cross-app dedup/account-fragmentation bug, the user's own catch**:
+    the same real merchant came through with a single space in a bank
+    notification but a double space in Google Wallet's own
+    notification for the same payment. Left alone, that's not just a
+    dedup miss (`rules.remoteCandidateMatches`'s whole reason to exist
+    is catching a duplicate from a second device/app) - Firefly
+    auto-creates expense/revenue accounts by exact name, so the two
+    differently-spaced names would have ended up as two separate
+    accounts in Firefly for what's really one counterparty.
   - `CurrencyEntry`/`CurrenciesDb` - another user-maintained
     placeholder table (code<->symbol, e.g. `EUR`<->`€`), same idea and
     same "plain SQLite, no ORM, `getInstance(context)` singleton"

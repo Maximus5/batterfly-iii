@@ -7,6 +7,14 @@ import io.github.maximus5.ffnotifyimporter.parser.parseDate
 import java.math.BigDecimal
 import java.time.Instant
 
+/** Collapses a run of whitespace (including a stray double space some notification sources emit
+ * - the user's own catch: the same merchant's name came through with a single space from a bank
+ * notification but a double space from Google Wallet's) down to one, so [RuleEngine.renderOptional]
+ * can normalize [ParseRule.sourceAccountName]/[destinationAccountName]/[categoryTemplate] before
+ * they're used for dedup matching or posted to Firefly - otherwise the two sources would end up as
+ * two different Firefly accounts for what's really the same counterparty. */
+private val whitespaceRun = Regex("\\s+")
+
 /**
  * Matches a [CapturedMessage] against an ordered list of rules. List order IS priority: the
  * first rule whose pattern matches AND yields a parsable amount wins, nothing further is tried.
@@ -80,7 +88,8 @@ class RuleEngine(
         // Renders to a non-empty value, or null (field wasn't set / rendered empty). Used for
         // every field that's "this or nothing" rather than always-a-string.
         fun renderOptional(template: String) =
-            renderTemplate(template, groups, message.title, message.text).trim().takeIf { it.isNotEmpty() }
+            renderTemplate(template, groups, message.title, message.text)
+                .replace(whitespaceRun, " ").trim().takeIf { it.isNotEmpty() }
 
         val tags = renderTemplate(rule.tagsTemplate, groups, message.title, message.text)
             .split(",")
