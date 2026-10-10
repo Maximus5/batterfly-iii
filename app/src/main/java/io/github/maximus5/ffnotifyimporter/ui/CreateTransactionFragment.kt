@@ -201,9 +201,9 @@ class CreateTransactionFragment : Fragment() {
             },
         ) + " · " + message.appLabel
 
-        binding.amountInput.setText(draft.amount?.toPlainString().orEmpty())
+        binding.amountInput.setText(draft.amount?.let { formatAmountForDisplay(it) }.orEmpty())
         binding.currencyCodeInput.setText(draft.currencyCode)
-        binding.foreignAmountInput.setText(draft.foreignAmount?.toPlainString().orEmpty())
+        binding.foreignAmountInput.setText(draft.foreignAmount?.let { formatAmountForDisplay(it) }.orEmpty())
         binding.foreignCurrencyCodeInput.setText(draft.foreignCurrencyCode.orEmpty())
 
         selectedTimestampMillis = draft.date.toEpochMilli()
@@ -224,8 +224,12 @@ class CreateTransactionFragment : Fragment() {
      * [RemoteTransactionCandidate] instead of a freshly re-parsed [TransactionDraft]. Kept as its
      * own function rather than unifying the two behind a shared interface - the two source types
      * (`TransactionDraft` vs `RemoteTransactionCandidate`) differ enough (nullable amount/kind-as-
-     * enum vs not, no `foreignAmount` precision concerns here) that forcing one shape on both
-     * would cost more than the few duplicated lines save. */
+     * enum vs not) that forcing one shape on both would cost more than the few duplicated lines
+     * save. [formatAmountForDisplay] matters more here than in [populateFields] - Firefly's own
+     * `amount`/`foreign_amount` JSON fields come back at whatever scale its `DECIMAL(32,12)`
+     * column happens to store (the user's own catch/screenshot: an edit screen showing
+     * "61.160000000000" instead of "61.16"), unlike a freshly-parsed draft's amount, which is
+     * already clean from the notification text. */
     private fun populateFieldsFromCandidate(candidate: RemoteTransactionCandidate) {
         val binding = binding ?: return
         val context = requireContext()
@@ -238,9 +242,9 @@ class CreateTransactionFragment : Fragment() {
             },
         ) + " · " + message.appLabel
 
-        binding.amountInput.setText(candidate.amount.toPlainString())
+        binding.amountInput.setText(formatAmountForDisplay(candidate.amount))
         binding.currencyCodeInput.setText(candidate.currencyCode)
-        binding.foreignAmountInput.setText(candidate.foreignAmount?.toPlainString().orEmpty())
+        binding.foreignAmountInput.setText(candidate.foreignAmount?.let { formatAmountForDisplay(it) }.orEmpty())
         binding.foreignCurrencyCodeInput.setText(candidate.foreignCurrencyCode.orEmpty())
 
         selectedTimestampMillis = candidate.date.toEpochMilli()
@@ -616,6 +620,17 @@ class CreateTransactionFragment : Fragment() {
         null
     } catch (e: ArithmeticException) {
         null
+    }
+
+    /** The user's own catch/screenshot: Firefly's `amount`/`foreign_amount` JSON fields come back
+     * at whatever scale its `DECIMAL(32,12)` column stores, e.g. "61.160000000000" - correct, but
+     * unreadable dropped straight into a field meant for typing. Strips trailing zeros, then pads
+     * back up to 2 decimal places if stripping went below that (cents, what most currencies use) -
+     * "61.160000000000" -> "61.16", "100.000000000000" -> "100.00", a genuinely 3-decimal amount
+     * stays 3-decimal rather than getting rounded down to 2. */
+    private fun formatAmountForDisplay(amount: BigDecimal): String {
+        val stripped = amount.stripTrailingZeros()
+        return (if (stripped.scale() < 2) stripped.setScale(2) else stripped).toPlainString()
     }
 
     override fun onDestroyView() {

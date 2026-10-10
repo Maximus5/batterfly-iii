@@ -1707,7 +1707,19 @@ Single `:app` module, packages under
       forcing one on both costs more than the duplication saves) and
       `kind` comes from `candidate.kind` (`RemoteTransactionCandidate`'s
       own field, see the `rules`/`posting` sections above) rather than a
-      freshly re-parsed draft's; confirmed gone -> toasts and finishes,
+      freshly re-parsed draft's. **Fixed a real "unreadable amount" bug,
+      the user's own catch/screenshot**: `candidate.amount`/
+      `foreignAmount` are parsed straight off Firefly's own JSON, which
+      carries whatever scale its `DECIMAL(32,12)` column stores (e.g.
+      the literal string `"61.160000000000"`) - dropped straight into
+      the amount field via `toPlainString()`, that's what showed up,
+      unreadable and not what a fresh draft's own already-clean amount
+      ever looks like. New `formatAmountForDisplay` (strips trailing
+      zeros, then pads back to a 2-decimal minimum if stripping went
+      below that - cents, what most currencies use) replaces the bare
+      `toPlainString()` call for both fields here and in `populateFields`
+      (cheap insurance there too, even though a notification-parsed
+      draft amount isn't known to hit this); confirmed gone -> toasts and finishes,
       nothing left to edit; a check failure shows the error and
       finishes too. Saving (`onSaveClicked` -> `save`) calls the new
       `FireflyApiClient.updateTransaction` (`PUT`, see the `network`
