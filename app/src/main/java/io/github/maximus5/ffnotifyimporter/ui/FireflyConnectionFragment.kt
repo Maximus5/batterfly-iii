@@ -1,5 +1,6 @@
 package io.github.maximus5.ffnotifyimporter.ui
 
+import android.content.Context
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
@@ -162,11 +163,9 @@ class FireflyConnectionFragment : Fragment() {
             val client = FireflyApiClient(url, token)
             when (val result = client.testConnection()) {
                 is FireflyApiClient.Result.Success -> {
-                    val success = getString(R.string.firefly_test_connection_success, result.value)
-                    this@FireflyConnectionFragment.binding?.testConnectionResult?.text = success
-                    val filled = autofillDefaults(prefs, client)
                     this@FireflyConnectionFragment.binding?.testConnectionResult?.text =
-                        (listOf(success) + autofillNotes(filled)).joinToString("\n")
+                        getString(R.string.firefly_test_connection_success, result.value)
+                    showAutofillToast(requireContext(), autofillDefaults(prefs, client))
                 }
                 is FireflyApiClient.Result.Failure ->
                     this@FireflyConnectionFragment.binding?.testConnectionResult?.text =
@@ -175,10 +174,14 @@ class FireflyConnectionFragment : Fragment() {
         }
     }
 
-    private fun autofillNotes(filled: DefaultsAutofill): List<String> = listOfNotNull(
-        filled.currency?.let { getString(R.string.firefly_autofilled_currency, it) },
-        filled.sourceAccount?.let { getString(R.string.firefly_autofilled_account, it) },
-    )
+    /** One toast for both autofilled fields (nothing shown if neither was filled). */
+    private fun showAutofillToast(context: Context, filled: DefaultsAutofill) {
+        val notes = listOfNotNull(
+            filled.currency?.let { context.getString(R.string.firefly_autofilled_currency, it) },
+            filled.sourceAccount?.let { context.getString(R.string.firefly_autofilled_account, it) },
+        )
+        if (notes.isNotEmpty()) Toast.makeText(context, notes.joinToString("\n"), Toast.LENGTH_LONG).show()
+    }
 
     private fun save() {
         val binding = binding ?: return
@@ -209,8 +212,7 @@ class FireflyConnectionFragment : Fragment() {
         val settings = activity as? SettingsActivity
         binding.saveButton.isEnabled = false
         viewLifecycleOwner.lifecycleScope.launch {
-            val filled = autofillDefaults(prefs, FireflyApiClient(url, prefs.getToken()))
-            autofillNotes(filled).forEach { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() }
+            showAutofillToast(context, autofillDefaults(prefs, FireflyApiClient(url, prefs.getToken())))
             settings?.leaveScreen()
         }
     }
