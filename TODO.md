@@ -577,8 +577,45 @@ work.
     and a `deleteOlderThan`-equivalent, called the same places
     `MessageHistoryDb.deleteOlderThan` already is (right after
     `recordCreated`, and when the setting changes) - capped at 30 days
-    max per the decision above. Open question: share one retention
-    setting with message history, or give it its own - not decided.
+    max per the decision above. **Decided** (the user's own follow-up,
+    not started): share one retention setting with message history,
+    not a separate one - same `RetentionPrefs` window governs both
+    `MessageHistoryDb` and `CreatedTransactionsDb` (and any other
+    append-only operational log/structure this app grows later, not
+    just these two named now - the user's own framing was "all tables
+    and structures", scoped to data *this app itself appends over
+    time*, explicitly **not** `RulesDb`/`CurrenciesDb`/`MonitoredAppsPrefs`/
+    `FireflyPrefs`/`NotificationPrefs`, which stay config, unaffected -
+    see the `RulesDb`/`CurrenciesDb` item further below).
+    Also decided, same follow-up - a UI/default rework of
+    `MessageHistoryFragment` itself, not just the scope above:
+    - The `RadioGroup` (off/1/3/5/7/30 days) loses its "Don't save"
+      option; a separate switch, "Save in memory only", takes over
+      that meaning instead - checked means ephemeral (today's "Don't
+      save"/`retentionDays = 0`), unchecked means persisted for
+      whichever day-count is currently selected (the day-count control
+      presumably only enabled/meaningful while unchecked - not fully
+      specified yet).
+    - New-install default changes: `3` days, switch **unchecked** -
+      a real behavior change from today's actual default (`0`/off,
+      `RetentionPrefs`'s own KDoc currently documents this as
+      deliberate opt-in-only) - this decision supersedes that for new
+      users specifically, existing installs are migration, below.
+    - Migration for an existing install, explicitly called out as
+      something to get right so nobody's already-kept history gets
+      silently wiped by the UI change alone: "turn the switch on if
+      the old setting *was* 'Keep for 1+ day'" (the user's exact
+      instruction). **Flag before implementing, don't just code this
+      as stated**: read literally, that maps old "persisted" ->
+      switch-on ("memory only"), i.e. migrating an existing persisted
+      user straight into ephemeral mode on upgrade - the opposite of
+      "preserve what they already had" (old "Don't save"/`0` ->
+      switch-on would match that instead). Likely a slip while
+      dictating quickly, not a deliberate inversion, but don't guess
+      either way - confirm the intended mapping with the user before
+      writing any migration code, since getting this backwards is
+      exactly the "silently wipe someone's history" failure this same
+      instruction is trying to avoid.
   - `MessageHistoryDb` already satisfies this (max 30 days via
     `RetentionPrefs`) - no change needed there.
   - `MessageStore`'s in-memory list still has no cap - lower priority
