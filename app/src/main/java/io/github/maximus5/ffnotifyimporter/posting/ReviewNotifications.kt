@@ -8,6 +8,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import io.github.maximus5.ffnotifyimporter.R
 import io.github.maximus5.ffnotifyimporter.data.CapturedMessage
+import io.github.maximus5.ffnotifyimporter.prefs.NotificationPrefs
 import io.github.maximus5.ffnotifyimporter.ui.CreateTransactionActivity
 import io.github.maximus5.ffnotifyimporter.ui.MainActivity
 import java.math.BigDecimal
@@ -43,6 +44,11 @@ import java.math.BigDecimal
  * Own channel ([CHANNEL_ID]), separate from [AutoCreateNotifications]'s - different meaning ("here's
  * something to review" vs. "here's what happened automatically"), so the user can mute/configure
  * them independently.
+ *
+ * The user's own request, a dedicated "Notifications" settings screen: does nothing at all when
+ * `NotificationPrefs.isNotificationsEnabled()` is off, and - defaulting *off* for Google Play's
+ * financial-app content guidelines - swaps the detailed amount/currency/description text for a
+ * generic one (app label only) unless `isShowFinancialInfoEnabled()` is on.
  */
 object ReviewNotifications {
 
@@ -55,8 +61,14 @@ object ReviewNotifications {
         currencyCode: String,
         description: String,
     ) {
+        val notificationPrefs = NotificationPrefs(context)
+        if (!notificationPrefs.isNotificationsEnabled()) return
         ensureChannel(context)
-        val text = context.getString(R.string.review_match_text, message.appLabel, amount.toPlainString(), currencyCode, description)
+        val text = if (notificationPrefs.isShowFinancialInfoEnabled()) {
+            context.getString(R.string.review_match_text, message.appLabel, amount.toPlainString(), currencyCode, description)
+        } else {
+            context.getString(R.string.review_match_text_generic, message.appLabel)
+        }
         val action = createTransactionIntent(context, message)
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification_sync)

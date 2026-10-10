@@ -553,6 +553,14 @@ Single `:app` module, packages under
   - `MonitoredAppsPrefs` - which package names to monitor.
   - `RetentionPrefs` - local history retention in days; `0` (default)
     means off/in-memory-only.
+  - `NotificationPrefs` - whether this app's own notifications
+    (`posting.AutoCreateNotifications`/`ReviewNotifications`) post at
+    all (`isNotificationsEnabled`, default **on** - these already
+    existed and always fired before this screen did) and whether their
+    text includes amount/currency/description or a generic line
+    instead (`isShowFinancialInfoEnabled`, default **off** - the user's
+    own choice, for Google Play's financial-app content guidelines).
+    `ui.NotificationSettingsFragment` is the UI.
   - `FireflyPrefs` - the Firefly III connection + posting-behavior
     settings (`FireflySettingsFragment` is the UI): base URL, personal
     access token, the approximate-conversion tag name, auto-create
@@ -1092,6 +1100,24 @@ Single `:app` module, packages under
     that same screen's `onViewCreated` if it's already on when the
     screen opens, and (c) from `MainActivity.onCreate`, every app start,
     for a user who never opens Firefly III settings again at all.
+    All three outcome notifications (and `ReviewNotifications.notifyMatch`
+    below) are now also gated on `prefs.NotificationPrefs.
+    isNotificationsEnabled()` (default **on**, checked once inside
+    `AutoCreateNotifications.show` and `ReviewNotifications.notifyMatch`
+    rather than at each call site) - the user's own request, a dedicated
+    `ui.NotificationSettingsFragment` settings screen (new row on the
+    Settings list, right after Firefly III settings) for turning this
+    app's own notifications off entirely without digging into system
+    channel settings. The same screen's second toggle,
+    `isShowFinancialInfoEnabled()` (default **off** - the user's own
+    explicit choice, for Google Play's financial-app content guidelines),
+    swaps `auto_create_success_text`/`auto_create_skipped_text`/
+    `review_match_text`'s amount/currency/description for a generic,
+    app-label-only line when off; `notifyFailed` never carried financial
+    info to begin with, so it's untouched by this toggle. A third button
+    on that screen opens `Settings.ACTION_APP_NOTIFICATION_SETTINGS`
+    (+`Settings.EXTRA_APP_PACKAGE`) directly, for the channel-level mute/
+    importance/sound controls this screen deliberately doesn't duplicate.
     **Needs real-device verification** (not yet done, see TODO.md):
     nothing here can be exercised by a JVM unit test (WorkManager,
     system notifications, and the notification-listener path itself all
@@ -1960,6 +1986,20 @@ Single `:app` module, packages under
       `hostOf(getBaseUrl())`, not a live connection check - a cheap,
       offline-friendly signal that *something* is saved, not proof it
       still works.
+    - `NotificationSettingsFragment` (new row, right after Firefly III
+      settings - grouping it near the auto-create toggle it's a sibling
+      concept to, even though the two are otherwise independent) -
+      `prefs.NotificationPrefs`'s two switches, same autosave-per-tap
+      shape as `MessageHistoryFragment`'s radio group (below) rather
+      than `FireflySettingsFragment`'s explicit Save, since there's no
+      typed/validated text here. See the `posting` section above
+      (`AutoCreateNotifications`/`ReviewNotifications`) for what the two
+      toggles actually gate. `showFinancialInfoSwitch` is disabled (not
+      hidden - same "visible but not usable" convention the per-row
+      overflow menu items in `MessagesFragment` use) whenever
+      `showNotificationsSwitch` is off, since there's nothing left for
+      it to apply to. A third row's button opens
+      `Settings.ACTION_APP_NOTIFICATION_SETTINGS` directly.
     - `AppsFragment` (reused as-is, just hosted here instead of a tab;
       lists every launchable installed app via `queryIntentActivities`
       on `ACTION_MAIN`/`CATEGORY_LAUNCHER`, which needs the

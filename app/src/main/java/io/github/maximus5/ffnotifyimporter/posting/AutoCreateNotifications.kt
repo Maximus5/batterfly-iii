@@ -11,6 +11,7 @@ import androidx.core.app.NotificationManagerCompat
 import io.github.maximus5.ffnotifyimporter.R
 import io.github.maximus5.ffnotifyimporter.data.CapturedMessage
 import io.github.maximus5.ffnotifyimporter.network.transactionUrl
+import io.github.maximus5.ffnotifyimporter.prefs.NotificationPrefs
 import io.github.maximus5.ffnotifyimporter.ui.MainActivity
 import java.math.BigDecimal
 
@@ -26,9 +27,13 @@ import java.math.BigDecimal
  * own call, after trying tap-opens-Firefly first. [notifySuccess]/[notifySkippedDuplicate] also
  * carry an explicit "Open transaction" action button for jumping straight to Firefly's page
  * without going through the app first, and their text includes the parsed amount/currency/
- * description - another real catch: without them, there was no way to tell from the notification
- * alone *why* two notifications were treated as different payments (or the same one), only the
- * resulting Firefly id.
+ * description by default - another real catch: without them, there was no way to tell from the
+ * notification alone *why* two notifications were treated as different payments (or the same
+ * one), only the resulting Firefly id. `NotificationPrefs.isShowFinancialInfoEnabled()` - the
+ * user's own request, a dedicated "Notifications" settings screen, defaulting *off* for Google
+ * Play's financial-app content guidelines - swaps that detailed text for a generic one (app label
+ * only) when off; `isNotificationsEnabled()` (checked once, inside [show]) skips posting any of
+ * these three outcomes at all.
  *
  * Every call is a no-op if [android.Manifest.permission.POST_NOTIFICATIONS] was never granted
  * (API 33+, requested from `FireflySettingsFragment` when the user turns "Auto-create" on) -
@@ -49,11 +54,16 @@ object AutoCreateNotifications {
         description: String,
         transactionId: String,
     ) {
+        val text = if (NotificationPrefs(context).isShowFinancialInfoEnabled()) {
+            context.getString(R.string.auto_create_success_text, message.appLabel, amount.toPlainString(), currencyCode, description, transactionId)
+        } else {
+            context.getString(R.string.auto_create_success_text_generic, message.appLabel)
+        }
         show(
             context,
             id = message.hashCode(),
             title = context.getString(R.string.auto_create_success_title),
-            text = context.getString(R.string.auto_create_success_text, message.appLabel, amount.toPlainString(), currencyCode, description, transactionId),
+            text = text,
             pendingIntent = mainActivityIntent(context),
             action = transactionIntent(context, baseUrl, transactionId),
         )
@@ -77,16 +87,25 @@ object AutoCreateNotifications {
         description: String,
         existingTransactionId: String,
     ) {
+        val text = if (NotificationPrefs(context).isShowFinancialInfoEnabled()) {
+            context.getString(R.string.auto_create_skipped_text, message.appLabel, amount.toPlainString(), currencyCode, description, existingTransactionId)
+        } else {
+            context.getString(R.string.auto_create_skipped_text_generic, message.appLabel)
+        }
         show(
             context,
             id = message.hashCode(),
             title = context.getString(R.string.auto_create_skipped_title),
-            text = context.getString(R.string.auto_create_skipped_text, message.appLabel, amount.toPlainString(), currencyCode, description, existingTransactionId),
+            text = text,
             pendingIntent = mainActivityIntent(context),
             action = transactionIntent(context, baseUrl, existingTransactionId),
         )
     }
 
+    /** [reason] never carries amount/currency/description to begin with (just an app label and an
+     * error string) - nothing here needs `NotificationPrefs.isShowFinancialInfoEnabled()`'s
+     * generic-text branch the other two outcomes use. Still gated by `isNotificationsEnabled()`
+     * (inside `show`) same as them. */
     fun notifyFailed(context: Context, message: CapturedMessage, reason: String) {
         show(
             context,
@@ -113,8 +132,11 @@ object AutoCreateNotifications {
     /** [action] - when non-null, an explicit "Open transaction" button in the shade (collapsed or
      * expanded, no tap-and-wait needed) alongside [pendingIntent] (the whole-notification tap
      * target, always the app itself - the user's own call, not necessarily the same destination
-     * as [action]). */
+     * as [action]). Does nothing at all when `NotificationPrefs.isNotificationsEnabled()` is off -
+     * the user's own request, a dedicated "Notifications" settings screen - checked here rather
+     * than at each of the three call sites above, so none of them can forget it. */
     private fun show(context: Context, id: Int, title: String, text: String, pendingIntent: PendingIntent, action: PendingIntent?) {
+        if (!NotificationPrefs(context).isNotificationsEnabled()) return
         ensureChannel(context)
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification_sync)

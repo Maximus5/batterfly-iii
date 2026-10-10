@@ -220,12 +220,22 @@
     <string name="firefly_dedup_window_invalid">Окно дедупликации должно быть положительным числом минут.</string>
     <string name="firefly_settings_saved">Сохранено</string>
 
+    <string name="settings_notifications_title">Уведомления</string>
+    <string name="settings_notifications_subtitle">Что показывают собственные уведомления приложения</string>
+    <string name="notifications_show_switch">Показывать уведомления</string>
+    <string name="notifications_show_switch_hint">Когда уведомление от банка совпадёт с правилом, показывать уведомление о создании (или проверке) транзакции.</string>
+    <string name="notifications_show_financial_switch">Показывать финансовую информацию в уведомлении</string>
+    <string name="notifications_show_financial_switch_hint">Показывать сумму, валюту и описание в тексте уведомления. По умолчанию выключено — уведомление может увидеть кто-то кроме вас, например на заблокированном экране.</string>
+    <string name="notifications_open_system_settings_button">Открыть системные настройки уведомлений…</string>
+
     <string name="auto_create_channel_name">Автосоздание</string>
     <string name="auto_create_channel_description">Транзакции, созданные автоматически из уведомлений, без открытия приложения</string>
     <string name="auto_create_success_title">Транзакция создана</string>
     <string name="auto_create_success_text">%1$s · %2$s %3$s · \"%4$s\" → #%5$s</string>
+    <string name="auto_create_success_text_generic">%1$s · транзакция создана</string>
     <string name="auto_create_skipped_title">Пропущен вероятный дубль</string>
     <string name="auto_create_skipped_text">%1$s · %2$s %3$s · \"%4$s\" → #%5$s (уже есть в Firefly)</string>
+    <string name="auto_create_skipped_text_generic">%1$s · пропущен вероятный дубль</string>
     <string name="auto_create_failed_title">Ошибка автосоздания</string>
     <string name="auto_create_failed_text">%1$s: %2$s</string>
 
@@ -233,6 +243,7 @@
     <string name="review_match_channel_description">Уведомление совпало с правилом, пока автосоздание выключено - проверьте и создайте транзакцию вручную</string>
     <string name="review_match_title">Транзакция на проверку</string>
     <string name="review_match_text">%1$s · %2$s %3$s · \"%4$s\"</string>
+    <string name="review_match_text_generic">%1$s · совпало с правилом, нажмите для проверки</string>
 
     <string name="settings_backup_title">Бэкап и восстановление</string>
     <string name="settings_backup_subtitle">Сохранить или восстановить всё, кроме подключения к Firefly</string>

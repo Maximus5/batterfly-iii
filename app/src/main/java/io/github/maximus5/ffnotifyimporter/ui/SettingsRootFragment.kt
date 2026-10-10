@@ -34,6 +34,12 @@ class SettingsRootFragment : Fragment() {
                 R.string.settings_firefly_title,
             )
         }
+        binding.rowNotifications.setOnClickListener {
+            (activity as? SettingsActivity)?.openScreen(
+                NotificationSettingsFragment(),
+                R.string.settings_notifications_title,
+            )
+        }
         binding.rowMonitoredApps.setOnClickListener {
             (activity as? SettingsActivity)?.openScreen(
                 AppsFragment(),

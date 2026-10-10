@@ -604,28 +604,6 @@ work.
   way it is). A fullscreen *setting* just needs to make that padding
   conditional (skip it, or only reserve space for one bar) rather than
   redo the insets plumbing.
-- **P1** - a dedicated "Notifications" settings screen, the user's own
-  request. Not started. Three rows:
-  - "Show notifications" - a toggle, with a subtitle explaining what it
-    actually controls: when a bank notification is caught and matches a
-    rule, this app shows its own notification about creating a
-    transaction from it (`ReviewNotifications`/`AutoCreateNotifications`
-    - see ARCHITECTURE.md). Right now there's no way to turn that off
-    short of muting the channel from system settings directly (see the
-    third row below) - this row is the in-app equivalent.
-  - "Show financial information in notification" - for Google Play
-    compliance (financial apps are expected to let the user hide
-    amount/description from a notification that can show on a locked
-    device). Needs a decision on *how* it degrades when off - a generic
-    "A transaction was created" with no amount/description/counterparty,
-    vs. Android's own `setVisibility(VISIBILITY_PRIVATE)` lock-screen
-    redaction (shows a system-provided placeholder only on the lock
-    screen, full content once unlocked) - not the same guarantee, worth
-    checking what Play's review actually expects before picking one.
-  - A link/button that opens this app's system notification settings
-    page directly (`Settings.ACTION_APP_NOTIFICATION_SETTINGS` with
-    `Settings.EXTRA_APP_PACKAGE`) - channel-level mute/importance/sound
-    controls this screen won't duplicate.
 - Template fields (description/notes/category/tags/account names) have
   no conditional logic - only flat `{macro}` substitution. Raised by
   the user: sometimes only *one* field should vary depending on what a
@@ -1097,3 +1075,29 @@ work.
   (this app's own hash/search can still miss what Firefly's own
   hash catches) - purely a "don't spam two notifications for what's
   probably the same payment" UX layer on top.
+- **Done** - the dedicated "Notifications" settings screen, the user's
+  own P1 request (see ARCHITECTURE.md's `ui`/`posting` sections for the
+  full design). `NotificationSettingsFragment` (new row on the Settings
+  list, right after Firefly III settings), backed by a new
+  `prefs.NotificationPrefs`:
+  - "Show notifications" (`isNotificationsEnabled`, default **on** -
+    these notifications already existed and always fired before this
+    screen did) gates all four of this app's own notification kinds
+    uniformly - `AutoCreateNotifications.notifySuccess`/
+    `notifySkippedDuplicate`/`notifyFailed` and
+    `ReviewNotifications.notifyMatch` - checked once inside each
+    object's own `show`/`notifyMatch`, not at every call site.
+  - "Show financial information in notification"
+    (`isShowFinancialInfoEnabled`, default **off** - the user's own
+    explicit choice, for Google Play's financial-app content
+    guidelines) swaps the amount/currency/description-carrying text on
+    `notifySuccess`/`notifySkippedDuplicate`/`notifyMatch` for a generic
+    one (app label only) when off; disabled (not hidden) in the UI
+    while "Show notifications" itself is off, since it has nothing to
+    apply to then. `notifyFailed` never carried financial info to begin
+    with (just an app label and an error string), so it's untouched by
+    this toggle.
+  - A button opens this app's system notification settings page
+    directly (`Settings.ACTION_APP_NOTIFICATION_SETTINGS` +
+    `Settings.EXTRA_APP_PACKAGE`) for channel-level mute/importance/
+    sound controls this screen doesn't duplicate.

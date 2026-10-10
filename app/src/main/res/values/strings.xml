@@ -220,12 +220,22 @@
     <string name="firefly_dedup_window_invalid">Dedup window must be a positive number of minutes.</string>
     <string name="firefly_settings_saved">Saved</string>
 
+    <string name="settings_notifications_title">Notifications</string>
+    <string name="settings_notifications_subtitle">What this app\'s own notifications show</string>
+    <string name="notifications_show_switch">Show notifications</string>
+    <string name="notifications_show_switch_hint">When a bank notification matches a rule, show a notification for creating (or reviewing) the transaction.</string>
+    <string name="notifications_show_financial_switch">Show financial information in notification</string>
+    <string name="notifications_show_financial_switch_hint">Include the amount, currency, and description in the notification text. Off by default - a notification can be seen by someone other than you, e.g. on a locked screen.</string>
+    <string name="notifications_open_system_settings_button">Open system notification settings…</string>
+
     <string name="auto_create_channel_name">Auto-create</string>
     <string name="auto_create_channel_description">Transactions created automatically from notifications, without opening the app</string>
     <string name="auto_create_success_title">Transaction created</string>
     <string name="auto_create_success_text">%1$s · %2$s %3$s · \"%4$s\" → #%5$s</string>
+    <string name="auto_create_success_text_generic">%1$s · transaction created</string>
     <string name="auto_create_skipped_title">Skipped a likely duplicate</string>
     <string name="auto_create_skipped_text">%1$s · %2$s %3$s · \"%4$s\" → #%5$s (already in Firefly)</string>
+    <string name="auto_create_skipped_text_generic">%1$s · skipped a likely duplicate</string>
     <string name="auto_create_failed_title">Auto-create failed</string>
     <string name="auto_create_failed_text">%1$s: %2$s</string>
 
@@ -233,6 +243,7 @@
     <string name="review_match_channel_description">A notification matched a rule while auto-create is off - review and create the transaction by hand</string>
     <string name="review_match_title">Transaction to review</string>
     <string name="review_match_text">%1$s · %2$s %3$s · \"%4$s\"</string>
+    <string name="review_match_text_generic">%1$s · matched a rule, tap to review</string>
 
     <string name="settings_backup_title">Backup &amp; restore</string>
     <string name="settings_backup_subtitle">Save or restore everything except the Firefly connection</string>
