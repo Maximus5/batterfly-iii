@@ -1377,7 +1377,7 @@ work.
   the post for it.
 - **Done**, the user's own request (onboarding): a setup checklist on the
   Messages screen while the list is empty, retired permanently once any
-  message has existed (see ARCHITECTURE.md). **Deferred**: autofilling the
-  default currency / default source account after a successful "Test
-  connection", a hint about where to create the Firefly access token, and
-  a "now add a test message" prompt after the first successful setup.
+  message has existed (see ARCHITECTURE.md). Follow-ups also done: help
+  texts under the URL / token fields, and autofill of the default currency
+  / single asset account after Test connection and Save. **Deferred**: a
+  "now add a test message" prompt after the first successful setup.

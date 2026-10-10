@@ -3040,6 +3040,18 @@ Single `:app` module, packages under
     a non-empty list (covers restore) - or when the user taps "Hide this
     guide"; an empty list alone isn't enough, since retention expiring
     every message also empties it and the guide must not come back then.
+  - Onboarding autofill (`posting.DefaultsAutofill.kt`): after a successful
+    "Test connection" and after "Save" on `FireflyConnectionFragment`,
+    `autofillDefaults` fills the default account currency with Firefly's
+    primary *enabled* currency (`FireflyCurrency.primary`, parsed from the
+    `primary` key, or the older `default` one - Firefly's
+    `CurrencyTransformer` emits both as the user-group native currency) and
+    the default source account only when there is exactly one asset
+    account (with several there is no honest default). It only fills blank
+    prefs, never overwrites, makes read-only calls, and leaves fields blank
+    on any failure. `chooseDefaults` is the pure part, unit-tested. On the
+    Transactions screen the currency + source account fields now sit at
+    the top, above the switches.
   - `SettingsActivity.leaveScreen()` - the one way a settings screen closes
     itself (back guards' "discard", and after a successful Save on
     `FireflyConnectionFragment`/`TransactionCreationFragment`): pops the

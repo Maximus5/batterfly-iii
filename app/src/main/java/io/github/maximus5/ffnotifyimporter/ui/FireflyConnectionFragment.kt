@@ -15,6 +15,8 @@ import io.github.maximus5.ffnotifyimporter.R
 import io.github.maximus5.ffnotifyimporter.databinding.FragmentFireflyConnectionBinding
 import io.github.maximus5.ffnotifyimporter.network.FireflyApiClient
 import io.github.maximus5.ffnotifyimporter.network.isCleartextUrl
+import io.github.maximus5.ffnotifyimporter.posting.DefaultsAutofill
+import io.github.maximus5.ffnotifyimporter.posting.autofillDefaults
 import io.github.maximus5.ffnotifyimporter.prefs.FireflyPrefs
 import kotlinx.coroutines.launch
 
@@ -157,16 +159,26 @@ class FireflyConnectionFragment : Fragment() {
 
         binding.testConnectionResult.text = null
         viewLifecycleOwner.lifecycleScope.launch {
-            when (val result = FireflyApiClient(url, token).testConnection()) {
-                is FireflyApiClient.Result.Success ->
+            val client = FireflyApiClient(url, token)
+            when (val result = client.testConnection()) {
+                is FireflyApiClient.Result.Success -> {
+                    val success = getString(R.string.firefly_test_connection_success, result.value)
+                    this@FireflyConnectionFragment.binding?.testConnectionResult?.text = success
+                    val filled = autofillDefaults(prefs, client)
                     this@FireflyConnectionFragment.binding?.testConnectionResult?.text =
-                        getString(R.string.firefly_test_connection_success, result.value)
+                        (listOf(success) + autofillNotes(filled)).joinToString("\n")
+                }
                 is FireflyApiClient.Result.Failure ->
                     this@FireflyConnectionFragment.binding?.testConnectionResult?.text =
                         getString(R.string.firefly_test_connection_failure, result.message)
             }
         }
     }
+
+    private fun autofillNotes(filled: DefaultsAutofill): List<String> = listOfNotNull(
+        filled.currency?.let { getString(R.string.firefly_autofilled_currency, it) },
+        filled.sourceAccount?.let { getString(R.string.firefly_autofilled_account, it) },
+    )
 
     private fun save() {
         val binding = binding ?: return
@@ -191,7 +203,16 @@ class FireflyConnectionFragment : Fragment() {
 
         initialSnapshot = buildSnapshot()
         Toast.makeText(requireContext(), R.string.firefly_settings_saved, Toast.LENGTH_SHORT).show()
-        (activity as? SettingsActivity)?.leaveScreen()
+        // Saving without pressing "Test connection" must still onboard the defaults - fill them
+        // first, then leave (a failed/slow lookup just leaves them blank).
+        val context = requireContext()
+        val settings = activity as? SettingsActivity
+        binding.saveButton.isEnabled = false
+        viewLifecycleOwner.lifecycleScope.launch {
+            val filled = autofillDefaults(prefs, FireflyApiClient(url, prefs.getToken()))
+            autofillNotes(filled).forEach { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() }
+            settings?.leaveScreen()
+        }
     }
 
     override fun onDestroyView() {

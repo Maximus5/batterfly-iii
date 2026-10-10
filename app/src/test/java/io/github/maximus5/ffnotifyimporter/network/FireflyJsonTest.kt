@@ -69,6 +69,19 @@ class FireflyJsonTest {
     }
 
     @Test
+    fun `parseCurrencyList reads the primary flag from primary or the older default key`() {
+        val body = """
+            {"data": [
+                {"id": "1", "attributes": {"code": "EUR", "enabled": true, "primary": true, "default": true}},
+                {"id": "2", "attributes": {"code": "USD", "enabled": true, "default": true}},
+                {"id": "3", "attributes": {"code": "PLN", "enabled": true, "primary": false, "default": false}}
+            ]}
+        """.trimIndent()
+
+        assertEquals(listOf(true, true, false), parseCurrencyList(body).map { it.primary })
+    }
+
+    @Test
     fun `parseCurrencyList skips an entry missing a code rather than failing the whole list`() {
         val body = """
             {"data": [

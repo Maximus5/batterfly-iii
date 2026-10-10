@@ -77,6 +77,7 @@ fun parseCurrencyList(body: String): List<FireflyCurrency> = try {
                 attributes.optBoolean("enabled", false),
                 attributes.optString("name"),
                 attributes.optString("symbol"),
+                attributes.optBoolean("primary", false) || attributes.optBoolean("default", false),
             )
         }
     }
