@@ -84,6 +84,32 @@
             android:textColor="#888888"
             android:textSize="13sp" />
 
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/defaultSourceAccountLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="4dp"
+            android:hint="@string/firefly_field_default_source_account"
+            app:expandedHintEnabled="false"
+            app:endIconMode="custom"
+            app:endIconDrawable="@drawable/ic_dropdown"
+            app:endIconContentDescription="@string/rule_pick_account">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/defaultSourceAccountInput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:text="@string/firefly_field_default_source_account_hint"
+            android:textColor="#888888"
+            android:textSize="13sp" />
+
         <View
             android:layout_width="match_parent"
             android:layout_height="1dp"

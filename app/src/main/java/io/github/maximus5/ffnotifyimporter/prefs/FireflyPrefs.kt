@@ -40,6 +40,21 @@ class FireflyPrefs(context: Context) {
     fun setDefaultAccountCurrency(currencyCode: String) =
         prefs.edit().putString(KEY_DEFAULT_ACCOUNT_CURRENCY, currencyCode).apply()
 
+    /** Pre-fills `ui.CreateTransactionFragment`'s source account field on create, but **only**
+     * when a match leaves *both* account sides blank (the user's own explicit scoping, not "source
+     * blank" alone - pre-filling source unconditionally could turn a legitimate DEPOSIT rule's own
+     * already-filled destination into a wrongly-inferred TRANSFER once source also looked like a
+     * real asset account, see `CreateTransactionFragment.inferKindFromAccounts`). Onboarding-
+     * focused, the user's own reasoning: most users monitor one app, mostly card payments from one
+     * account, so most `rules.BuiltInRules` matches can be one tap away from "Create" instead of
+     * requiring the account to be picked by hand every single time. A *display-only* convenience -
+     * deliberately never read by `rules.RuleEngine`/`posting.AutoCreateWorker`, so automatic
+     * creation still requires a rule (built-in or user-authored) to actually resolve an account on
+     * its own, exactly as before this existed. */
+    fun getDefaultSourceAccount(): String = prefs.getString(KEY_DEFAULT_SOURCE_ACCOUNT, "").orEmpty()
+    fun setDefaultSourceAccount(accountName: String) =
+        prefs.edit().putString(KEY_DEFAULT_SOURCE_ACCOUNT, accountName).apply()
+
     /** Comma-separated - one or more tags appended to *every* transaction this app creates,
      * regardless of which rule matched - the user's own request, so tags wanted on everything
      * don't have to be repeated in every single rule's own `tagsTemplate`. Raw storage shape
@@ -103,6 +118,7 @@ class FireflyPrefs(context: Context) {
         private const val KEY_APPROX_TAG = "approx_conversion_tag"
         private const val KEY_ALL_TRANSACTIONS_TAGS = "all_transactions_tag"
         private const val KEY_DEFAULT_ACCOUNT_CURRENCY = "default_account_currency"
+        private const val KEY_DEFAULT_SOURCE_ACCOUNT = "default_source_account"
         private const val KEY_AUTO_CREATE = "auto_create"
         private const val KEY_DEDUP_ENABLED = "dedup_enabled"
         private const val KEY_DEDUP_INCLUDE_DESCRIPTION = "dedup_include_description"

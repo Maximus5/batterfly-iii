@@ -240,6 +240,8 @@
     <string name="firefly_dedup_window_invalid">Dedup window must be a positive number of minutes.</string>
     <string name="firefly_field_default_account_currency">Default account currency</string>
     <string name="firefly_field_default_account_currency_hint">Used when a rule doesn\'t specify its own currency.</string>
+    <string name="firefly_field_default_source_account">Default Source account</string>
+    <string name="firefly_field_default_source_account_hint">Pre-fills the source account on the create screen when a match leaves both account fields blank. Only a starting point - you can still change or clear it there; auto-create still requires the rule itself to set an account.</string>
     <string name="firefly_pick_currency_failed">Couldn\'t load currencies from Firefly: %1$s</string>
     <string name="firefly_no_currencies">No enabled currencies found in Firefly.</string>
     <string name="firefly_field_all_transactions_tags">Add tags for all transactions (comma separated)</string>

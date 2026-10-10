@@ -240,6 +240,8 @@
     <string name="firefly_dedup_window_invalid">Окно дедупликации должно быть положительным числом минут.</string>
     <string name="firefly_field_default_account_currency">Валюта счёта по умолчанию</string>
     <string name="firefly_field_default_account_currency_hint">Используется, если правило не указывает свою валюту.</string>
+    <string name="firefly_field_default_source_account">Счёт-источник по умолчанию</string>
+    <string name="firefly_field_default_source_account_hint">Автоматически подставляется в поле счёта-источника на экране создания, если оба поля счетов пусты. Это лишь отправная точка — поле можно изменить или очистить; для автоматического создания счёт по-прежнему должен быть задан в самом правиле.</string>
     <string name="firefly_pick_currency_failed">Не удалось загрузить валюты из Firefly: %1$s</string>
     <string name="firefly_no_currencies">В Firefly не найдено включённых валют.</string>
     <string name="firefly_field_all_transactions_tags">Добавить теги для всех транзакций (через запятую)</string>

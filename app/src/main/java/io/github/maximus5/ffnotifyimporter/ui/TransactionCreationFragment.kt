@@ -13,6 +13,7 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import io.github.maximus5.ffnotifyimporter.R
 import io.github.maximus5.ffnotifyimporter.databinding.FragmentTransactionCreationBinding
+import io.github.maximus5.ffnotifyimporter.network.FireflyAccount
 import io.github.maximus5.ffnotifyimporter.network.FireflyApiClient
 import io.github.maximus5.ffnotifyimporter.network.FireflyCurrency
 import io.github.maximus5.ffnotifyimporter.posting.isNotificationPermissionGranted
@@ -48,7 +49,13 @@ import kotlinx.coroutines.launch
  * currency from). [showCurrencyPicker] sources its list from the currencies actually *enabled* in
  * the user's own Firefly instance (`FireflyApiClient.listCurrencies`), not this app's own locally-
  * maintained `rules.CurrenciesDb` table `RuleEditFragment`'s own currency picker reads - a
- * deliberately different data source for a deliberately different question. */
+ * deliberately different data source for a deliberately different question.
+ *
+ * [FragmentTransactionCreationBinding.defaultSourceAccountInput] ("Default Source account") - see
+ * `FireflyPrefs.getDefaultSourceAccount`'s own KDoc for the full reasoning (onboarding, and why
+ * it's deliberately display-only, never read by `rules`/`posting`). [showAccountPicker] sources
+ * from `FireflyApiClient.listAssetAccounts()`, same shape `CreateTransactionFragment`'s own
+ * account picker already uses. */
 class TransactionCreationFragment : Fragment() {
 
     private var binding: FragmentTransactionCreationBinding? = null
@@ -59,6 +66,7 @@ class TransactionCreationFragment : Fragment() {
      * enabled-currency set changes rarely enough that a stale cache for the rest of this one
      * screen is an acceptable trade for not hitting the network on every picker tap. */
     private var enabledCurrencies: List<FireflyCurrency>? = null
+    private var assetAccounts: List<FireflyAccount>? = null
 
     /** Requested the moment the user turns auto-create on, and also on opening this screen while
      * it's already on (the user's own catch: a switch already enabled from a build before this
@@ -90,10 +98,12 @@ class TransactionCreationFragment : Fragment() {
         binding.dedupIncludeDescriptionSwitch.isChecked = prefs.isDedupIncludeDescription()
         binding.dedupWindowInput.setText(prefs.getDedupWindowMinutes().toString())
         binding.defaultAccountCurrencyInput.setText(prefs.getDefaultAccountCurrency())
+        binding.defaultSourceAccountInput.setText(prefs.getDefaultSourceAccount())
         binding.allTransactionsTagInput.setText(prefs.getAllTransactionsTags())
         binding.approxTagInput.setText(prefs.getApproxConversionTag())
 
         binding.defaultAccountCurrencyLayout.setEndIconOnClickListener { showCurrencyPicker(binding.defaultAccountCurrencyInput) }
+        binding.defaultSourceAccountLayout.setEndIconOnClickListener { showAccountPicker(binding.defaultSourceAccountInput) }
 
         binding.autoCreateSwitch.setOnCheckedChangeListener { _, isChecked -> if (isChecked) requestNotificationPermissionIfNeeded() }
         if (binding.autoCreateSwitch.isChecked) requestNotificationPermissionIfNeeded()
@@ -156,6 +166,49 @@ class TransactionCreationFragment : Fragment() {
             .show()
     }
 
+    /** Same `FireflyApiClient.listAssetAccounts()`-backed picker `CreateTransactionFragment`'s own
+     * account fields already use - the field stays freely typeable either way, same as every other
+     * Firefly-sourced picker in this app. */
+    private fun showAccountPicker(target: EditText) {
+        val context = requireContext()
+        val prefs = FireflyPrefs(context)
+        if (!prefs.isConfigured()) {
+            Toast.makeText(context, R.string.rule_firefly_not_configured, Toast.LENGTH_LONG).show()
+            return
+        }
+        val cached = assetAccounts
+        if (cached != null) {
+            showAccountPickerDialog(target, cached)
+            return
+        }
+        viewLifecycleOwner.lifecycleScope.launch {
+            when (val result = FireflyApiClient(prefs.getBaseUrl(), prefs.getToken()).listAssetAccounts()) {
+                is FireflyApiClient.Result.Success -> {
+                    assetAccounts = result.value
+                    showAccountPickerDialog(target, result.value)
+                }
+                is FireflyApiClient.Result.Failure ->
+                    Toast.makeText(context, getString(R.string.rule_firefly_accounts_failed, result.message), Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    private fun showAccountPickerDialog(target: EditText, accounts: List<FireflyAccount>) {
+        if (accounts.isEmpty()) {
+            Toast.makeText(requireContext(), R.string.rule_firefly_no_accounts, Toast.LENGTH_LONG).show()
+            return
+        }
+        val currentName = target.text?.toString()?.trim()
+        val selectedIndex = accounts.indexOfFirst { it.name == currentName }
+        AlertDialog.Builder(requireContext())
+            .setTitle(R.string.rule_pick_account)
+            .setSingleChoiceItems(accounts.map { it.name }.toTypedArray(), selectedIndex) { dialog, which ->
+                target.setText(accounts[which].name)
+                dialog.dismiss()
+            }
+            .show()
+    }
+
     private fun save() {
         val binding = binding ?: return
         val dedupWindow = binding.dedupWindowInput.text?.toString()?.trim()?.toIntOrNull()
@@ -170,6 +223,7 @@ class TransactionCreationFragment : Fragment() {
         prefs.setDedupIncludeDescription(binding.dedupIncludeDescriptionSwitch.isChecked)
         prefs.setDedupWindowMinutes(dedupWindow)
         prefs.setDefaultAccountCurrency(binding.defaultAccountCurrencyInput.text?.toString().orEmpty().trim())
+        prefs.setDefaultSourceAccount(binding.defaultSourceAccountInput.text?.toString().orEmpty().trim())
         prefs.setAllTransactionsTags(binding.allTransactionsTagInput.text?.toString().orEmpty().trim())
         prefs.setApproxConversionTag(binding.approxTagInput.text?.toString().orEmpty().trim())
 

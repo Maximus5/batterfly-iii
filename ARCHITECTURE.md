@@ -2178,6 +2178,31 @@ Single `:app` module, packages under
     wider weighting alone (an edge case - a long locale month name
     plus large accessibility font scaling - would otherwise still
     wrap and reintroduce the same row-height mismatch).
+    **"Default Source account" pre-fill, the user's own onboarding-
+    focused request**: `prefillDefaultSourceAccountIfBothBlank`, called
+    right after `populateFields` in `loadForCreate`, sets
+    `sourceAccountInput`'s text to `FireflyPrefs.
+    getDefaultSourceAccount()` (new field on `ui.
+    TransactionCreationFragment`, own `FireflyApiClient.
+    listAssetAccounts()`-backed picker) - but **only** when the match
+    left *both* `draft.sourceName`/`destinationName` blank, never when
+    just one side is. Narrower than "source blank" alone would be,
+    deliberately - a legitimate DEPOSIT rule that already filled in a
+    real destination would otherwise get source silently pre-filled
+    too, and `inferKindFromAccounts` would then see both sides as real
+    asset accounts and wrongly flip `kind` to TRANSFER. Purely a text
+    fill, not a full `PickedAccount` - the account field's own
+    `TextWatcher` (registered unconditionally in `onViewCreated`)
+    already re-runs `inferKindFromAccounts` off this exact text
+    change, same as if the user had typed it by hand, so no special
+    casing is needed for the kind to resolve correctly once
+    `prefetchAssetAccountsForInference`'s own fetch lands. **Deliberately
+    display-only** - `FireflyPrefs.getDefaultSourceAccount()` is read
+    only here, never by `rules.RuleEngine`/`posting.AutoCreateWorker`,
+    the user's own explicit safety requirement: automatic creation
+    still requires a rule (built-in or user-authored) to resolve an
+    account on its own, exactly as before this setting existed - this
+    only ever saves a manual pick on the visual create screen.
     **Both currency fields (home and foreign) now pick from a list
     too, the user's own request**: `currencyCodeLayout`/
     `foreignCurrencyCodeLayout` get the same end-icon `AlertDialog`
