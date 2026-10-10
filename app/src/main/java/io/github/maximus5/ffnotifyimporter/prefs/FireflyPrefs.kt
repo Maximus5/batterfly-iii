@@ -74,6 +74,17 @@ class FireflyPrefs(context: Context) {
     fun getDedupWindowMinutes(): Int = prefs.getInt(KEY_DEDUP_WINDOW_MINUTES, DEFAULT_DEDUP_WINDOW_MINUTES)
     fun setDedupWindowMinutes(minutes: Int) = prefs.edit().putInt(KEY_DEDUP_WINDOW_MINUTES, minutes).apply()
 
+    /** On by default - the whole point of `rules.BuiltInRules` is to give a user with a blank (or
+     * non-matching) Rules list something that still works without hand-authoring a regex, so the
+     * default has to actually provide that out of the box rather than requiring a settings trip
+     * first. One shared flag for both built-in rules, not a per-rule one - they always move
+     * together (see `rules.BuiltInRules`'s own KDoc for why there are two at all), surfaced as a
+     * single toggle at the bottom of `RulesListFragment`'s list rather than a `TransactionCreationFragment`
+     * switch, since it's a property of the rules list, not a general creation/dedup setting. */
+    fun isBuiltInRulesEnabled(): Boolean = prefs.getBoolean(KEY_BUILT_IN_RULES_ENABLED, true)
+    fun setBuiltInRulesEnabled(enabled: Boolean) =
+        prefs.edit().putBoolean(KEY_BUILT_IN_RULES_ENABLED, enabled).apply()
+
     private fun decryptedString(key: String): String {
         val stored = prefs.getString(key, null) ?: return ""
         return KeystoreCipher.decrypt(stored).orEmpty()
@@ -96,5 +107,6 @@ class FireflyPrefs(context: Context) {
         private const val KEY_DEDUP_ENABLED = "dedup_enabled"
         private const val KEY_DEDUP_INCLUDE_DESCRIPTION = "dedup_include_description"
         private const val KEY_DEDUP_WINDOW_MINUTES = "dedup_window_minutes"
+        private const val KEY_BUILT_IN_RULES_ENABLED = "built_in_rules_enabled"
     }
 }

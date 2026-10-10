@@ -13,6 +13,7 @@ import io.github.maximus5.ffnotifyimporter.rules.RuleEngine
 import io.github.maximus5.ffnotifyimporter.rules.RulesDb
 import io.github.maximus5.ffnotifyimporter.rules.TransactionDraft
 import io.github.maximus5.ffnotifyimporter.rules.applyApproxConversion
+import io.github.maximus5.ffnotifyimporter.rules.withBuiltIns
 
 private const val KEY_PACKAGE_NAME = "package_name"
 private const val KEY_APP_LABEL = "app_label"
@@ -43,9 +44,9 @@ fun capturedMessageFrom(data: Data): CapturedMessage = CapturedMessage(
  * [AutoCreateWorker] and `ReviewNotificationWorker`, both of which only ever receive a message's
  * plain fields (see [capturedMessageFrom]) and have to re-derive the draft themselves. */
 fun matchRule(context: Context, message: CapturedMessage): TransactionDraft? {
-    val rules = RulesDb.getInstance(context).loadAllOrdered()
-    val currencySymbols = CurrenciesDb.getInstance(context).symbolToCodeMap()
     val prefs = FireflyPrefs(context)
+    val rules = RulesDb.getInstance(context).loadAllOrdered().withBuiltIns(prefs.isBuiltInRulesEnabled())
+    val currencySymbols = CurrenciesDb.getInstance(context).symbolToCodeMap()
     val outcome = RuleEngine(rules, currencySymbols, prefs.getAllTransactionsTags(), prefs.getDefaultAccountCurrency()).match(message)
     return (outcome as? ParseOutcome.Matched)?.draft
 }

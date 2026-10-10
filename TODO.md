@@ -513,100 +513,80 @@ work.
   aliases - simpler, and consistent with how every other format
   difference in this app already gets its own rule rather than one
   clever combined pattern.
-- **Raised by the user, design now finalized across several rounds of
-  discussion, not started** - built-in fallback rule(s): a genuinely
-  blank Rules list (or one where nothing matched) currently means the
-  user has to hand-author a regex themselves, which the user judged
-  "practically impossible without Googling/AI" for a typical user.
-  The user supplied a real rules export (14 rules, 6+ apps) to ground
-  this design in actual notification shapes rather than guesswork -
-  two things it confirmed directly:
-  - Their own currency/amount capture, reused verbatim as the generic
-    pattern: `(?<currency>[A-Z]{1,3}\$|[A-Z]{3}|[€£$¥])` and
-    `(?<amount>[\d.,]+)` - battle-tested across Amex/C24/GPay/Miles &
-    More/N26/Revolut already, not invented fresh.
-  - **Direction (withdrawal/deposit) keyword detection would not have
-    worked**: none of their 14 real rules use an English/German
-    keyword a generic rule could plausibly guess from ("bei", "with
-    <card name>" - not a direction word at all, "Zahlung erfolgreich",
-    "Lastschrift eingelöst", or no keyword at all - Revolut's shape is
-    pure line position). This killed the original "withdrawal rules +
-    deposit rules by keyword" plan (4 patterns) in favor of the
-    simpler, more honest design below.
-  Final design:
-  - **2** hardcoded `ParseRule` instances (not 4) - "Default: Currency
-    before amount" / "Default: Currency after amount" (named
+- **Done** - built-in fallback rules (`rules.BuiltInRules`,
+  `BuiltInRulesTest`): a genuinely blank Rules list (or one where
+  nothing matched) used to mean the user had to hand-author a regex
+  themselves, which the user judged "practically impossible without
+  Googling/AI" for a typical user. Design grounded in a real rules
+  export the user supplied (14 rules, 6+ apps) rather than guesswork -
+  two things it confirmed directly: the currency/amount capture
+  (`[A-Z]{1,3}\$|[A-Z]{3}|[€£$¥]` / `[\d.,]+`) is the user's own,
+  reused verbatim, already battle-tested across Amex/C24/Google
+  Wallet/Miles & More/N26/Revolut; and direction (withdrawal/deposit)
+  keyword detection would **not** have worked - none of the 14 real
+  rules use an English/German keyword a generic rule could plausibly
+  guess from, which killed an earlier 4-pattern "withdrawal rules +
+  deposit rules by keyword" design.
+  Shipped as:
+  - **2** hardcoded `ParseRule` constants (not 4) -
+    `CURRENCY_BEFORE_AMOUNT`/`CURRENCY_AFTER_AMOUNT` ("Default:
+    Currency before amount"/"Default: Currency after amount" - named
     "Default: ...", the user's own call, not "Catch-all") - covering
     only the currency-position axis (Java can't express "symbol
     before or after" in one pattern, see the item above), both
-    `kind = WITHDRAWAL`. No separate deposit variant - see the kind-
-    editable point below for why that's no longer needed.
-    `descriptionTemplate = "{title}"`, `notesTemplate = "{body}"` -
-    the user's own call: no `counterparty` capture group at all (a
-    generic pattern can't reliably isolate a counterparty name the
-    way a per-app rule can), just the notification's own raw title/body
-    text, same shape several of the user's own real GPay rules already
-    use for the identical reason.
-  - Defined as Kotlin constants (not `RulesDb` rows) - guarantees they
-    can't be edited/duplicated/deleted/reordered *structurally* (not
-    in the editable table at all), rather than relying on UI guards
-    over an `isBuiltIn` DB column. Only persisted bit: an enabled/
-    disabled flag (a new small prefs key, not a `RulesDb` row). Shown
-    at the very bottom of `RulesListFragment`'s list, visually
-    distinct, with only that one toggle - no edit/duplicate/delete/
-    move controls.
-  - `packageNames = emptySet()` (matches any app) - free at the
-    `RuleEngine` level already (`packageNames.isEmpty()` already means
-    "any app", confirmed in current code) - no engine change needed.
-  - Placed after every user-defined rule in the effective match order
-    (`RuleEngine`'s own "first rule in list order that matches and
-    yields a parsable amount wins" already gives "only used if nothing
-    user-defined matched" for free - just append them after
-    `RulesDb.loadAllOrdered()`'s own list, before constructing
-    `RuleEngine`).
-  - **Superseded, the user's own follow-up - no forced-review
-    restriction after all**: a built-in-rule match was going to always
-    route to manual review, bypassing `FireflyPrefs.isAutoCreateEnabled()`
-    entirely - the user judged this too strict once `kind` became
-    editable on create (below) made the main risk this was protecting
-    against recoverable anyway. A built-in match now flows through the
-    exact same `AutoCreateScheduler`/`ReviewNotificationScheduler`
-    dispatch every other rule already uses, no special case at all -
-    auto-create off (the default) means review, same as today; on
-    means it can auto-create, same as any user-defined rule.
-  - **Done**: `kind` is now editable on `CreateTransactionFragment`'s
-    create screen - `kindText` is clickable there only
-    (`showKindPicker`, `AlertDialog.setSingleChoiceItems` over
-    `RuleKind.entries`), for *any* match, not just a future built-in
-    one; edit mode's `kindText` stays exactly as before (not
-    clickable, no listener) - changing kind on a transaction Firefly
-    already has stays unsupported, the user's own explicit call.
-    Picking a kind re-runs `updateAccountFieldModes()` and appends a
-    "▾" to the displayed text as the tap affordance. This is what
-    makes dropping the separate deposit-keyword rules above safe: a
-    built-in "Default" rule can default to `WITHDRAWAL` (the dominant
-    real-world case) and the user corrects it by hand here when it's
-    actually a deposit, rather than this app trying (and likely
-    failing, per the evidence above) to guess it from text.
-  - **Done**: "Default account currency" on `TransactionCreationFragment`
+    `kind = WITHDRAWAL`, `homeCurrency = ""` (leans on "Default
+    account currency" below), blank `sourceAccountName`/
+    `destinationAccountName` (expected, not a bug - a built-in rule
+    can't know which real Firefly account any app's money should land
+    in; the create screen's own required-field validation makes the
+    user fill that in by hand), `descriptionTemplate = "{title}"`/
+    `notesTemplate = "{body}"` (no `counterparty` capture group at
+    all, same shape several of the user's own real Google Wallet
+    rules already use).
+  - Defined as Kotlin constants, not `RulesDb` rows - can't be
+    edited/duplicated/deleted/reordered *structurally*. Only
+    persisted bit: one shared `FireflyPrefs.isBuiltInRulesEnabled()`
+    flag (default **on**), not per-rule - the two always move
+    together. `List<ParseRule>.withBuiltIns(enabled)` appends them
+    after every real rule at all 4 real match call sites
+    (`ui.MessagesFragment` x2, `ui.CreateTransactionFragment.
+    loadForCreate`, `posting.RuleMatching.matchRule`) -
+    `RuleEngine`'s own "first match wins" ordering already gives
+    "only used if nothing user-defined matched" for free.
+    `ui.BackupFragment`/`backup.BackupManager` deliberately don't call
+    this - backup/export is user-authored rules only.
+  - Shown at the bottom of `RulesListFragment`'s list, always (even
+    when disabled - dimmed instead, same convention a disabled real
+    rule already gets), visually distinct (light background tint),
+    with only one control: tapping either row flips the shared flag.
+    No edit/duplicate/delete/move controls, no overflow button, not
+    selectable (long-press is swallowed) - `RulesAdapter.bind`
+    branches on `rule.id in BuiltInRules.IDS`.
+  - No forced-review restriction - considered, then dropped as the
+    user's own follow-up call once `kind` became correctable on the
+    create screen made the main risk recoverable anyway. A built-in
+    match flows through the exact same auto-create/review dispatch
+    every other rule already uses.
+  - `kind` is now editable on `CreateTransactionFragment`'s create
+    screen only (`showKindPicker`, tapping `kindText`) - for *any*
+    match, not just a built-in one; edit mode's `kindText` stays
+    exactly as before. This is what makes a single `WITHDRAWAL`-only
+    default safe: the user corrects it by hand when it's actually a
+    deposit, instead of this app trying (and likely failing, per the
+    evidence above) to guess direction from text.
+  - "Default account currency" on `TransactionCreationFragment`
     (`FireflyPrefs.getDefaultAccountCurrency`/`setDefaultAccountCurrency`) -
     a general `RuleEngine` fallback (`defaultAccountCurrency: String`
-    constructor parameter, same plain-injection shape `allTransactionsTags`
-    already uses), substituted for `ParseRule.homeCurrency` in
-    `buildDraft` whenever a rule leaves its own blank - not special-
-    cased to just the 2 built-in rules below, any rule can lean on it.
-    `RuleValidation`'s old "Currency can't be empty" check is gone -
-    blank is now a deliberate, valid choice. Picker sourced from
-    `FireflyApiClient.listCurrencies()`'s own `enabled` currencies
-    (confirmed against Firefly's real `routes/api.php`/
-    `CurrencyTransformer` source - the endpoint itself has no
-    server-side "enabled only" filter, filtered client-side), not this
-    app's own locally-maintained `CurrenciesDb` table.
-  - Blank `sourceAccountName`/`destinationAccountName` on these rules
-    is expected, not a bug to fix - a built-in rule can't know which
-    real Firefly account any given app's money should land in, so the
-    create screen's own existing required-field validation already
-    makes the user fill that in by hand before they can submit.
+    constructor parameter), substituted for `ParseRule.homeCurrency`
+    whenever a rule leaves its own blank - not special-cased to just
+    the 2 built-in rules, any rule can lean on it. `RuleValidation`'s
+    old "Currency can't be empty" check is gone. Picker sourced from
+    `FireflyApiClient.listCurrencies()`'s own `enabled` currencies,
+    not this app's own locally-maintained `CurrenciesDb` table.
+  - **Still needs real-device verification** - nothing in this
+    feature (the list's built-in rows, the kind picker, the actual
+    end-to-end match -> create flow for a built-in-matched message) is
+    exercised by the JVM unit test suite.
   - Separately raised, not decided: whether to also let *user-defined*
     rules match "any app" (not just the built-in ones, which get this
     for free since they're not edited through the UI at all).

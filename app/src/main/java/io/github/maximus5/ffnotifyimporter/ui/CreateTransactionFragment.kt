@@ -40,6 +40,7 @@ import io.github.maximus5.ffnotifyimporter.rules.RulesDb
 import io.github.maximus5.ffnotifyimporter.rules.TransactionDraft
 import io.github.maximus5.ffnotifyimporter.rules.applyApproxConversion
 import io.github.maximus5.ffnotifyimporter.rules.transactionDedupHash
+import io.github.maximus5.ffnotifyimporter.rules.withBuiltIns
 import kotlinx.coroutines.launch
 import java.math.BigDecimal
 import java.math.RoundingMode
@@ -117,9 +118,9 @@ class CreateTransactionFragment : Fragment() {
 
     private fun loadForCreate(context: Context) {
         val binding = binding ?: return
-        val rules = RulesDb.getInstance(context).loadAllOrdered()
-        val currencySymbols = CurrenciesDb.getInstance(context).symbolToCodeMap()
         val fireflyPrefs = FireflyPrefs(context)
+        val rules = RulesDb.getInstance(context).loadAllOrdered().withBuiltIns(fireflyPrefs.isBuiltInRulesEnabled())
+        val currencySymbols = CurrenciesDb.getInstance(context).symbolToCodeMap()
         val outcome = RuleEngine(rules, currencySymbols, fireflyPrefs.getAllTransactionsTags(), fireflyPrefs.getDefaultAccountCurrency()).match(message)
         val draft = (outcome as? ParseOutcome.Matched)?.draft
         if (draft == null) {

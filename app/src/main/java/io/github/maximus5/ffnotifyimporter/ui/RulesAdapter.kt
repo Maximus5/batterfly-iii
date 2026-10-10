@@ -12,17 +12,29 @@ import androidx.recyclerview.widget.RecyclerView
 import io.github.maximus5.ffnotifyimporter.R
 import io.github.maximus5.ffnotifyimporter.databinding.ItemRuleBinding
 import io.github.maximus5.ffnotifyimporter.notifications.AppLabelResolver
+import io.github.maximus5.ffnotifyimporter.rules.BuiltInRules
 import io.github.maximus5.ffnotifyimporter.rules.ParseRule
 
 /** [onLongClick] starts/extends the multi-select `RulesListFragment` drives (move/enable/
  * disable/delete from the toolbar - see that class's own KDoc) - same three-callback shape
  * `MessagesAdapter` already uses for the identical gesture on the Messages list, keyed by
  * [ParseRule.id] (not the rule object itself) for selection tracking, matching how every mutating
- * `RulesDb` call in this fragment already addresses a rule - by id, never by value. */
+ * `RulesDb` call in this fragment already addresses a rule - by id, never by value.
+ *
+ * A row whose id is in [BuiltInRules.IDS] (always the last 1-2 rows, appended by
+ * `RulesListFragment.reload` - never a real [RulesDb] row) renders differently and ignores most
+ * of the above: no overflow button (nothing to move/duplicate/delete - they're Kotlin constants,
+ * not DB rows), long-press is swallowed rather than starting multi-select (they can't be acted on
+ * as a group with real rules), and a tap calls [onToggleBuiltIn] instead of [onClick] - the one
+ * shared enabled/disabled flag (`FireflyPrefs.isBuiltInRulesEnabled`) is the only thing about them
+ * that's actually editable. A light tint on the row (not just the selected-row highlight) is the
+ * "visually distinct" cue the user asked for, since the label text ("Default: ...") alone was
+ * judged not enough to read as structurally different from an ordinary rule at a glance. */
 class RulesAdapter(
     private val onClick: (ParseRule) -> Unit,
     private val onLongClick: (ParseRule) -> Boolean,
     private val onOverflowClick: (ParseRule, View) -> Unit,
+    private val onToggleBuiltIn: (ParseRule) -> Unit,
 ) : RecyclerView.Adapter<RulesAdapter.ViewHolder>() {
 
     private var items: List<ParseRule> = emptyList()
@@ -103,16 +115,25 @@ class RulesAdapter(
             // alongside the text, not instead of it, since alpha alone could just as easily read
             // as a rendering glitch without the label spelling out why.
             binding.root.alpha = if (rule.enabled) 1f else 0.5f
-            binding.root.setBackgroundColor(if (rule.id in selected) SELECTED_BACKGROUND else Color.TRANSPARENT)
 
-            binding.ruleRowContent.setOnClickListener { onClick(rule) }
-            binding.ruleRowContent.setOnLongClickListener { onLongClick(rule) }
-            binding.ruleOverflowButton.visibility = if (selectionMode) View.GONE else View.VISIBLE
-            binding.ruleOverflowButton.setOnClickListener { onOverflowClick(rule, it) }
+            val isBuiltIn = rule.id in BuiltInRules.IDS
+            if (isBuiltIn) {
+                binding.root.setBackgroundColor(BUILT_IN_BACKGROUND)
+                binding.ruleRowContent.setOnClickListener { onToggleBuiltIn(rule) }
+                binding.ruleRowContent.setOnLongClickListener { true }
+                binding.ruleOverflowButton.visibility = View.GONE
+            } else {
+                binding.root.setBackgroundColor(if (rule.id in selected) SELECTED_BACKGROUND else Color.TRANSPARENT)
+                binding.ruleRowContent.setOnClickListener { onClick(rule) }
+                binding.ruleRowContent.setOnLongClickListener { onLongClick(rule) }
+                binding.ruleOverflowButton.visibility = if (selectionMode) View.GONE else View.VISIBLE
+                binding.ruleOverflowButton.setOnClickListener { onOverflowClick(rule, it) }
+            }
         }
     }
 
     private companion object {
         const val SELECTED_BACKGROUND = 0x338C9EFF
+        const val BUILT_IN_BACKGROUND = 0x14000000
     }
 }

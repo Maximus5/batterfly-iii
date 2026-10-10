@@ -501,6 +501,44 @@ Single `:app` module, packages under
     lean on the fallback, not something forgotten. Every real caller
     that constructs a `RuleEngine` also now passes `FireflyPrefs.
     getDefaultAccountCurrency()` alongside `getAllTransactionsTags()`.
+  - `BuiltInRules` (`BuiltInRulesTest`) - two hardcoded `ParseRule`
+    constants, `CURRENCY_BEFORE_AMOUNT`/`CURRENCY_AFTER_AMOUNT`
+    ("Default: Currency before amount"/"Default: Currency after
+    amount"), not `RulesDb` rows - see the object's own KDoc for the
+    full reasoning (grounded in a real 14-rule export the user
+    supplied: the currency/amount regex fragments are reused verbatim
+    from it, and it directly disproved an earlier keyword-based
+    direction-detection design, which is why both default to
+    `RuleKind.WITHDRAWAL` and lean on `ui.CreateTransactionFragment`'s
+    kind picker - see the `ui` section below - instead). Both
+    `homeCurrency = ""` (leans on `defaultAccountCurrency` above) and
+    both `sourceAccountName`/`destinationAccountName` blank (a built-in
+    rule can't know which real Firefly account any app's money should
+    land in - the create screen's own required-field validation makes
+    the user fill that in by hand). `packageNames = emptySet()` needed
+    no `RuleEngine` change at all - `packageNames.isEmpty()` already
+    meant "any app" before these existed.
+    `List<ParseRule>.withBuiltIns(builtInRulesEnabled: Boolean)` - the
+    one place "append the built-ins, in order, after every real rule"
+    lives, so `RuleEngine`'s own existing "first rule in list order
+    that matches and yields a parsable amount wins" already gives
+    "built-ins only used if nothing user-defined matched" for free, no
+    engine change needed there either. `builtInRulesEnabled` is a plain
+    `Boolean`, not a `FireflyPrefs`/`Context` reference - every real
+    match call site (`ui.MessagesFragment`'s two, `ui.
+    CreateTransactionFragment.loadForCreate`, `posting.RuleMatching.
+    matchRule`) reads `FireflyPrefs.isBuiltInRulesEnabled()` (new, one
+    shared flag for both rules - they always move together, default
+    **on**: the whole point is giving a user with a blank/non-matching
+    Rules list something that works without a settings trip first) and
+    calls `RulesDb.getInstance(context).loadAllOrdered().withBuiltIns(...)`
+    in place of the bare `loadAllOrdered()` call these all used before.
+    `ui.BackupFragment`/`backup.BackupManager` deliberately do *not* call
+    this - export/import/backup is about user-authored rules only, the
+    built-ins are already in every build, not data to carry across
+    devices. `RulesListFragment`'s own display of these two rows (a
+    third, UI-only append, independent of this function) is covered in
+    the `ui` section below.
   - `CurrencyEntry`/`CurrenciesDb` - another user-maintained
     placeholder table (code<->symbol, e.g. `EUR`<->`€`), same idea and
     same "plain SQLite, no ORM, `getInstance(context)` singleton"
@@ -2427,6 +2465,29 @@ Single `:app` module, packages under
       can be meaningfully exercised by a JVM unit test (the `MenuProvider`
       swap, `RecyclerView` long-press, `invalidateMenu()` actually
       re-running `onCreateMenu`) - only compiled successfully so far.
+      `reload()` also appends `rules.BuiltInRules.ALL` after every real
+      `RulesDb` row, always (not hidden when the shared flag is off -
+      same "dim, don't hide" convention a disabled real rule already
+      gets, so the toggle stays discoverable), `.copy(enabled =
+      FireflyPrefs.isBuiltInRulesEnabled())` so their row dims/undims
+      with the one shared flag. `rulesEmptyText` ("no rules yet") still
+      checks the real-rules list alone, not the combined one - the
+      built-in rows always being present would otherwise mean that hint
+      can never show again. `RulesAdapter.bind` branches on `rule.id in
+      BuiltInRules.IDS`: a built-in row gets a light background tint
+      (`0x14000000`, the "visually distinct" ask) instead of the normal
+      selected-row highlight, no overflow button at all (nothing to
+      move/duplicate/delete - they're Kotlin constants, not DB rows),
+      swallows long-press (`{ true }`, no call into `onLongClick` -
+      can't be multi-selected alongside real rules), and a tap calls a
+      new `onToggleBuiltIn(rule)` callback instead of `onClick` -
+      `RulesListFragment.toggleBuiltInRules` just flips
+      `FireflyPrefs.isBuiltInRulesEnabled()` and reloads, ignoring which
+      of the two rows was actually tapped (one shared flag, not a
+      per-rule one - see `rules.BuiltInRules`'s own KDoc for why there
+      are two rules at all). **Needs real-device verification too** -
+      same reasoning as the multi-select feature above, nothing here is
+      exercised by a JVM test either.
     - `RuleEditFragment` - one form for both create (`ruleId == null`)
       and edit, via `RuleEditFragment.newInstance(ruleId)`. Leaving the
       screen with unsaved edits (toolbar's up arrow *or* system

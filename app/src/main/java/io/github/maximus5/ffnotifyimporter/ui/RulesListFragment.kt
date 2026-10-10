@@ -20,6 +20,8 @@ import io.github.maximus5.ffnotifyimporter.R
 import io.github.maximus5.ffnotifyimporter.backup.rulesFromJson
 import io.github.maximus5.ffnotifyimporter.backup.rulesToJson
 import io.github.maximus5.ffnotifyimporter.databinding.FragmentRulesListBinding
+import io.github.maximus5.ffnotifyimporter.prefs.FireflyPrefs
+import io.github.maximus5.ffnotifyimporter.rules.BuiltInRules
 import io.github.maximus5.ffnotifyimporter.rules.ParseRule
 import io.github.maximus5.ffnotifyimporter.rules.RulesDb
 import java.text.SimpleDateFormat
@@ -42,6 +44,7 @@ class RulesListFragment : Fragment() {
     private var binding: FragmentRulesListBinding? = null
     private lateinit var adapter: RulesAdapter
     private lateinit var rulesDb: RulesDb
+    private lateinit var fireflyPrefs: FireflyPrefs
     private var inSelectionMode = false
 
     // Registered in onCreate (before onCreateView), the way these contracts require - a Fragment
@@ -66,8 +69,14 @@ class RulesListFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         val binding = binding ?: return
         rulesDb = RulesDb.getInstance(requireContext())
+        fireflyPrefs = FireflyPrefs(requireContext())
 
-        adapter = RulesAdapter(onClick = ::handleClick, onLongClick = ::handleLongClick, onOverflowClick = ::showOverflowMenu)
+        adapter = RulesAdapter(
+            onClick = ::handleClick,
+            onLongClick = ::handleLongClick,
+            onOverflowClick = ::showOverflowMenu,
+            onToggleBuiltIn = ::toggleBuiltInRules,
+        )
         binding.rulesRecyclerView.layoutManager = LinearLayoutManager(requireContext())
         binding.rulesRecyclerView.adapter = adapter
 
@@ -273,11 +282,27 @@ class RulesListFragment : Fragment() {
         reload()
     }
 
+    /** Appends [BuiltInRules.ALL] after every real rule, always visible (not hidden when
+     * disabled) - same "dim + keep showing" convention a disabled real rule already gets
+     * ([RulesAdapter]'s own `alpha`), the user's own call: hiding them entirely when off would
+     * make them hard to discover/re-enable. [rulesEmptyText] (the "no rules yet" hint) still
+     * checks the real rules alone - the built-in rows always being present would otherwise mean
+     * that hint can never show again, defeating its purpose for a user who genuinely hasn't
+     * authored one yet. */
     private fun reload() {
         val binding = binding ?: return
-        val rules = rulesDb.loadAllOrdered()
-        adapter.submitList(rules)
-        binding.rulesEmptyText.visibility = if (rules.isEmpty()) View.VISIBLE else View.GONE
+        val userRules = rulesDb.loadAllOrdered()
+        val builtIns = BuiltInRules.ALL.map { it.copy(enabled = fireflyPrefs.isBuiltInRulesEnabled()) }
+        adapter.submitList(userRules + builtIns)
+        binding.rulesEmptyText.visibility = if (userRules.isEmpty()) View.VISIBLE else View.GONE
+    }
+
+    /** The one shared flag both built-in rules move together under (`FireflyPrefs.
+     * isBuiltInRulesEnabled`) - which specific row was tapped doesn't matter, toggling either one
+     * flips the same setting for both. */
+    private fun toggleBuiltInRules(@Suppress("UNUSED_PARAMETER") rule: ParseRule) {
+        fireflyPrefs.setBuiltInRulesEnabled(!fireflyPrefs.isBuiltInRulesEnabled())
+        reload()
     }
 
     private fun defaultExportFileName(): String {

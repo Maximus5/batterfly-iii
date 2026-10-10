@@ -42,6 +42,7 @@ import io.github.maximus5.ffnotifyimporter.rules.RuleEngine
 import io.github.maximus5.ffnotifyimporter.rules.RulesDb
 import io.github.maximus5.ffnotifyimporter.rules.TransactionDraft
 import io.github.maximus5.ffnotifyimporter.rules.applyApproxConversion
+import io.github.maximus5.ffnotifyimporter.rules.withBuiltIns
 import java.math.RoundingMode
 import java.time.Instant
 import java.util.Date
@@ -124,9 +125,9 @@ class MessagesFragment : Fragment() {
      * check or review/edit in either. */
     private fun showTestMatch(message: CapturedMessage) {
         val context = requireContext()
-        val rules = RulesDb.getInstance(context).loadAllOrdered()
-        val currencySymbols = CurrenciesDb.getInstance(context).symbolToCodeMap()
         val fireflyPrefs = FireflyPrefs(context)
+        val rules = RulesDb.getInstance(context).loadAllOrdered().withBuiltIns(fireflyPrefs.isBuiltInRulesEnabled())
+        val currencySymbols = CurrenciesDb.getInstance(context).symbolToCodeMap()
         val outcome = RuleEngine(rules, currencySymbols, fireflyPrefs.getAllTransactionsTags(), fireflyPrefs.getDefaultAccountCurrency()).match(message)
 
         when (outcome) {
@@ -652,7 +653,7 @@ class MessagesFragment : Fragment() {
                 }
             }
 
-            val rules = RulesDb.getInstance(context).loadAllOrdered()
+            val rules = RulesDb.getInstance(context).loadAllOrdered().withBuiltIns(prefs.isBuiltInRulesEnabled())
             val currencySymbols = CurrenciesDb.getInstance(context).symbolToCodeMap()
             val outcome = RuleEngine(rules, currencySymbols, prefs.getAllTransactionsTags(), prefs.getDefaultAccountCurrency()).match(message)
             val draft = (outcome as? ParseOutcome.Matched)?.draft
