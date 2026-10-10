@@ -213,12 +213,12 @@
     <string name="currency_code_required">Code can\'t be empty.</string>
     <string name="currency_delete_confirm_title">Delete %1$s?</string>
 
-    <string name="settings_firefly_title">Firefly III connection</string>
-    <string name="settings_firefly_subtitle_not_configured">Not configured</string>
-    <string name="settings_firefly_subtitle_configured">Connected to %1$s</string>
+    <string name="settings_firefly_title">Server</string>
+    <string name="settings_firefly_subtitle_not_configured">Firefly III connection not configured</string>
+    <string name="settings_firefly_subtitle_configured">Connected to Firefly III via %1$s</string>
     <string name="firefly_protect_screenshots_switch">Protect from screenshots</string>
     <string name="firefly_protect_screenshots_hint">Blocks screenshots and screen recording while this screen is open. Turn off briefly if you need to capture it yourself, e.g. for documentation - it turns back on next time you open this screen.</string>
-    <string name="firefly_field_url">Base URL</string>
+    <string name="firefly_field_url">Firefly III server URL</string>
     <string name="firefly_field_url_example">e.g. https://firefly.example.com</string>
     <string name="firefly_cleartext_warning">⚠ http:// is not encrypted - only use this on a trusted local network.</string>
     <string name="firefly_field_token">Personal access token</string>
@@ -226,7 +226,7 @@
     <string name="firefly_test_connection">Test connection</string>
     <string name="firefly_test_connection_success">Connected - Firefly III %1$s</string>
     <string name="firefly_test_connection_failure">Connection failed: %1$s</string>
-    <string name="firefly_url_required">Base URL can\'t be empty.</string>
+    <string name="firefly_url_required">Server URL can\'t be empty.</string>
     <string name="firefly_token_required">Personal access token can\'t be empty.</string>
     <string name="firefly_field_url_help">The address you open your Firefly III at in a browser, without /api.</string>
     <string name="firefly_field_token_help">To get a token, open Firefly III, tap the profile icon at the top right → Remote access and tokens, and create a new personal access token. Firefly shows it only once, so copy it here right away.</string>

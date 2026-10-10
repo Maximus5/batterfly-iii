@@ -213,12 +213,12 @@
     <string name="currency_code_required">Код не может быть пустым.</string>
     <string name="currency_delete_confirm_title">Удалить %1$s?</string>
 
-    <string name="settings_firefly_title">Подключение к Firefly III</string>
-    <string name="settings_firefly_subtitle_not_configured">Не настроено</string>
-    <string name="settings_firefly_subtitle_configured">Подключено к %1$s</string>
+    <string name="settings_firefly_title">Сервер</string>
+    <string name="settings_firefly_subtitle_not_configured">Подключение к Firefly III не настроено</string>
+    <string name="settings_firefly_subtitle_configured">Подключено к Firefly III через %1$s</string>
     <string name="firefly_protect_screenshots_switch">Защита от скриншотов</string>
     <string name="firefly_protect_screenshots_hint">Блокирует скриншоты и запись экрана, пока открыт этот экран. Выключите на время, если нужно сделать скриншот самостоятельно — например, для документации — при следующем открытии экрана защита снова включится.</string>
-    <string name="firefly_field_url">Base URL</string>
+    <string name="firefly_field_url">URL сервера Firefly III</string>
     <string name="firefly_field_url_example">напр. https://firefly.example.com</string>
     <string name="firefly_cleartext_warning">⚠ http:// не шифруется — используйте только в доверенной локальной сети.</string>
     <string name="firefly_field_token">Personal access token</string>
@@ -226,7 +226,7 @@
     <string name="firefly_test_connection">Проверить подключение</string>
     <string name="firefly_test_connection_success">Подключено — Firefly III %1$s</string>
     <string name="firefly_test_connection_failure">Ошибка подключения: %1$s</string>
-    <string name="firefly_url_required">Base URL не может быть пустым.</string>
+    <string name="firefly_url_required">URL сервера не может быть пустым.</string>
     <string name="firefly_token_required">Personal access token не может быть пустым.</string>
     <string name="firefly_field_url_help">Адрес, по которому вы открываете Firefly III в браузере, без /api.</string>
     <string name="firefly_field_token_help">Чтобы получить токен, откройте Firefly III, нажмите на иконку профиля справа вверху → Remote access and tokens и создайте новый personal access token. Firefly показывает его только один раз, поэтому сразу скопируйте его сюда.</string>

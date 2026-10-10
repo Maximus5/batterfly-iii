@@ -2462,7 +2462,7 @@ Single `:app` module, packages under
       currently typed in the URL/token fields (falling back to the
       saved token per the write-once note above) - not necessarily
       what's saved - so the user can verify before committing. The
-      Settings row's own subtitle ("Connected to X" / "Not configured")
+      Settings row's own subtitle ("Connected to Firefly III via X" / "Firefly III connection not configured"; the row itself is titled "Server")
       only reads `hostOf(getBaseUrl())`, not a live connection check - a
       cheap, offline-friendly signal that *something* is saved, not
       proof it still works.
