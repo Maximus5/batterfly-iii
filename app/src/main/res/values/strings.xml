@@ -298,6 +298,8 @@
 
     <string name="setup_title">Get started</string>
     <string name="setup_subtitle">A few quick steps and the app can start catching bank notifications.</string>
+    <string name="setup_step_access">Allow notification access</string>
+    <string name="setup_step_access_sub">Without it the app can\'t see bank notifications</string>
     <string name="setup_step_firefly">Connect to Firefly III</string>
     <string name="setup_step_firefly_sub">Server address and access token</string>
     <string name="setup_step_apps">Choose apps to monitor</string>

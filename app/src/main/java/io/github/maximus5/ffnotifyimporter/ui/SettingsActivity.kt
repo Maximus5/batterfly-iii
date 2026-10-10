@@ -120,6 +120,7 @@ class SettingsActivity : AppCompatActivity() {
 
     /** Settings screens the Messages setup checklist can open directly, as the activity's root. */
     enum class SetupScreen(val titleRes: Int, val newFragment: () -> Fragment) {
+        NOTIFICATION_ACCESS(R.string.notification_access_consent_title, ::NotificationAccessConsentFragment),
         FIREFLY(R.string.settings_firefly_title, ::FireflyConnectionFragment),
         APPS(R.string.settings_monitored_apps_title, ::AppsFragment),
         TRANSACTIONS(R.string.settings_transaction_creation_title, ::TransactionCreationFragment),

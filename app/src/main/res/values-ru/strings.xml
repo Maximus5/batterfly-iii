@@ -298,6 +298,8 @@
 
     <string name="setup_title">Начало работы</string>
     <string name="setup_subtitle">Несколько шагов, и приложение начнёт ловить банковские уведомления.</string>
+    <string name="setup_step_access">Разрешите доступ к уведомлениям</string>
+    <string name="setup_step_access_sub">Без него приложение не видит банковские уведомления</string>
     <string name="setup_step_firefly">Подключитесь к Firefly III</string>
     <string name="setup_step_firefly_sub">Адрес сервера и токен доступа</string>
     <string name="setup_step_apps">Выберите приложения для мониторинга</string>

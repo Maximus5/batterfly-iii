@@ -3025,7 +3025,9 @@ Single `:app` module, packages under
   - First-run setup checklist (`ui.MessagesFragment`'s `setupChecklist`
     block, `fragment_messages.xml`, `prefs.SetupChecklistPrefs`) - shown
     in place of the "nothing captured yet" text while the message list is
-    empty, three rows (Firefly connected, a monitored app chosen, default
+    empty, four rows (notification access granted - first, since "Not now" on
+    the consent screen otherwise leaves no trace of the missing permission;
+    Firefly connected, a monitored app chosen, default
     currency + default source account set) with a done/not-done icon,
     recomputed on every `onResume` so returning from a settings screen
     updates it. Tapping a row starts `SettingsActivity` with its

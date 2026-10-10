@@ -82,6 +82,13 @@ class MessagesFragment : Fragment() {
         val context = requireContext()
         val firefly = FireflyPrefs(context)
         bindStep(
+            binding.stepAccess.root,
+            done = isNotificationListenerAccessGranted(context),
+            titleRes = R.string.setup_step_access,
+            subtitleRes = R.string.setup_step_access_sub,
+            screen = SettingsActivity.SetupScreen.NOTIFICATION_ACCESS,
+        )
+        bindStep(
             binding.stepFirefly.root,
             done = firefly.isConfigured(),
             titleRes = R.string.setup_step_firefly,

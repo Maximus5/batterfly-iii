@@ -45,6 +45,10 @@
                 android:textSize="14sp" />
 
             <include
+                android:id="@+id/stepAccess"
+                layout="@layout/item_setup_step" />
+
+            <include
                 android:id="@+id/stepFirefly"
                 layout="@layout/item_setup_step" />
 

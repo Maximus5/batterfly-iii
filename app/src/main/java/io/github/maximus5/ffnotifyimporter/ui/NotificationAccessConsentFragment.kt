@@ -25,6 +25,8 @@ import io.github.maximus5.ffnotifyimporter.databinding.FragmentNotificationAcces
  * whether there's a back stack entry to pop at all, rather than needing an explicit mode
  * argument: pushed from `AppsFragment` -> pop back to it; sitting as `MainActivity`'s *root*
  * fragment (nothing to pop) -> swap to `MessagesFragment` instead ([MainActivity.showMessages]).
+ * A third entry point: the Messages setup checklist opens it as [SettingsActivity]'s root, where
+ * dismissing means finishing that activity ([SettingsActivity.leaveScreen]).
  * [onResume] calls the same [dismiss] the moment access is already granted - covers both "Agree,
  * continue" returning from the system grant screen having actually granted it, *and* simply
  * reopening the app later after granting it some other way - either way this screen never
@@ -64,6 +66,7 @@ class NotificationAccessConsentFragment : Fragment() {
             parentFragmentManager.popBackStack()
         } else {
             (activity as? MainActivity)?.showMessages()
+            (activity as? SettingsActivity)?.leaveScreen()
         }
     }
 
