@@ -208,6 +208,11 @@ class RulesListFragment : Fragment() {
             .setMessage(R.string.rules_delete_selected_confirm_message)
             .setNegativeButton(R.string.action_delete) { _, _ ->
                 ids.forEach { rulesDb.delete(it) }
+                // Fixed a real "page doesn't visually update" bug, the user's own catch:
+                // clearSelectionAndExit only resets selection/menu/title state, it never
+                // re-reads RulesDb - unlike every other selection action here (move/enable/
+                // disable/duplicate all call reload() themselves), this one was missing it.
+                reload()
                 clearSelectionAndExit()
             }
             .setPositiveButton(android.R.string.cancel, null)

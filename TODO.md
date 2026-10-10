@@ -636,12 +636,18 @@ work.
 - **Done, needs real-device verification**: `RulesListFragment`'s new
   long-press multi-select (move up/move down/enable/disable/delete
   from the toolbar, see ARCHITECTURE.md's own entry for the full
-  design) - compiled successfully, nothing more. In particular: the
-  `MenuProvider` swap between the normal and selection toolbars via
-  `invalidateMenu()`, long-press actually entering selection mode on a
-  real `RecyclerView` (not just the adapter logic), and the move-up/
-  move-down ordering with a real spread-out *and* adjacent multi-row
-  selection (hand-traced on paper, not run on device yet).
+  design). **Fixed one real bug already found on-device, the user's
+  own catch**: bulk delete's confirm callback called
+  `clearSelectionAndExit()` but never `reload()` - unlike every other
+  selection action here (move/enable/disable/duplicate all call
+  `reload()` themselves) - so the list kept showing the just-deleted
+  rows until something else happened to trigger a reload (leaving the
+  screen and coming back). Still needs checking: the `MenuProvider`
+  swap between the normal and selection toolbars via `invalidateMenu()`,
+  long-press actually entering selection mode on a real `RecyclerView`
+  (not just the adapter logic), and the move-up/move-down ordering
+  with a real spread-out *and* adjacent multi-row selection (hand-
+  traced on paper, not run on device yet).
 - **Decided** (explicit user instruction, not a "revisit if it matters"
   judgment call this time): no table or in-memory store in this app
   should grow unbounded - this is a notification handler, not an
