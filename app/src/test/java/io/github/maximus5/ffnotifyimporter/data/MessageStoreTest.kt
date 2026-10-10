@@ -65,6 +65,28 @@ class MessageStoreTest {
     }
 
     @Test
+    fun `leading and trailing whitespace, including newlines, is trimmed from title and text before storing`() {
+        val store = MessageStore(dedupWindowMillis = 1000, clock = { 0L })
+
+        val recorded = store.add("bank.a", "Bank A", "  Payment \n", "\nYou spent 100\n\n", timestampMillis = 42L)
+
+        assertEquals("Payment", recorded?.title)
+        assertEquals("You spent 100", recorded?.text)
+        assertEquals("Payment", store.snapshot().single().title)
+        assertEquals("You spent 100", store.snapshot().single().text)
+    }
+
+    @Test
+    fun `whitespace-only difference in title or text still counts as a duplicate`() {
+        val store = MessageStore(dedupWindowMillis = 1000, clock = { 0L })
+
+        assertNotNull(store.add("bank.a", "Bank A", "Payment", "You spent 100", timestampMillis = 0L))
+        assertNull(store.add("bank.a", "Bank A", " Payment\n", "You spent 100  ", timestampMillis = 0L))
+
+        assertEquals(1, store.snapshot().size)
+    }
+
+    @Test
     fun `different app, title or text is never a duplicate`() {
         val store = MessageStore(dedupWindowMillis = 1000, clock = { 0L })
 

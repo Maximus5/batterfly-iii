@@ -603,6 +603,23 @@ work.
     old "Currency can't be empty" check is gone. Picker sourced from
     `FireflyApiClient.listCurrencies()`'s own `enabled` currencies,
     not this app's own locally-maintained `CurrenciesDb` table.
+  - **Fixed a real auto-create bug, the user's own catch on-device**: a
+    built-in match's draft always has both account sides blank (by
+    design, above) - `posting.AutoCreateWorker` used to try posting it
+    anyway, which Firefly's API rejects every time, burning through
+    every retry (exponential backoff) before a failure notification
+    finally showed - from the user's side, adding a debug test message
+    that hit a built-in rule looked like total silence for a long
+    stretch, with auto-create apparently just not working. Root-caused
+    to this, not a deeper bug, once the user noticed on their own
+    ("может из-за того что в default счета не заданы нихрена не
+    реагирует?"). Fixed with a new `rules.DraftIssue.
+    ACCOUNT_SELECTION_REQUIRED` flag (set by `RuleEngine.buildDraft`
+    whenever `kind` requires an account side that rendered blank, not
+    special-cased to built-ins specifically) that `AutoCreateWorker`
+    now checks before ever attempting to post, falling back to the
+    same review notification `ReviewNotificationWorker` shows when
+    auto-create is off instead.
   - **Still needs real-device verification** - nothing in this
     feature (the list's built-in rows, the kind picker, the actual
     end-to-end match -> create flow for a built-in-matched message) is

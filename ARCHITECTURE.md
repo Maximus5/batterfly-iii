@@ -163,7 +163,20 @@ Single `:app` module, packages under
     [message]'s other five fields with a copy carrying `id`, in place
     (same list position) - used instead of full value-equality matching
     specifically because the field being changed can't be part of the
-    match. The optional `onNewMessage`/`onMessageRemoved`/
+    match.
+    **`title`/`text` are `.trim()`'d right inside `add`, the user's own
+    request**: Kotlin's plain `trim()` (whitespace per `Char.
+    isWhitespace()` - spaces, tabs, newlines) runs once, here, before
+    the dedup comparison and before the `CapturedMessage` is built -
+    the one real entry point both a captured notification
+    (`notifications.BankNotificationListenerService`) and the debug
+    injector (`ui.AddTestMessageFragment`) go through, so everything
+    downstream (dedup here and in `rules.transactionDedupHash`, rule
+    pattern matching, display) can trust the text is already
+    normalized rather than re-trimming itself. A whitespace-only
+    difference (a stray leading/trailing blank line some notification
+    sources emit) now counts as the same duplicate it always should
+    have. The optional `onNewMessage`/`onMessageRemoved`/
     `onMessageUpdated` hooks are how persistence attaches itself
     without `MessageStore` knowing persistence exists. Dedup key is
     `(packageName, title, text)` - *notification*-level, same app
@@ -450,6 +463,16 @@ Single `:app` module, packages under
     `DraftIssue.DATE_UNPARSABLE` and keeps the notification's own time,
     same "flag it, don't guess, don't block the match" shape
     `LOCAL_AMOUNT_MISSING` already uses.
+    `buildDraft` also flags `DraftIssue.ACCOUNT_SELECTION_REQUIRED`
+    whenever `kind` requires an account side (source for WITHDRAWAL,
+    destination for DEPOSIT, both for TRANSFER) that rendered blank -
+    the normal, every-time case for a `BuiltInRules` match, but also
+    possible for a user-authored rule whose account-name template
+    technically isn't blank (`RuleValidation` requires that) but
+    happens to render empty for this particular match. `posting.
+    AutoCreateWorker` reads this to skip a doomed Firefly POST
+    entirely - see the `posting` section below for the real bug this
+    fixed.
     `renderOptional` (the local helper behind `sourceName`/
     `destinationName`/`category`) now also collapses any run of
     whitespace down to one space (`whitespaceRun`, a top-level
@@ -1129,7 +1152,26 @@ Single `:app` module, packages under
     `WorkManager.Data` only holds primitives - the `CapturedMessage` is
     reconstructed from those), resolves `DraftIssue.LOCAL_AMOUNT_MISSING`
     the same way `MessagesFragment.resolveAmountQuietly` does, then
-    calls `posting.checkForDuplicate`. A failed Firefly call retries
+    calls `posting.checkForDuplicate`.
+    **Fixed a real "looks like nothing happened" bug, the user's own
+    catch on-device**: a draft whose `kind` requires an account side
+    that's blank (`DraftIssue.ACCOUNT_SELECTION_REQUIRED` - see
+    `rules.TransactionDraft`'s own KDoc; the exact, 100%-of-the-time
+    case for a `rules.BuiltInRules` match, which leaves both account
+    sides blank on purpose) used to be posted anyway - Firefly's API
+    rejects a transaction with no source/destination account every
+    time, so this silently burned through all `MAX_ATTEMPTS` retries
+    (exponential backoff between each) before finally showing a
+    failure notification, which from the user's side looked like
+    total silence for a long stretch after adding a debug test
+    message. `doWork` now checks this flag right after resolving the
+    amount and, if set, skips straight to `ReviewNotifications.
+    notifyMatch` (the exact same notification `ReviewNotificationWorker`
+    shows when auto-create is off) instead of ever attempting to
+    post - a human has to pick the account by hand regardless, no
+    point retrying something structurally incapable of succeeding.
+    A failed Firefly call (for every other, genuinely posted draft)
+    retries
     (`Result.retry()`, exponential backoff) up to `MAX_ATTEMPTS` (5) -
     the actual "WorkManager for retrying failed API calls" use
     AGENTS.md's own stack note was written for. Capped rather than left
@@ -1628,11 +1670,12 @@ Single `:app` module, packages under
     own exact format, no app-added header/separator/timestamp.
     `android.content.ClipboardManager`/`ClipData.newPlainText`, not
     `Intent.ACTION_SEND` - a plain clipboard copy was the explicit ask,
-    not a share sheet. Deliberately does **not** end the selection
-    afterward (unlike delete) - same "a non-destructive action leaves
-    the selection alone" convention `RulesListFragment`'s own enable/
-    disable/duplicate already use; only delete has nothing left to
-    leave selected. This replaced a standard `androidx.appcompat.view.ActionMode`
+    not a share sheet. The toolbar action ends the selection afterward
+    (`clearSelectionAndExit`) - the user's own follow-up call: copy is
+    a one-shot "got what I needed" action here, unlike
+    `RulesListFragment`'s own enable/disable/duplicate, which stay in
+    selection mode since those are more likely to be followed by
+    another bulk action on the same selection. This replaced a standard `androidx.appcompat.view.ActionMode`
     (`startSupportActionMode`) after a real, visible bug: with a
     manually-set `Toolbar` on a `NoActionBar` theme, AppCompat's
     `ActionMode` doesn't replace that toolbar - it renders its own
@@ -2055,6 +2098,18 @@ Single `:app` module, packages under
     `AddTestMessageFragment`'s own combined `dateTimeButton` is
     unrelated and unchanged - this redesign is scoped to this screen
     only.
+    **Long date format once the field had room for it, the user's own
+    follow-up**: `transactionDateInput` now shows `DateFormat.
+    getLongDateFormat(context)` (locale-ordered/-translated, e.g.
+    "October 6, 2026" in en, "6 октября 2026 г." in ru - same system
+    API `MessagesAdapter`'s own date column already uses for its short
+    form), plus a short weekday name, joined with ", " - both pieces
+    locale-translated (the weekday via its own separate
+    `SimpleDateFormat("EEE", Locale.getDefault())` call, since
+    `getLongDateFormat` returns a fixed `java.text.DateFormat`
+    instance with no weekday of its own to extend). The user chose
+    this over three fixed-English alternatives offered side by side
+    (a literal "Oct 6, 2026, Tue", weekday-first, and day-month-year).
     **Both currency fields (home and foreign) now pick from a list
     too, the user's own request**: `currencyCodeLayout`/
     `foreignCurrencyCodeLayout` get the same end-icon `AlertDialog`

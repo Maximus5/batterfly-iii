@@ -13,6 +13,20 @@ enum class DraftIssue {
      * falls back to the notification's own arrival time rather than blocking the match, but this
      * flags that the fallback happened instead of the date silently being wrong with no warning. */
     DATE_UNPARSABLE,
+
+    /** The account side(s) [kind] requires an asset account for are blank - most notably
+     * `rules.BuiltInRules`'s generic fallback rules, which leave both
+     * [ParseRule.sourceAccountName]/[destinationAccountName] blank on purpose (they can't know
+     * which real Firefly account any given app's money should land in; a human fills it in on
+     * `ui.CreateTransactionFragment`'s own create screen instead). **Fixed a real bug, the user's
+     * own catch**: `posting.AutoCreateWorker` used to try posting such a draft anyway - Firefly's
+     * API rejects a transaction with no source/destination account every time, so this silently
+     * burned through all of `AutoCreateWorker.MAX_ATTEMPTS` retries (with exponential backoff)
+     * before finally showing a failure notification, which from the user's side looked like
+     * nothing happened at all for a long stretch. `AutoCreateWorker` now checks this flag and
+     * shows the same review notification `posting.ReviewNotificationWorker` would (auto-create
+     * off) immediately instead of ever attempting to post. */
+    ACCOUNT_SELECTION_REQUIRED,
 }
 
 /** What a [ParseRule] detected in a notification - "what we matched", now postable via

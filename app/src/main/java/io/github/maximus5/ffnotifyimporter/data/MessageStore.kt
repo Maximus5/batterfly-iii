@@ -45,18 +45,28 @@ class MessageStore(
      * message can carry a chosen date/time instead of always being "just now", useful for
      * reproducing a rule bug tied to a specific real notification's timestamp. */
     fun add(packageName: String, appLabel: String, title: String, text: String, timestampMillis: Long = clock()): CapturedMessage? {
+        // Trimmed once, right here - the one real entry point both a captured notification
+        // (notifications.BankNotificationListenerService) and the debug injector
+        // (ui.AddTestMessageFragment) go through - so every title/text stored from here on is
+        // already normalized, and everything downstream (dedup comparisons here and in
+        // rules.transactionDedupHash, rule pattern matching, display) can trust that without
+        // re-trimming itself. Plain Kotlin `trim()` (whitespace per `Char.isWhitespace()` -
+        // spaces, tabs, newlines, ...) - the user's own request, after noticing a leading/trailing
+        // blank line in a captured notification's own text was carried straight through untouched.
+        val trimmedTitle = title.trim()
+        val trimmedText = text.trim()
         val now = timestampMillis
         val recorded: CapturedMessage
         val snapshot: List<CapturedMessage>
         synchronized(lock) {
             val isDuplicate = messages.any { existing ->
                 existing.packageName == packageName &&
-                    existing.title == title &&
-                    existing.text == text &&
+                    existing.title == trimmedTitle &&
+                    existing.text == trimmedText &&
                     Math.abs(now - existing.timestampMillis) <= dedupWindowMillis
             }
             if (isDuplicate) return null
-            recorded = CapturedMessage(packageName, appLabel, title, text, now)
+            recorded = CapturedMessage(packageName, appLabel, trimmedTitle, trimmedText, now)
             // Sorted insert, not always index 0: now that timestampMillis is the notification's
             // own sbn.postTime (see notifications.BankNotificationListenerService) rather than
             // "whenever this app happened to process it", a later *capture* can carry an earlier

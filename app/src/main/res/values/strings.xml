@@ -161,6 +161,7 @@
     <string name="test_match_label_tags">Tags:</string>
     <string name="test_match_issue_local_amount_missing">⚠ No amount in the account\'s own currency.</string>
     <string name="test_match_issue_date_unparsable">⚠ Captured date didn\'t match the rule\'s date format - using the notification\'s own time instead.</string>
+    <string name="test_match_issue_account_selection_required">⚠ No source/destination account set - pick one on the create screen before this can be posted.</string>
     <string name="test_match_rate_lookup_failed">⚠ Exchange-rate lookup failed: %1$s - this rule can\'t post a transaction for this message.</string>
     <string name="test_match_create">Create transaction</string>
     <string name="create_amount_not_ready">Amount isn\'t ready yet - wait for the exchange-rate lookup to finish.</string>

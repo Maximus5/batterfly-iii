@@ -462,6 +462,7 @@ class MessagesFragment : Fragment() {
                 when (issue) {
                     DraftIssue.LOCAL_AMOUNT_MISSING -> getString(R.string.test_match_issue_local_amount_missing)
                     DraftIssue.DATE_UNPARSABLE -> getString(R.string.test_match_issue_date_unparsable)
+                    DraftIssue.ACCOUNT_SELECTION_REQUIRED -> getString(R.string.test_match_issue_account_selection_required)
                 },
             )
         }
@@ -553,11 +554,14 @@ class MessagesFragment : Fragment() {
     }
 
     /** Toolbar copy action for the current multi-select, in on-screen order
-     * ([MessagesAdapter.selectedMessagesInOrder]) - unlike [confirmDeleteSelected], this doesn't
-     * end the selection afterward (same "non-destructive action leaves the selection alone"
-     * convention `RulesListFragment`'s own enable/disable/duplicate already use; only a
-     * destructive one has nothing left to leave selected). */
-    private fun copySelectedToClipboard() = copyMessagesToClipboard(adapter.selectedMessagesInOrder())
+     * ([MessagesAdapter.selectedMessagesInOrder]). Ends the selection afterward
+     * ([clearSelectionAndExit]) - the user's own explicit follow-up: copy is a one-shot action
+     * here ("got what I needed"), not a toggle-able state worth leaving active the way
+     * `RulesListFragment`'s own enable/disable does. */
+    private fun copySelectedToClipboard() {
+        copyMessagesToClipboard(adapter.selectedMessagesInOrder())
+        clearSelectionAndExit()
+    }
 
     /** `{title}\n{body}` per message, each pair separated by a blank line when there's more than
      * one - the user's own exact format. [android.content.ClipboardManager] rather than

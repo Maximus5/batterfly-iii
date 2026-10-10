@@ -10,6 +10,7 @@ import io.github.maximus5.ffnotifyimporter.network.FireflyApiClient
 import io.github.maximus5.ffnotifyimporter.network.FireflyTransactionRequest
 import io.github.maximus5.ffnotifyimporter.prefs.FireflyPrefs
 import io.github.maximus5.ffnotifyimporter.rules.CreatedTransactionsDb
+import io.github.maximus5.ffnotifyimporter.rules.DraftIssue
 import io.github.maximus5.ffnotifyimporter.rules.TransactionDraft
 import io.github.maximus5.ffnotifyimporter.rules.transactionDedupHash
 import java.math.BigDecimal
@@ -58,6 +59,19 @@ class AutoCreateWorker(context: Context, params: WorkerParameters) : CoroutineWo
         // everywhere else LOCAL_AMOUNT_MISSING shows up, not a failure worth retrying or notifying
         // about (the message is still sitting in the Messages list for the user to handle by hand).
         val amount = resolved.amount ?: return Result.success()
+
+        // Fixed a real bug, the user's own catch: a rule can leave the account side(s) its own
+        // kind requires blank (most notably rules.BuiltInRules's generic fallback rules, which
+        // can't know which real Firefly account any given app's money should land in) - Firefly's
+        // API rejects a post like that every time, so attempting it just burned through every
+        // retry (with exponential backoff) before finally showing a failure notification, which
+        // looked like silence for a long stretch. No point trying at all - same review
+        // notification posting.ReviewNotificationWorker shows when auto-create is off entirely,
+        // since a human has to pick the account by hand regardless.
+        if (DraftIssue.ACCOUNT_SELECTION_REQUIRED in resolved.issues) {
+            ReviewNotifications.notifyMatch(applicationContext, message, amount, resolved.currencyCode, resolved.description)
+            return Result.success()
+        }
 
         return when (val result = checkForDuplicate(applicationContext, resolved)) {
             is DuplicateCheckResult.None -> post(resolved, amount, message, prefs)

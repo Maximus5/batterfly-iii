@@ -308,4 +308,52 @@ class RuleEngineTest {
         assertEquals(Instant.ofEpochMilli(1000), outcome.draft.date)
         assertEquals(setOf(DraftIssue.DATE_UNPARSABLE), outcome.draft.issues)
     }
+
+    @Test
+    fun `WITHDRAWAL with a blank source account flags ACCOUNT_SELECTION_REQUIRED`() {
+        val r = rule(kind = RuleKind.WITHDRAWAL, sourceAccountName = "", pattern = """spent (?<amount>[\d,]+)""")
+        val outcome = RuleEngine(listOf(r)).match(message()) as ParseOutcome.Matched
+
+        assertTrue(DraftIssue.ACCOUNT_SELECTION_REQUIRED in outcome.draft.issues)
+    }
+
+    @Test
+    fun `WITHDRAWAL with a real source account does not flag ACCOUNT_SELECTION_REQUIRED, regardless of destination`() {
+        val r = rule(kind = RuleKind.WITHDRAWAL, sourceAccountName = "Bank Account A", destinationAccountName = "", pattern = """spent (?<amount>[\d,]+)""")
+        val outcome = RuleEngine(listOf(r)).match(message()) as ParseOutcome.Matched
+
+        assertTrue(DraftIssue.ACCOUNT_SELECTION_REQUIRED !in outcome.draft.issues)
+    }
+
+    @Test
+    fun `DEPOSIT with a blank destination account flags ACCOUNT_SELECTION_REQUIRED`() {
+        val r = rule(kind = RuleKind.DEPOSIT, sourceAccountName = "", destinationAccountName = "", pattern = """spent (?<amount>[\d,]+)""")
+        val outcome = RuleEngine(listOf(r)).match(message()) as ParseOutcome.Matched
+
+        assertTrue(DraftIssue.ACCOUNT_SELECTION_REQUIRED in outcome.draft.issues)
+    }
+
+    @Test
+    fun `TRANSFER requires both sides, flags ACCOUNT_SELECTION_REQUIRED if either is blank`() {
+        val bothBlank = rule(kind = RuleKind.TRANSFER, sourceAccountName = "", destinationAccountName = "", pattern = """spent (?<amount>[\d,]+)""")
+        val sourceOnly = rule(kind = RuleKind.TRANSFER, sourceAccountName = "Bank Account A", destinationAccountName = "", pattern = """spent (?<amount>[\d,]+)""")
+        val bothFilled = rule(
+            kind = RuleKind.TRANSFER,
+            sourceAccountName = "Bank Account A",
+            destinationAccountName = "Bank Account B",
+            pattern = """spent (?<amount>[\d,]+)""",
+        )
+
+        assertTrue(DraftIssue.ACCOUNT_SELECTION_REQUIRED in (RuleEngine(listOf(bothBlank)).match(message()) as ParseOutcome.Matched).draft.issues)
+        assertTrue(DraftIssue.ACCOUNT_SELECTION_REQUIRED in (RuleEngine(listOf(sourceOnly)).match(message()) as ParseOutcome.Matched).draft.issues)
+        assertTrue(DraftIssue.ACCOUNT_SELECTION_REQUIRED !in (RuleEngine(listOf(bothFilled)).match(message()) as ParseOutcome.Matched).draft.issues)
+    }
+
+    @Test
+    fun `a built-in-shaped rule (blank accounts both sides, WITHDRAWAL) flags ACCOUNT_SELECTION_REQUIRED`() {
+        val outcome = RuleEngine(listOf(BuiltInRules.CURRENCY_AFTER_AMOUNT), defaultAccountCurrency = "EUR")
+            .match(message(text = "100.50 EUR at Shop1234")) as ParseOutcome.Matched
+
+        assertTrue(DraftIssue.ACCOUNT_SELECTION_REQUIRED in outcome.draft.issues)
+    }
 }

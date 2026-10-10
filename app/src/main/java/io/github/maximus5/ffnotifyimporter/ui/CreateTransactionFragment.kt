@@ -46,9 +46,11 @@ import io.github.maximus5.ffnotifyimporter.rules.withBuiltIns
 import kotlinx.coroutines.launch
 import java.math.BigDecimal
 import java.math.RoundingMode
+import java.text.SimpleDateFormat
 import java.time.Instant
 import java.util.Calendar
 import java.util.Date
+import java.util.Locale
 
 /**
  * Pre-create review/edit screen - two modes, same fields/layout, decided by which
@@ -483,10 +485,20 @@ class CreateTransactionFragment : Fragment() {
             .show()
     }
 
+    /** Long date format (`DateFormat.getLongDateFormat`, e.g. "October 6, 2026" in en, "6 октября
+     * 2026 г." in ru - locale-ordered and -translated, same system API `MessagesAdapter`'s own
+     * date column already uses for its short form) plus a short weekday name - the user's own
+     * request, once this field stopped having to share a row with the time field (see
+     * [showDatePicker]'s own KDoc): "there's more room now, so show more". The weekday is its own
+     * `SimpleDateFormat("EEE", ...)` call, not part of one combined pattern - `getLongDateFormat`
+     * returns a fixed, locale-chosen `java.text.DateFormat` instance with no weekday of its own to
+     * extend. */
     private fun updateDateTimeFields(context: Context) {
         val binding = binding ?: return
         val date = Date(selectedTimestampMillis)
-        binding.transactionDateInput.setText(DateFormat.getDateFormat(context).format(date))
+        val longDate = DateFormat.getLongDateFormat(context).format(date)
+        val weekday = SimpleDateFormat("EEE", Locale.getDefault()).format(date)
+        binding.transactionDateInput.setText("$longDate, $weekday")
         binding.transactionTimeInput.setText(DateFormat.getTimeFormat(context).format(date))
     }
 

@@ -116,6 +116,12 @@ class RuleEngine(
             .filter { it.isNotEmpty() && it !in ruleTags }
         val tags = ruleTags + extraTags
 
+        val sourceName = renderOptional(rule.sourceAccountName)
+        val destinationName = renderOptional(rule.destinationAccountName)
+        val missingSource = rule.kind != RuleKind.DEPOSIT && sourceName == null
+        val missingDestination = rule.kind != RuleKind.WITHDRAWAL && destinationName == null
+        if (missingSource || missingDestination) issues += DraftIssue.ACCOUNT_SELECTION_REQUIRED
+
         return TransactionDraft(
             kind = rule.kind,
             date = date,
@@ -123,9 +129,9 @@ class RuleEngine(
             currencyCode = homeCurrency,
             foreignAmount = foreignAmount,
             foreignCurrencyCode = foreignCurrency,
-            sourceName = renderOptional(rule.sourceAccountName),
+            sourceName = sourceName,
             sourceAccountId = null,
-            destinationName = renderOptional(rule.destinationAccountName),
+            destinationName = destinationName,
             destinationAccountId = null,
             description = renderTemplate(rule.descriptionTemplate, groups, message.title, message.text),
             notes = renderTemplate(rule.notesTemplate, groups, message.title, message.text),
