@@ -513,60 +513,96 @@ work.
   aliases - simpler, and consistent with how every other format
   difference in this app already gets its own rule rather than one
   clever combined pattern.
-- **Raised by the user, not started - built-in fallback rule(s)**: a
-  genuinely blank Rules list (or one where nothing matched) currently
-  means the user has to hand-author a regex themselves, which the user
-  judged "practically impossible without Googling/AI" for a typical
-  user. Proposed design:
-  - One or more hardcoded `ParseRule` instances, defined as Kotlin
-    constants (not `RulesDb` rows) - the user's own call, since this
-    guarantees they can't be edited/duplicated/deleted/reordered
-    *structurally* (they're simply not in the editable table at all),
-    rather than relying on UI guards over an `isBuiltIn` DB column.
-    Only persisted bit: an enabled/disabled flag (a new small prefs
-    key, not a `RulesDb` row). Shown at the very bottom of
-    `RulesListFragment`'s list, visually distinct, with only that one
-    toggle - no edit/duplicate/delete/move controls.
+- **Raised by the user, design now finalized across several rounds of
+  discussion, not started** - built-in fallback rule(s): a genuinely
+  blank Rules list (or one where nothing matched) currently means the
+  user has to hand-author a regex themselves, which the user judged
+  "practically impossible without Googling/AI" for a typical user.
+  The user supplied a real rules export (14 rules, 6+ apps) to ground
+  this design in actual notification shapes rather than guesswork -
+  two things it confirmed directly:
+  - Their own currency/amount capture, reused verbatim as the generic
+    pattern: `(?<currency>[A-Z]{1,3}\$|[A-Z]{3}|[€£$¥])` and
+    `(?<amount>[\d.,]+)` - battle-tested across Amex/C24/GPay/Miles &
+    More/N26/Revolut already, not invented fresh.
+  - **Direction (withdrawal/deposit) keyword detection would not have
+    worked**: none of their 14 real rules use an English/German
+    keyword a generic rule could plausibly guess from ("bei", "with
+    <card name>" - not a direction word at all, "Zahlung erfolgreich",
+    "Lastschrift eingelöst", or no keyword at all - Revolut's shape is
+    pure line position). This killed the original "withdrawal rules +
+    deposit rules by keyword" plan (4 patterns) in favor of the
+    simpler, more honest design below.
+  Final design:
+  - **2** hardcoded `ParseRule` instances (not 4) - "Default: Currency
+    before amount" / "Default: Currency after amount" (named
+    "Default: ...", the user's own call, not "Catch-all") - covering
+    only the currency-position axis (Java can't express "symbol
+    before or after" in one pattern, see the item above), both
+    `kind = WITHDRAWAL`. No separate deposit variant - see the kind-
+    editable point below for why that's no longer needed.
+    `descriptionTemplate = "{title}"`, `notesTemplate = "{body}"` -
+    the user's own call: no `counterparty` capture group at all (a
+    generic pattern can't reliably isolate a counterparty name the
+    way a per-app rule can), just the notification's own raw title/body
+    text, same shape several of the user's own real GPay rules already
+    use for the identical reason.
+  - Defined as Kotlin constants (not `RulesDb` rows) - guarantees they
+    can't be edited/duplicated/deleted/reordered *structurally* (not
+    in the editable table at all), rather than relying on UI guards
+    over an `isBuiltIn` DB column. Only persisted bit: an enabled/
+    disabled flag (a new small prefs key, not a `RulesDb` row). Shown
+    at the very bottom of `RulesListFragment`'s list, visually
+    distinct, with only that one toggle - no edit/duplicate/delete/
+    move controls.
   - `packageNames = emptySet()` (matches any app) - free at the
     `RuleEngine` level already (`packageNames.isEmpty()` already means
-    "any app", confirmed in current code) - no engine change needed
-    for the built-in rules specifically.
+    "any app", confirmed in current code) - no engine change needed.
   - Placed after every user-defined rule in the effective match order
     (`RuleEngine`'s own "first rule in list order that matches and
     yields a parsable amount wins" already gives "only used if nothing
-    user-defined matched" for free, zero new logic - just append them
-    after `RulesDb.loadAllOrdered()`'s own list, before constructing
+    user-defined matched" for free - just append them after
+    `RulesDb.loadAllOrdered()`'s own list, before constructing
     `RuleEngine`).
   - **A built-in-rule match always routes to manual review, never
     auto-create, regardless of `FireflyPrefs.isAutoCreateEnabled()`** -
-    the user's own explicit safety call: a generic catch-all regex is
-    inherently less reliable than a per-app, user-authored rule (easy
-    to misjudge withdrawal vs. deposit, or grab the wrong number out
-    of the text), and `kind` can't be changed on the review screen
-    once matched (it's read-only there, "a property of which rule
-    matched") - so a wrong auto-post from a low-confidence guess isn't
-    recoverable the way a wrong *review-screen* guess is (the user can
-    just not submit, or fix fields by hand first).
+    a generic catch-all regex is inherently less reliable than a
+    per-app, user-authored rule (easy to grab the wrong number out of
+    the text, or - before the point below - misjudge direction).
+  - **`kind` becomes editable on the create screen - the user's own
+    decision, resolving the direction-detection problem above instead
+    of trying to guess it**: scoped to *create* mode only, for *any*
+    match (not just a built-in one) - editing an already-*existing*
+    Firefly transaction's `kind` stays locked exactly as today, the
+    user's own explicit call (changing withdrawal/deposit/transfer on
+    a transaction Firefly already has is a structurally different,
+    riskier operation than picking it before the first post). This is
+    what makes dropping the separate deposit-keyword rules above safe:
+    a built-in "Default" rule can default to `WITHDRAWAL` (the
+    dominant real-world case) and the user corrects it by hand on the
+    create screen when it's actually a deposit, rather than this app
+    trying (and likely failing, per the evidence above) to guess it
+    from text. Needs: `CreateTransactionFragment`'s `kindText` (today
+    a plain read-only `TextView`) to become an actual picker in create
+    mode only (edit mode keeps the plain text); `updateAccountFieldModes()`
+    re-run whenever the user changes it, since which side is the asset
+    account depends on `kind`.
+  - **New setting needed: a home currency**, the user's own call after
+    noticing a built-in rule has no account to inherit `homeCurrency`
+    from the way a user-defined rule does (each of theirs is scoped to
+    one real account, already in a known currency) - without it,
+    foreign-amount detection (`currency != rule.homeCurrency` ->
+    `DraftIssue.LOCAL_AMOUNT_MISSING`) has nothing correct to compare
+    against. A new `FireflyPrefs.getHomeCurrency()`/`setHomeCurrency()`
+    (plain string, a `TransactionCreationFragment` text field, same
+    shape as the existing tag fields there) - both built-in rules read
+    it as their `homeCurrency` instead of a hardcoded value. Default
+    value and exact field placement not decided yet.
   - Blank `sourceAccountName`/`destinationAccountName` on these rules
     is expected, not a bug to fix - a built-in rule can't know which
     real Firefly account any given app's money should land in, so the
-    review screen's own existing required-field validation already
+    create screen's own existing required-field validation already
     makes the user fill that in by hand before they can submit.
-  - Regex design, sketched with the user, not finalized: separate
-    rules per currency position (symbol-before vs. symbol-after, see
-    the item above for why one pattern can't cover both) crossed with
-    direction (withdrawal vs. deposit keywords, e.g. "spent/paid/
-    charged/debited/withdrawn/списан/оплачен" vs. "received/credited/
-    refund/поступление/зачислен") - up to 4 small patterns to start.
-    Direction detection is inherently language-limited (English/
-    Russian keyword sets only, realistically) - explicitly a
-    last-resort fallback, not a replacement for per-app rules, and
-    starting with just the withdrawal variants (the dominant real-world
-    case) rather than all 4 at once is a reasonable first cut. Amount
-    capture itself can stay fairly generic since `parser.parseAmount`
-    already auto-detects the decimal separator (comma/dot/apostrophe/
-    space) - the regex just needs to anchor on a currency symbol/code
-    adjacent to a digit run, not fully solve amount parsing itself.
   - Separately raised, not decided: whether to also let *user-defined*
     rules match "any app" (not just the built-in ones, which get this
     for free since they're not edited through the UI at all).
