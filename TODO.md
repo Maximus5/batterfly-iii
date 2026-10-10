@@ -944,3 +944,12 @@ work.
   gone -> clears the link with a Toast saying so; still there -> leaves
   it alone and says *that* instead, so this can never clear a link
   that's actually still valid.
+- **Done**, the user's own catch/requests on the delete confirmation
+  dialog: it said "Delete message(s)?" while the menu item/button that
+  opens it says "Delete notification" - inconsistent terms for the
+  same thing. Renamed to `delete_notification_confirm_title`/
+  `delete_notifications_confirm_title` (single vs. multi). Single
+  delete now shows which notification is about to go right under the
+  title (app label bold, then title/text - same fields the row already
+  shows); multi-select's title now carries the actual count instead of
+  a generic "(s)".

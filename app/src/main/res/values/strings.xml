@@ -51,8 +51,9 @@
     <string name="messages_forget_transaction_cleared">Transaction #%1$s no longer exists - link removed.</string>
     <string name="messages_forget_transaction_still_exists">Transaction #%1$s still exists in Firefly - link not removed.</string>
     <string name="messages_action_delete">Delete notification</string>
-    <string name="delete_messages_confirm_title">Delete message(s)?</string>
-    <string name="delete_messages_confirm_message">This can\'t be undone. If local history is enabled, they\'re removed there too.</string>
+    <string name="delete_notification_confirm_title">Delete notification?</string>
+    <string name="delete_notifications_confirm_title">Delete %1$d notification(s)?</string>
+    <string name="delete_notification_confirm_message">This can\'t be undone. If local history is enabled, they\'re removed there too.</string>
     <string name="messages_check_if_created">Check if created</string>
     <string name="messages_check_no_rule_matched">No rule matched this message.</string>
     <string name="check_found_title">Found in Firefly</string>

@@ -1165,15 +1165,25 @@ Single `:app` module, packages under
     can never accidentally wipe a link that's actually still valid (a
     stale local cache, or a race since the menu opened); a check failure
     shows the real reason and touches nothing, same "don't guess" rule
-    every dedup check in this file already follows. The confirmation
-    dialog still asks "Delete message(s)?" (unchanged,
-    `delete_messages_confirm_title`) - only the *button* label that
-    risked the Firefly mix-up, not the dialog's own already-unambiguous
-    title/body. "Delete" (now "Delete notification") still asks for
-    confirmation (same strings/dialog shape as the multi-select delete
-    below, just one message instead of a selected set). Hidden
-    (`MessagesAdapter.setSelectionMode`) while a multi-select is in
-    progress, since the two interaction modes would otherwise compete
+    every dedup check in this file already follows. "Delete" (now
+    "Delete notification") still asks for confirmation (same
+    strings/dialog shape as the multi-select delete below, just one
+    message instead of a selected set).
+    **Fixed two more real gaps, the same terminology catch**: the
+    confirm dialog used to say "Delete message(s)?" regardless of
+    single/multi, a different term from the menu item/button that
+    triggers it ("Delete notification") - renamed to
+    `delete_notification_confirm_title`/`delete_notifications_confirm_title`
+    ("Delete notification?"/"Delete %d notification(s)?", single vs.
+    multi) for consistent wording throughout. `confirmDeleteSingle` also
+    now shows *which* notification is about to go, right under the
+    title (app label bold, then title/text - the same fields the row
+    itself already shows, not a new format to learn) - previously a
+    bare "are you sure" with no way to confirm which one without backing
+    out and checking the row first. `confirmDeleteSelected`'s title now
+    carries the actual count instead of a generic "(s)".
+    Hidden (`MessagesAdapter.setSelectionMode`) while a multi-select is
+    in progress, since the two interaction modes would otherwise compete
     for the same tap.
     - "Check if created" (`MessagesFragment.checkIfCreated`) - an
       explicit, user-initiated search, distinct from the preemptive

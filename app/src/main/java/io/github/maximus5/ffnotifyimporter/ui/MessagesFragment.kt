@@ -606,11 +606,20 @@ class MessagesFragment : Fragment() {
         }
     }
 
+    /** Shows which notification is about to go, right under the title - the user's own request:
+     * a bare "Delete notification?" gave no way to confirm *which one* without backing out and
+     * checking the row first. Same fields the row itself shows (app label bold, then title/text),
+     * so this reads as "yes, that one" rather than a new, denser format to learn. */
     private fun confirmDeleteSingle(message: CapturedMessage) {
+        val fullMessage = SpannableStringBuilder(message.appLabel)
+        fullMessage.setSpan(StyleSpan(Typeface.BOLD), 0, fullMessage.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        if (message.title.isNotBlank()) fullMessage.append("\n").append(message.title)
+        if (message.text.isNotBlank()) fullMessage.append("\n").append(message.text)
+        fullMessage.append("\n\n").append(getString(R.string.delete_notification_confirm_message))
         // Cancel always rightmost/last (house convention, AGENTS.md).
         AlertDialog.Builder(requireContext())
-            .setTitle(R.string.delete_messages_confirm_title)
-            .setMessage(R.string.delete_messages_confirm_message)
+            .setTitle(R.string.delete_notification_confirm_title)
+            .setMessage(fullMessage)
             .setNegativeButton(R.string.messages_action_delete) { _, _ -> MessageStore.shared.remove(message) }
             .setPositiveButton(android.R.string.cancel, null)
             .show()
@@ -828,12 +837,15 @@ class MessagesFragment : Fragment() {
         dialog.show()
     }
 
+    /** Title carries the count ("Delete 3 notification(s)?") - the user's own request, same
+     * reasoning as [confirmDeleteSingle]'s own preview: knowing *how many* before confirming,
+     * not just that "some" are about to go. */
     private fun confirmDeleteSelected() {
         val toDelete = adapter.selectedMessages()
         // Cancel always rightmost/last (house convention, AGENTS.md).
         AlertDialog.Builder(requireContext())
-            .setTitle(R.string.delete_messages_confirm_title)
-            .setMessage(R.string.delete_messages_confirm_message)
+            .setTitle(getString(R.string.delete_notifications_confirm_title, toDelete.size))
+            .setMessage(R.string.delete_notification_confirm_message)
             .setNegativeButton(R.string.messages_action_delete) { _, _ ->
                 toDelete.forEach { MessageStore.shared.remove(it) }
                 clearSelectionAndExit()

@@ -51,8 +51,9 @@
     <string name="messages_forget_transaction_cleared">Транзакция №%1$s больше не существует - связь удалена.</string>
     <string name="messages_forget_transaction_still_exists">Транзакция №%1$s всё ещё существует в Firefly - связь не удалена.</string>
     <string name="messages_action_delete">Удалить уведомление</string>
-    <string name="delete_messages_confirm_title">Удалить сообщения?</string>
-    <string name="delete_messages_confirm_message">Отменить нельзя. Если включена локальная история, они будут удалены и оттуда.</string>
+    <string name="delete_notification_confirm_title">Удалить уведомление?</string>
+    <string name="delete_notifications_confirm_title">Удалить уведомлений: %1$d?</string>
+    <string name="delete_notification_confirm_message">Отменить нельзя. Если включена локальная история, они будут удалены и оттуда.</string>
     <string name="messages_check_if_created">Проверить в Firefly</string>
     <string name="messages_check_no_rule_matched">Ни одно правило не подошло к этому сообщению.</string>
     <string name="check_found_title">Найдено в Firefly</string>
