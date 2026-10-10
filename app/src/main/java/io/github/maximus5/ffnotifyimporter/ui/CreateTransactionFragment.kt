@@ -3,8 +3,12 @@ package io.github.maximus5.ffnotifyimporter.ui
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import android.content.Context
+import android.graphics.Typeface
 import android.os.Bundle
+import android.text.SpannableStringBuilder
+import android.text.Spanned
 import android.text.format.DateFormat
+import android.text.style.StyleSpan
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -167,7 +171,7 @@ class CreateTransactionFragment : Fragment() {
         // come from Firefly's own live data instead of a fresh RuleEngine.match (see this
         // class's own KDoc). The user's own request, so it's clear at a glance which rule fired
         // before trusting (or correcting) what it filled in.
-        binding.ruleLabelText.text = getString(R.string.create_tx_rule_label, matched.rule.label)
+        binding.ruleLabelText.text = boldLabel(getString(R.string.create_tx_rule_prefix), matched.rule.label)
         binding.ruleLabelText.visibility = View.VISIBLE
 
         kind = draft.kind
@@ -298,7 +302,16 @@ class CreateTransactionFragment : Fragment() {
 
     private fun updateKindText() {
         val binding = binding ?: return
-        binding.kindText.text = getString(kind.labelRes()) + " · " + message.appLabel
+        binding.kindText.text = SpannableStringBuilder()
+            .append(boldLabel(getString(R.string.create_tx_kind_prefix), getString(kind.labelRes())))
+            .append(" · ")
+            .append(boldLabel(getString(R.string.create_tx_app_prefix), message.appLabel))
+    }
+
+    private fun boldLabel(label: String, value: String) = SpannableStringBuilder().apply {
+        append(label)
+        setSpan(StyleSpan(Typeface.BOLD), 0, length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        append(" ").append(value)
     }
 
     /** Edit mode only - `kind` is fixed to the real transaction's own type and never recomputed

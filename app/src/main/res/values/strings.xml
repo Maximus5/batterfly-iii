@@ -186,7 +186,9 @@
     <string name="create_tx_field_foreign_amount">Foreign amount (optional)</string>
     <string name="create_tx_field_date">Date</string>
     <string name="create_tx_field_time">Time</string>
-    <string name="create_tx_rule_label">Rule: %1$s</string>
+    <string name="create_tx_rule_prefix">Rule:</string>
+    <string name="create_tx_kind_prefix">Kind:</string>
+    <string name="create_tx_app_prefix">App:</string>
     <string name="create_tx_field_source_account">Source account</string>
     <string name="create_tx_field_destination_account">Destination account</string>
     <string name="create_tx_field_description">Description</string>

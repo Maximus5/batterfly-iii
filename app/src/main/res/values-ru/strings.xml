@@ -186,7 +186,9 @@
     <string name="create_tx_field_foreign_amount">Сумма в валюте платежа (опционально)</string>
     <string name="create_tx_field_date">Дата</string>
     <string name="create_tx_field_time">Время</string>
-    <string name="create_tx_rule_label">Правило: %1$s</string>
+    <string name="create_tx_rule_prefix">Правило:</string>
+    <string name="create_tx_kind_prefix">Тип:</string>
+    <string name="create_tx_app_prefix">Приложение:</string>
     <string name="create_tx_field_source_account">Счёт-источник</string>
     <string name="create_tx_field_destination_account">Счёт назначения</string>
     <string name="create_tx_field_description">Описание</string>
