@@ -38,6 +38,12 @@ class MessagesAdapter(
 
     fun selectedMessages(): Set<CapturedMessage> = selected.toSet()
 
+    /** Same selection, but in on-screen (list) order rather than the backing `Set`'s own
+     * iteration order - for [MessagesFragment.copySelectedToClipboard], where the concatenation
+     * order is genuinely visible to the user, unlike [selectedMessages]'s other callers (a delete
+     * confirm's count, or deleting each one - neither cares what order). */
+    fun selectedMessagesInOrder(): List<CapturedMessage> = items.filter { it in selected }
+
     fun selectedCount(): Int = selected.size
 
     fun clearSelection() {

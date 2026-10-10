@@ -1378,8 +1378,9 @@ Single `:app` module, packages under
     test-match dialog. Each row also has an overflow (⋮) `PopupMenu`
     now, same shape as `RulesListFragment`'s (see its own notes below
     for why that's the reference pattern) - "Open in Firefly III",
-    "Check if created", "Forget linked transaction", and "Delete
-    notification" (the user's own rename - `action_delete`'s plain
+    "Check if created", "Forget linked transaction", "Copy to
+    clipboard" (below), and "Delete notification" (the user's own
+    rename - `action_delete`'s plain
     "Delete" risked reading as deleting the *Firefly transaction*
     rather than this app's own captured-notification entry; a dedicated
     `messages_action_delete` string replaces the shared `action_delete`
@@ -1596,7 +1597,7 @@ Single `:app` module, packages under
     a confirmation dialog. Multi-select is a hand-rolled toggle of
     `MainActivity`'s own single `Toolbar` - swapping its title to
     "N selected", enabling the up/back arrow (`onSupportNavigateUp`
-    cancels selection), and swapping its menu to just a delete action
+    cancels selection), and swapping its menu to a copy + delete action
     (`menu_selection.xml` vs. the normal `menu_main.xml`, chosen in
     `onCreateOptionsMenu` based on whether a selection-delete callback
     is currently set) via `MainActivity.enterSelectionMode`/
@@ -1605,7 +1606,28 @@ Single `:app` module, packages under
     up arrow) also cancels the selection instead of exiting the app -
     an `OnBackPressedCallback` registered once in `onCreate`, enabled
     only between `enterSelectionMode`/`exitSelectionMode` so normal
-    back behavior applies the rest of the time. This replaced a standard `androidx.appcompat.view.ActionMode`
+    back behavior applies the rest of the time.
+    **"Copy to clipboard"** - the user's own request: the per-row
+    overflow menu (`ID_COPY_SINGLE`, between "Forget linked
+    transaction" and "Delete notification") copies one message, the
+    selection toolbar's `ic_copy` action (`action_copy_selected`,
+    `MainActivity.onSelectionCopy`) copies every selected one -
+    `MessagesFragment.copySelectedToClipboard` reads
+    `MessagesAdapter.selectedMessagesInOrder()` (on-screen order, not
+    the backing `Set`'s undefined iteration order - this is the one
+    place selection order is actually user-visible, unlike a delete's
+    count or per-item removal, neither of which cares). Both funnel
+    into `copyMessagesToClipboard(messages: List<CapturedMessage>)`:
+    `"${title}\n${text}"` per message, joined with a blank line
+    (`"\n\n"`) between entries when there's more than one - the user's
+    own exact format, no app-added header/separator/timestamp.
+    `android.content.ClipboardManager`/`ClipData.newPlainText`, not
+    `Intent.ACTION_SEND` - a plain clipboard copy was the explicit ask,
+    not a share sheet. Deliberately does **not** end the selection
+    afterward (unlike delete) - same "a non-destructive action leaves
+    the selection alone" convention `RulesListFragment`'s own enable/
+    disable/duplicate already use; only delete has nothing left to
+    leave selected. This replaced a standard `androidx.appcompat.view.ActionMode`
     (`startSupportActionMode`) after a real, visible bug: with a
     manually-set `Toolbar` on a `NoActionBar` theme, AppCompat's
     `ActionMode` doesn't replace that toolbar - it renders its own

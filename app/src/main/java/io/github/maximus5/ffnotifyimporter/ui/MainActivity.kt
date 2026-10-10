@@ -19,6 +19,7 @@ import io.github.maximus5.ffnotifyimporter.prefs.FireflyPrefs
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
+    private var onSelectionCopy: (() -> Unit)? = null
     private var onSelectionDelete: (() -> Unit)? = null
     private var onSelectionCancel: (() -> Unit)? = null
 
@@ -88,6 +89,10 @@ class MainActivity : AppCompatActivity() {
                 startActivity(Intent(this, SettingsActivity::class.java))
                 true
             }
+            R.id.action_copy_selected -> {
+                onSelectionCopy?.invoke()
+                true
+            }
             R.id.action_delete_selected -> {
                 onSelectionDelete?.invoke()
                 true
@@ -113,14 +118,15 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * Swaps the toolbar into "N selected" + a delete action, replacing its normal title/menu in
+     * Swaps the toolbar into "N selected" + copy/delete actions, replacing its normal title/menu in
      * place - the *same* single top bar, not a second one stacked above it. `startSupportActionMode`
      * (what this replaces) rendered its contextual bar as an extra bar above this activity's own
      * custom Toolbar instead of replacing it - a known AppCompat quirk with a manually-set,
      * NoActionBar-theme Toolbar - which also pushed/obscured the first list item underneath both
      * bars. A hand-rolled toggle of this one Toolbar's content has no such ambiguity.
      */
-    fun enterSelectionMode(count: Int, onDelete: () -> Unit, onCancel: () -> Unit) {
+    fun enterSelectionMode(count: Int, onCopy: () -> Unit, onDelete: () -> Unit, onCancel: () -> Unit) {
+        onSelectionCopy = onCopy
         onSelectionDelete = onDelete
         onSelectionCancel = onCancel
         backPressedCallback.isEnabled = true
@@ -134,6 +140,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun exitSelectionMode() {
+        onSelectionCopy = null
         onSelectionDelete = null
         onSelectionCancel = null
         backPressedCallback.isEnabled = false

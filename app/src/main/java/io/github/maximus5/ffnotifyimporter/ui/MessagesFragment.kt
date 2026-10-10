@@ -1,5 +1,7 @@
 package io.github.maximus5.ffnotifyimporter.ui
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.graphics.Typeface
@@ -492,6 +494,7 @@ class MessagesFragment : Fragment() {
             adapter.toggleSelection(message)
             (requireActivity() as MainActivity).enterSelectionMode(
                 count = adapter.selectedCount(),
+                onCopy = ::copySelectedToClipboard,
                 onDelete = ::confirmDeleteSelected,
                 onCancel = ::clearSelectionAndExit,
             )
@@ -521,7 +524,8 @@ class MessagesFragment : Fragment() {
         popup.menu.add(0, ID_CHECK_IF_CREATED, 1, R.string.messages_check_if_created)
         popup.menu.add(0, ID_FORGET_TRANSACTION, 2, R.string.messages_action_forget_transaction)
             .isEnabled = message.fireflyTransactionId != null
-        popup.menu.add(0, ID_DELETE_SINGLE, 3, R.string.messages_action_delete)
+        popup.menu.add(0, ID_COPY_SINGLE, 3, R.string.messages_action_copy)
+        popup.menu.add(0, ID_DELETE_SINGLE, 4, R.string.messages_action_delete)
         popup.setOnMenuItemClickListener { item ->
             when (item.itemId) {
                 ID_OPEN_IN_FIREFLY -> message.fireflyTransactionId?.let { id ->
@@ -529,12 +533,33 @@ class MessagesFragment : Fragment() {
                 }
                 ID_CHECK_IF_CREATED -> checkIfCreated(message)
                 ID_FORGET_TRANSACTION -> forgetLinkedTransactionIfGone(context, message)
+                ID_COPY_SINGLE -> copyMessagesToClipboard(listOf(message))
                 ID_DELETE_SINGLE -> confirmDeleteSingle(message)
                 else -> return@setOnMenuItemClickListener false
             }
             true
         }
         popup.show()
+    }
+
+    /** Toolbar copy action for the current multi-select, in on-screen order
+     * ([MessagesAdapter.selectedMessagesInOrder]) - unlike [confirmDeleteSelected], this doesn't
+     * end the selection afterward (same "non-destructive action leaves the selection alone"
+     * convention `RulesListFragment`'s own enable/disable/duplicate already use; only a
+     * destructive one has nothing left to leave selected). */
+    private fun copySelectedToClipboard() = copyMessagesToClipboard(adapter.selectedMessagesInOrder())
+
+    /** `{title}\n{body}` per message, each pair separated by a blank line when there's more than
+     * one - the user's own exact format. [android.content.ClipboardManager] rather than
+     * `Intent.ACTION_SEND` or similar - the user asked for a plain clipboard copy, not a share
+     * sheet. */
+    private fun copyMessagesToClipboard(messages: List<CapturedMessage>) {
+        if (messages.isEmpty()) return
+        val context = requireContext()
+        val text = messages.joinToString("\n\n") { "${it.title}\n${it.text}" }
+        val clipboard = context.getSystemService(ClipboardManager::class.java)
+        clipboard.setPrimaryClip(ClipData.newPlainText(getString(R.string.messages_action_copy), text))
+        Toast.makeText(context, R.string.messages_copied_to_clipboard, Toast.LENGTH_SHORT).show()
     }
 
     /** "Forget linked transaction" - the user's own request, after noticing "Check if created"
@@ -850,6 +875,7 @@ class MessagesFragment : Fragment() {
         const val ID_OPEN_IN_FIREFLY = 1
         const val ID_CHECK_IF_CREATED = 2
         const val ID_FORGET_TRANSACTION = 3
-        const val ID_DELETE_SINGLE = 4
+        const val ID_COPY_SINGLE = 4
+        const val ID_DELETE_SINGLE = 5
     }
 }

@@ -57,6 +57,8 @@
     <string name="delete_notification_confirm_title">Удалить уведомление?</string>
     <string name="delete_notifications_confirm_title">Удалить уведомлений: %1$d?</string>
     <string name="delete_notification_confirm_message">Отменить нельзя. Если включена локальная история, они будут удалены и оттуда.</string>
+    <string name="messages_action_copy">Копировать в буфер обмена</string>
+    <string name="messages_copied_to_clipboard">Скопировано в буфер обмена</string>
     <string name="messages_check_if_created">Проверить в Firefly</string>
     <string name="messages_check_no_rule_matched">Ни одно правило не подошло к этому сообщению.</string>
     <string name="check_found_title">Найдено в Firefly</string>
