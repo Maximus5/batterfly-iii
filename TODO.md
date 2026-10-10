@@ -906,3 +906,29 @@ work.
   shortcut to `openTransaction` without going through the tap dialog
   first, disabled (not hidden) when the row has no `fireflyTransactionId`
   yet.
+- **Fixed two more real bugs, the user's own first real end-to-end
+  round** (created a test notification, let auto-create post it, then
+  deleted the transaction by hand in Firefly to see what every "it's
+  linked" surface does with a confirmed-dead id):
+  - "Open in Firefly III"/"Open"/"Open transaction" used to fire
+    `ACTION_VIEW` straight at the transaction URL with no existence
+    check - Firefly's own web UI doesn't show a 404 for a deleted
+    transaction, it silently redirects to the home page, leaving no
+    sign from this app's side that anything was wrong. Every "open"
+    button now goes through a new `verifyThenOpenTransaction`, which
+    runs the same shared `posting.verifyLinkedTransaction` first:
+    confirmed gone -> an explicit `open_transaction_gone_*` dialog
+    instead of the ambiguous silent redirect.
+  - Tapping an already-linked message whose transaction had just been
+    confirmed gone (`verifyLinkedThenShow`'s `Gone` branch, falling
+    through to a fresh search) still opened `CreateTransactionActivity`
+    with the *original* message object - which still carried the
+    now-disproven `fireflyTransactionId`, so the review screen's new
+    warning banner (v0.103) claimed the message was "already linked to
+    transaction #X" for an X this exact flow had just finished proving
+    doesn't exist. `checkThenOpenCreateOrShowFound` now builds a
+    `cleanMessage` (`fireflyTransactionId = null`) once at the top and
+    uses it for every path onward - every call site reachable there
+    already knows there's no *currently valid* link by construction
+    (either never had one, or just disproved it), so this is always
+    safe, not a per-branch judgment call.

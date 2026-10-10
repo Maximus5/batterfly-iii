@@ -176,25 +176,34 @@ class MessagesFragment : Fragment() {
         message: CapturedMessage,
         staleLinkedId: String? = null,
     ) {
+        // Every reachable call site here already knows there's no *currently valid* link - either
+        // message.fireflyTransactionId was never set (a genuinely fresh match), or staleLinkedId
+        // proves whatever it did hold is now confirmed gone. CreateTransactionActivity reads
+        // fireflyTransactionId purely to decide whether to show its "already linked" warning (see
+        // its own KDoc) - **fixed a real "we just proved this ID is gone and then claimed it's
+        // still linked" bug, the user's own catch**: passing the raw, still-stale message through
+        // unchanged let that warning fire with a transaction this exact flow had just confirmed
+        // doesn't exist. [cleanMessage] carries that proof forward instead of re-deriving it.
+        val cleanMessage = message.copy(fireflyTransactionId = null)
         viewLifecycleOwner.lifecycleScope.launch {
             var draft = initialDraft
             if (DraftIssue.LOCAL_AMOUNT_MISSING in draft.issues) {
                 draft = resolveAmountQuietly(draft)
             }
             if (draft.amount == null) {
-                startActivity(CreateTransactionActivity.intent(context, message))
+                startActivity(CreateTransactionActivity.intent(context, cleanMessage))
                 return@launch
             }
             when (val result = checkForDuplicate(context, draft)) {
                 is DuplicateCheckResult.None ->
-                    startActivity(CreateTransactionActivity.intent(context, message))
+                    startActivity(CreateTransactionActivity.intent(context, cleanMessage))
                 is DuplicateCheckResult.SearchFailed ->
                     showResultDialog(context, R.string.check_search_failed_title, result.message)
                 is DuplicateCheckResult.Found ->
-                    showDuplicateConfirmDialog(context, result.id, message, knownCandidate = result.candidate, staleLinkedId = staleLinkedId)
+                    showDuplicateConfirmDialog(context, result.id, cleanMessage, knownCandidate = result.candidate, staleLinkedId = staleLinkedId)
                 is DuplicateCheckResult.FoundMultiple -> {
                     Toast.makeText(context, getString(R.string.create_remote_duplicates_found, result.count), Toast.LENGTH_LONG).show()
-                    showDuplicateConfirmDialog(context, result.mostRecentId, message, knownCandidate = result.candidate, staleLinkedId = staleLinkedId)
+                    showDuplicateConfirmDialog(context, result.mostRecentId, cleanMessage, knownCandidate = result.candidate, staleLinkedId = staleLinkedId)
                 }
             }
         }
@@ -231,7 +240,9 @@ class MessagesFragment : Fragment() {
             .setMessage(body)
             .setPositiveButton(android.R.string.ok, null)
         if (existingTransactionId != null) {
-            builder.setNeutralButton(R.string.create_open_transaction) { _, _ -> openTransaction(context, existingTransactionId) }
+            builder.setNeutralButton(R.string.create_open_transaction) { _, _ ->
+                viewLifecycleOwner.lifecycleScope.launch { verifyThenOpenTransaction(context, existingTransactionId) }
+            }
             builder.setNegativeButton(R.string.create_again) { _, _ -> startCreate(context, message) }
         }
         builder.show()
@@ -340,7 +351,9 @@ class MessagesFragment : Fragment() {
                 dialog.dismiss()
             }
         }
-        view.findViewById<View>(R.id.openDuplicateButton).setOnClickListener { openTransaction(context, foundId) }
+        view.findViewById<View>(R.id.openDuplicateButton).setOnClickListener {
+            viewLifecycleOwner.lifecycleScope.launch { verifyThenOpenTransaction(context, foundId) }
+        }
         if (showCreateAnyway) {
             view.findViewById<View>(R.id.createAnywayButton).setOnClickListener {
                 startActivity(CreateTransactionActivity.intent(context, message))
@@ -404,6 +417,25 @@ class MessagesFragment : Fragment() {
     private fun openTransaction(context: Context, transactionId: String) {
         val baseUrl = FireflyPrefs(context).getBaseUrl()
         startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(transactionUrl(baseUrl, transactionId))))
+    }
+
+    /** The one place "Open"/"Open transaction"/"Open in Firefly III" actually opens Firefly -
+     * **fixed a real "silent dead link" bug, the user's own catch**: Firefly's own web UI doesn't
+     * show a 404 for a deleted transaction, it silently redirects to the home page, leaving no
+     * sign anything was wrong - an `ACTION_VIEW` launch straight to [openTransaction] has no way to
+     * tell the difference from here either, since the browser's own navigation isn't something
+     * this app observes. Verifies first via the shared `posting.verifyLinkedTransaction`: still
+     * there -> opens as before; confirmed gone -> shows an explicit `open_transaction_gone_*`
+     * dialog instead of the ambiguous silent redirect; a check failure shows the real reason, same
+     * "don't guess" rule every dedup check in this file already follows. */
+    private suspend fun verifyThenOpenTransaction(context: Context, transactionId: String) {
+        when (val result = verifyLinkedTransaction(FireflyPrefs(context), transactionId)) {
+            is LinkedTransactionCheck.Found -> openTransaction(context, transactionId)
+            is LinkedTransactionCheck.Gone ->
+                showResultDialog(context, R.string.open_transaction_gone_title, getString(R.string.open_transaction_gone_message, transactionId))
+            is LinkedTransactionCheck.CheckFailed ->
+                showResultDialog(context, R.string.check_search_failed_title, result.message)
+        }
     }
 
     private fun showResultDialog(context: Context, titleRes: Int, message: String) {
@@ -534,7 +566,9 @@ class MessagesFragment : Fragment() {
         popup.menu.add(0, ID_DELETE_SINGLE, 2, R.string.messages_action_delete)
         popup.setOnMenuItemClickListener { item ->
             when (item.itemId) {
-                ID_OPEN_IN_FIREFLY -> message.fireflyTransactionId?.let { openTransaction(context, it) }
+                ID_OPEN_IN_FIREFLY -> message.fireflyTransactionId?.let { id ->
+                    viewLifecycleOwner.lifecycleScope.launch { verifyThenOpenTransaction(context, id) }
+                }
                 ID_CHECK_IF_CREATED -> checkIfCreated(message)
                 ID_DELETE_SINGLE -> confirmDeleteSingle(message)
                 else -> return@setOnMenuItemClickListener false

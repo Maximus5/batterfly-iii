@@ -1453,7 +1453,20 @@ Single `:app` module, packages under
       Neutral = "Open Transaction" (same
       `network.transactionUrl`/`ACTION_VIEW` as the success dialog's own
       button, factored into one `openTransaction(context, id)` helper
-      both call, wired immediately - no async dependency), negative =
+      every "open" button in this fragment calls - **fixed a real
+      "silent dead link" bug, the user's own catch, found on the first
+      real end-to-end round-trip test (create -> auto-create posts it ->
+      delete it by hand in Firefly)**: Firefly's own web UI doesn't show
+      a 404 for a deleted transaction, it silently redirects to the home
+      page, so an `ACTION_VIEW` launch alone gives the user no sign
+      anything was wrong. Every "open" action (this button, the
+      duplicate-confirm dialog's, "Open in Firefly III" on the overflow
+      menu) now goes through `verifyThenOpenTransaction` first - the
+      same shared `posting.verifyLinkedTransaction`, confirmed-gone ->
+      an explicit `open_transaction_gone_*` dialog instead of the
+      ambiguous redirect, same "don't guess" rule every dedup check in
+      this file already follows - and only calls `openTransaction`
+      itself once existence is confirmed), negative =
       "Create Again" - kept out of the neutral slot on purpose, so the
       single most relevant secondary action always sits there (create
       when nothing's linked, open when something is) and "do it again"
@@ -1625,6 +1638,20 @@ Single `:app` module, packages under
     block anything - since the screen's own on-submit duplicate check
     already re-finds the same linked transaction and asks the real "are
     you sure" right there (`confirmCreateAnyway`, below).
+    **Fixed a real "warns about a transaction we just proved doesn't
+    exist" bug, the user's own catch, same end-to-end round-trip test**:
+    `checkThenOpenCreateOrShowFound` used to pass the original
+    `CapturedMessage` straight through to `CreateTransactionActivity.intent`
+    on every path, including the one reached *after* confirming a
+    previously-linked id is gone (`verifyLinkedThenShow`'s `Gone`
+    branch, falling through here) - that message still carried the
+    now-disproven `fireflyTransactionId`, so this screen's own warning
+    banner fired for an id the exact same flow had just finished
+    disproving. `checkThenOpenCreateOrShowFound` now builds a
+    `cleanMessage` (`fireflyTransactionId = null`) once and uses it for
+    every path onward - safe unconditionally, since every call site
+    reachable there already knows there's no *currently valid* link by
+    construction (either never had one, or just disproved it).
     A single-fragment-host `Activity` (its own class, not reusing
     `SettingsActivity` despite the identical shape - that class is
     named/documented as the settings area specifically, and this screen
