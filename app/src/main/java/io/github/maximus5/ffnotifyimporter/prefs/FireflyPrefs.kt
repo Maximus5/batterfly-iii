@@ -61,10 +61,13 @@ class FireflyPrefs(context: Context) {
     fun isDedupEnabled(): Boolean = prefs.getBoolean(KEY_DEDUP_ENABLED, true)
     fun setDedupEnabled(enabled: Boolean) = prefs.edit().putBoolean(KEY_DEDUP_ENABLED, enabled).apply()
 
-    /** Also on by default - a missed dedup (duplicate posted) is just annoying to clean up; a
-     * false dedup (a genuine second transaction silently dropped) is actual data loss, so the
-     * default favors comparing more fields, not fewer. */
-    fun isDedupIncludeDescription(): Boolean = prefs.getBoolean(KEY_DEDUP_INCLUDE_DESCRIPTION, true)
+    /** Off by default - the user's own call: most rules derive their description straight from
+     * the notification text, which varies more (timestamps, formatting quirks across runs of the
+     * same bank's app) than the amount/account/date fields dedup already compares without this,
+     * so leaving it on by default caused more missed dedups (duplicates posted) than it prevented
+     * false ones. Still available for a rule set where description actually is a stable, reliable
+     * distinguishing field. */
+    fun isDedupIncludeDescription(): Boolean = prefs.getBoolean(KEY_DEDUP_INCLUDE_DESCRIPTION, false)
     fun setDedupIncludeDescription(include: Boolean) =
         prefs.edit().putBoolean(KEY_DEDUP_INCLUDE_DESCRIPTION, include).apply()
 
