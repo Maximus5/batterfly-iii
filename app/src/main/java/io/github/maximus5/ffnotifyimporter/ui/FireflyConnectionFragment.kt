@@ -85,14 +85,13 @@ class FireflyConnectionFragment : Fragment() {
         binding.urlInput.setText(prefs.getBaseUrl())
         binding.allowCleartextSwitch.isChecked = prefs.isAllowCleartext()
         updateTokenHint()
-        updateCleartextWarning(prefs.getBaseUrl())
+        updateUrlState()
 
         binding.urlInput.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
             override fun afterTextChanged(s: Editable?) {
-                updateCleartextWarning(s?.toString().orEmpty())
-                binding.urlLayout.error = null
+                updateUrlState()
             }
         })
 
@@ -103,7 +102,7 @@ class FireflyConnectionFragment : Fragment() {
                 binding.tokenLayout.error = null
             }
         })
-        binding.allowCleartextSwitch.setOnCheckedChangeListener { _, _ -> binding.urlLayout.error = null }
+        binding.allowCleartextSwitch.setOnCheckedChangeListener { _, _ -> updateUrlState() }
 
         binding.urlInput.setOnFocusChangeListener { _, hasFocus -> if (!hasFocus) confirmServerChangeIfNeeded() }
 
@@ -154,10 +153,18 @@ class FireflyConnectionFragment : Fragment() {
         if (secure) window.addFlags(WindowManager.LayoutParams.FLAG_SECURE) else window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
     }
 
-    private fun updateCleartextWarning(url: String) {
-        val visibility = if (isCleartextUrl(url)) View.VISIBLE else View.GONE
-        binding?.cleartextWarning?.visibility = visibility
-        binding?.allowCleartextSwitch?.visibility = visibility
+    /** Shows the opt-in switch for an `http://` URL and, as that field's own error (the one place
+     * problems are shown), why it is risky - worded as "blocked" while the switch is off, as a plain
+     * warning once it is on. Cleared for any other URL. */
+    private fun updateUrlState() {
+        val binding = binding ?: return
+        val cleartext = isCleartextUrl(binding.urlInput.text?.toString().orEmpty().trim())
+        binding.allowCleartextSwitch.visibility = if (cleartext) View.VISIBLE else View.GONE
+        binding.urlLayout.error = when {
+            !cleartext -> null
+            binding.allowCleartextSwitch.isChecked -> getString(R.string.firefly_cleartext_warning)
+            else -> getString(R.string.firefly_cleartext_required)
+        }
     }
 
     private fun updateTokenHint() {
@@ -223,14 +230,12 @@ class FireflyConnectionFragment : Fragment() {
         if (confirmServerChangeIfNeeded()) return false
         val url = binding.urlInput.text?.toString().orEmpty().trim()
         val typedToken = binding.tokenInput.text?.toString().orEmpty().trim()
-        binding.urlLayout.error = when {
-            url.isBlank() -> getString(R.string.firefly_url_required)
-            isCleartextUrl(url) && !binding.allowCleartextSwitch.isChecked -> getString(R.string.firefly_cleartext_required)
-            else -> null
-        }
+        val cleartextBlocked = isCleartextUrl(url) && !binding.allowCleartextSwitch.isChecked
+        updateUrlState()
+        if (url.isBlank()) binding.urlLayout.error = getString(R.string.firefly_url_required)
         binding.tokenLayout.error =
             if (typedToken.isBlank() && prefs.getToken().isBlank()) getString(R.string.firefly_token_required) else null
-        return binding.urlLayout.error == null && binding.tokenLayout.error == null
+        return url.isNotBlank() && !cleartextBlocked && binding.tokenLayout.error == null
     }
 
     private var serverChangeDialogShowing = false

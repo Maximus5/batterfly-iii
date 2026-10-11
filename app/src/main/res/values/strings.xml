@@ -231,7 +231,7 @@
     <string name="firefly_field_url_example">e.g. https://firefly.example.com</string>
     <string name="firefly_cleartext_warning">⚠ http:// is not encrypted: your access token and transaction data are sent in the clear. Only use this on a trusted local network.</string>
     <string name="firefly_allow_cleartext_switch">Allow unencrypted HTTP</string>
-    <string name="firefly_cleartext_required">http:// is blocked unless you turn on "Allow unencrypted HTTP" below</string>
+    <string name="firefly_cleartext_required">⚠ http:// is not encrypted: your access token and transaction data would be sent in the clear. To use it anyway, turn on &quot;Allow unencrypted HTTP&quot; below.</string>
     <string name="firefly_field_token">Personal access token</string>
     <string name="firefly_field_token_saved_hint">•••••••• (saved - leave blank to keep it)</string>
     <string name="firefly_test_connection">Test connection</string>

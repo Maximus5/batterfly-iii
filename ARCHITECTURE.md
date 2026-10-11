@@ -994,8 +994,10 @@ Single `:app` module, packages under
     the barrier first, then URL-blank / `http://`-without-opt-in / token-missing
     errors, all shown at once on the fields' own `TextInputLayout` sublines
     (never `EditText.error` - its tooltip covers the helper text and adds a red
-    icon inside the field). The `http://` warning and its switch sit directly
-    under the URL field, above the help text.
+    icon inside the field). The `http://` risk text is that same URL-field error
+    (`updateUrlState()`, shown for any `http://` URL: "blocked" wording while the
+    switch is off, a plain warning once on) - no separate warning view; the
+    "Allow unencrypted HTTP" switch sits directly under the field.
   - `ExchangeRateClient`/`ExchangeRateUrl` - same split as
     `FireflyApiClient`/`FireflyUrl` (real call vs. plain-Kotlin
     unit-testable URL-building/response-parsing, `ExchangeRateUrlTest`),
