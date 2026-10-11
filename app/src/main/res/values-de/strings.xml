@@ -346,7 +346,7 @@
     <string name="setup_step_test_message_sub">Die Einrichtung ausprobieren, ohne auf eine echte Bankbenachrichtigung zu warten</string>
     <string name="setup_hide">Diese Anleitung ausblenden</string>
     <string name="reliability_title">Überwachung am Laufen halten</string>
-    <string name="reliability_intro">Um keine Zahlungsbenachrichtigungen zu verpassen, empfehlen wir: Akku-Optimierung für diese App ausschalten, Android nicht ihre Berechtigungen entfernen lassen und nie „Beenden erzwingen“ verwenden. Auf Samsung-Geräten außerdem prüfen, dass die App nicht in „Ruhende Apps“ oder „Tief ruhende Apps“ steht - das kann die App nicht selbst prüfen.</string>
+    <string name="reliability_intro">Um keine Zahlungsbenachrichtigungen zu verpassen, empfehlen wir: Akku-Optimierung für diese App ausschalten, Android nicht ihre Berechtigungen entfernen lassen und nie „Beenden erzwingen“ verwenden. Auf Samsung-Geräten außerdem prüfen, dass die App nicht in „Ruhende Apps“ oder „Tief ruhende Apps“ steht.</string>
     <string name="reliability_battery_card_title">Akku-Optimierung ist aktiv</string>
     <string name="reliability_battery_card_body">Android schränkt diese App im Hintergrund ein, daher kann sie Benachrichtigungen verpassen. Stellen Sie Butterfly III auf „Nicht optimieren“ (oder „Uneingeschränkt“).</string>
     <string name="reliability_battery_button">Einstellungen der Akku-Optimierung öffnen</string>
