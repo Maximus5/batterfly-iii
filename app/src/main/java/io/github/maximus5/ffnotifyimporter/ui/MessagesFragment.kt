@@ -315,7 +315,7 @@ class MessagesFragment : Fragment() {
         // still linked" bug, the user's own catch**: passing the raw, still-stale message through
         // unchanged let that warning fire with a transaction this exact flow had just confirmed
         // doesn't exist. [cleanMessage] carries that proof forward instead of re-deriving it.
-        val cleanMessage = message.copy(fireflyTransactionId = null)
+        val cleanMessage = message.copy(fireflyTransactionId = null, appliedRuleLabel = null)
         // A foreign-currency draft has no local amount yet: the review screen opens at once and
         // fetches the exchange rate itself in the background (it can be slow - an external
         // service), and the duplicate check then happens when the user presses Create, with the

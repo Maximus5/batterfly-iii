@@ -3484,3 +3484,19 @@ A new `ParseRule` field has to be wired in four places, or it silently resets on
 the hard way with `accountApproximate`, which first shipped without the first two): `RulesDb`
 (column + additive migration, now v8), `backup.FullBackupJson` (its own rule (de)serialization),
 `backup.RulesJson`, and `ui.RuleEditFragment`.
+
+## The applied rule is remembered on the message
+
+`CapturedMessage.appliedRuleLabel` records which rule created the linked transaction (the rule's
+label as it was then, not an id - it must still read right after a rename or delete). It lives and
+dies with `fireflyTransactionId`: `MessageStore.setTransactionId(message, id, label)` sets both and
+clears both on unlink; it is ignored for identity wherever `fireflyTransactionId` already is
+(`ReviewNotifications.notificationId`, `MessagesFragment`'s `cleanMessage`). Set by `AutoCreateWorker`
+(from `TransactionDraft.ruleLabel`, which `RuleEngine` fills from `ParseRule.label`) and by
+`CreateTransactionFragment` on a create; linking to an already-existing transaction ("Use created")
+stores none. Persisted in `MessageHistoryDb` (v3, column `applied_rule_label`) and the full backup
+(`appliedRuleLabel`). Shown in the transaction editor's "Rule:" line - create mode from the fresh
+match, edit mode from the message's stored label (looked up in `MessageStore`, since the screen's
+own message is rebuilt from intent extras; links made before this existed show nothing). Shown in
+the shade ("Rule: ...", second line) on the auto-create success/skipped notifications and the
+review notification, only when "Show financial information in notification" is on.

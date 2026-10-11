@@ -432,4 +432,14 @@ class RuleEngineTest {
         assertTrue(DraftIssue.ACCOUNT_APPROXIMATE in approximate.draft.issues)
         assertEquals("Bank Account A", approximate.draft.sourceName)
     }
+
+    @Test
+    fun `the draft carries the matching rule's label for display, null when the label is blank`() {
+        val pattern = """(?<amount>\d+,\d+) EUR"""
+        val labelled = RuleEngine(listOf(rule(label = "Bank rule", pattern = pattern))).match(message()) as ParseOutcome.Matched
+        val blank = RuleEngine(listOf(rule(label = "", pattern = pattern))).match(message()) as ParseOutcome.Matched
+
+        assertEquals("Bank rule", labelled.draft.ruleLabel)
+        assertEquals(null, blank.draft.ruleLabel)
+    }
 }

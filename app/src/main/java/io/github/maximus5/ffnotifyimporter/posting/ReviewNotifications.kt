@@ -111,7 +111,7 @@ object ReviewNotifications {
             cancelSupersededApproximate(context, draft, ownId = notificationId(message))
         }
         val text = if (notificationPrefs.isShowFinancialInfoEnabled()) {
-            context.getString(R.string.review_match_text, message.appLabel, amount.toPlainString(), currencyCode, description)
+            AutoCreateNotifications.withRuleLine(context, context.getString(R.string.review_match_text, message.appLabel, amount.toPlainString(), currencyCode, description), draft.ruleLabel)
         } else {
             context.getString(R.string.review_match_text_generic, message.appLabel)
         }
@@ -160,7 +160,7 @@ object ReviewNotifications {
      * original message or the just-returned, now-linked one - without this, [CapturedMessage]'s
      * default `hashCode()` would change the moment the id was set, and `cancel` would silently miss
      * the very notification it's meant to dismiss. */
-    private fun notificationId(message: CapturedMessage): Int = message.copy(fireflyTransactionId = null).hashCode()
+    private fun notificationId(message: CapturedMessage): Int = message.copy(fireflyTransactionId = null, appliedRuleLabel = null).hashCode()
 
     /** **Fixed a real "wrong message's extras" bug, the user's own catch**: `PendingIntent.
      * getActivity`'s identity (whether it returns a fresh `PendingIntent` or hands back an

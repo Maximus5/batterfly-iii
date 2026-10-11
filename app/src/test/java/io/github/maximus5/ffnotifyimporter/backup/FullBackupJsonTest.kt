@@ -174,4 +174,12 @@ class FullBackupJsonTest {
         assertTrue(imported.rules.single().accountApproximate)
         assertEquals("ghi789", imported.createdTransactions.single().hashWithoutAccounts)
     }
+
+    @Test
+    fun `a message's applied rule label survives a restore`() {
+        val original = data().copy(messages = listOf(data().messages.first().copy(appliedRuleLabel = "Bank rule")))
+        val imported = fullBackupFromJson(fullBackupToJson(original))!!
+
+        assertEquals("Bank rule", imported.messages.single().appliedRuleLabel)
+    }
 }

@@ -96,6 +96,9 @@ class CreateTransactionFragment : Fragment() {
      * transaction saved here must not dismiss *other* waiting approximate notifications (see
      * [ReviewNotifications.supersedeApproximate]) - this one is the very kind it would sweep. */
     private var createdFromApproximateRule = false
+    /** Label of the rule recorded on the message when its transaction is saved: in create mode the
+     * rule that just matched, in edit mode whatever was stored when the transaction was created. */
+    private var appliedRuleLabel: String? = null
     private var selectedTimestampMillis: Long = 0L
 
     private data class PickedAccount(val id: String, val name: String)
@@ -178,6 +181,7 @@ class CreateTransactionFragment : Fragment() {
         // come from Firefly's own live data instead of a fresh RuleEngine.match (see this
         // class's own KDoc). The user's own request, so it's clear at a glance which rule fired
         // before trusting (or correcting) what it filled in.
+        appliedRuleLabel = matched.rule.label.takeIf { it.isNotBlank() }
         binding.ruleLabelText.text = boldLabel(getString(R.string.create_tx_rule_prefix), matched.rule.label)
         binding.ruleLabelText.visibility = View.VISIBLE
 
@@ -230,6 +234,7 @@ class CreateTransactionFragment : Fragment() {
                 is LinkedTransactionCheck.Found -> {
                     val binding = binding ?: return@launch
                     kind = result.candidate.kind
+                    showStoredRuleLabel(binding)
                     populateFieldsFromCandidate(result.candidate)
                     updateAccountFieldModes()
                     updateKindText()
@@ -248,6 +253,19 @@ class CreateTransactionFragment : Fragment() {
                 }
             }
         }
+    }
+
+    /** Edit mode: shows the rule recorded on the message when this transaction was created from it
+     * (older links have none, then nothing is shown). Looked up in the live message list because the
+     * screen's own [message] is rebuilt from plain intent extras and carries no link data. */
+    private fun showStoredRuleLabel(binding: FragmentCreateTransactionBinding) {
+        val stored = MessageStore.shared.snapshot().firstOrNull {
+            it.packageName == message.packageName && it.title == message.title &&
+                it.text == message.text && it.timestampMillis == message.timestampMillis
+        }?.appliedRuleLabel ?: return
+        appliedRuleLabel = stored
+        binding.ruleLabelText.text = boldLabel(getString(R.string.create_tx_rule_prefix), stored)
+        binding.ruleLabelText.visibility = View.VISIBLE
     }
 
     private fun populateFields(draft: TransactionDraft) {
@@ -754,7 +772,7 @@ class CreateTransactionFragment : Fragment() {
             fireflyTransactionId = transactionId,
         )
         RetentionController.purgeCreatedTransactions(createdDb, RetentionPrefs(context).getRetentionDays())
-        MessageStore.shared.setTransactionId(message, transactionId)
+        MessageStore.shared.setTransactionId(message, transactionId, appliedRuleLabel)
         if (!isEditMode && !createdFromApproximateRule) ReviewNotifications.supersedeApproximate(context, draft)
         ReviewNotifications.cancel(context, message)
         Toast.makeText(context, getString(R.string.create_success_message, transactionId), Toast.LENGTH_LONG).show()

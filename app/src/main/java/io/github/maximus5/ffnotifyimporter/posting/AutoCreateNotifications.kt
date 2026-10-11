@@ -54,10 +54,11 @@ object AutoCreateNotifications {
         currencyCode: String,
         description: String,
         transactionId: String,
+        ruleLabel: String? = null,
     ) {
         val context = baseContext.withAppLocale()
         val text = if (NotificationPrefs(context).isShowFinancialInfoEnabled()) {
-            context.getString(R.string.auto_create_success_text, message.appLabel, amount.toPlainString(), currencyCode, description, transactionId)
+            withRuleLine(context, context.getString(R.string.auto_create_success_text, message.appLabel, amount.toPlainString(), currencyCode, description, transactionId), ruleLabel)
         } else {
             context.getString(R.string.auto_create_success_text_generic, message.appLabel)
         }
@@ -89,10 +90,11 @@ object AutoCreateNotifications {
         currencyCode: String,
         description: String,
         existingTransactionId: String,
+        ruleLabel: String? = null,
     ) {
         val context = baseContext.withAppLocale()
         val text = if (NotificationPrefs(context).isShowFinancialInfoEnabled()) {
-            context.getString(R.string.auto_create_skipped_text, message.appLabel, amount.toPlainString(), currencyCode, description, existingTransactionId)
+            withRuleLine(context, context.getString(R.string.auto_create_skipped_text, message.appLabel, amount.toPlainString(), currencyCode, description, existingTransactionId), ruleLabel)
         } else {
             context.getString(R.string.auto_create_skipped_text_generic, message.appLabel)
         }
@@ -106,6 +108,14 @@ object AutoCreateNotifications {
             webAction = webIntent(context, message, baseUrl, existingTransactionId),
         )
     }
+
+    /**
+     * Appends a "Rule: <label>" line to a notification body - only called from the branch that
+     * already shows financial details (`isShowFinancialInfoEnabled`), since a rule label can name
+     * the account or bank the user keeps private on a lock screen. Also used by [ReviewNotifications].
+     */
+    fun withRuleLine(context: Context, text: String, ruleLabel: String?): String =
+        if (ruleLabel.isNullOrBlank()) text else text + "\n" + context.getString(R.string.notification_rule_line, ruleLabel)
 
     /** [reason] never carries amount/currency/description to begin with (just an app label and an
      * error string) - nothing here needs `NotificationPrefs.isShowFinancialInfoEnabled()`'s

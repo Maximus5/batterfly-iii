@@ -147,7 +147,7 @@ class MessageStore(
      * message (so the caller doesn't have to re-derive it), or null if [message] isn't in the
      * store anymore (e.g. deleted between the dialog opening and the create call finishing).
      */
-    fun setTransactionId(message: CapturedMessage, transactionId: String?): CapturedMessage? {
+    fun setTransactionId(message: CapturedMessage, transactionId: String?, appliedRuleLabel: String? = null): CapturedMessage? {
         val updated: CapturedMessage
         val snapshot: List<CapturedMessage>
         synchronized(lock) {
@@ -158,7 +158,10 @@ class MessageStore(
                     it.timestampMillis == message.timestampMillis
             }
             if (index < 0) return null
-            updated = messages[index].copy(fireflyTransactionId = transactionId)
+            updated = messages[index].copy(
+                fireflyTransactionId = transactionId,
+                appliedRuleLabel = if (transactionId != null) appliedRuleLabel else null,
+            )
             messages[index] = updated
             snapshot = messages.toList()
         }

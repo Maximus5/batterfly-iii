@@ -153,6 +153,7 @@ class RuleEngine(
             category = renderOptional(rule.categoryTemplate),
             tags = tags,
             issues = issues,
+            ruleLabel = rule.label.takeIf { it.isNotBlank() },
         )
     }
 }

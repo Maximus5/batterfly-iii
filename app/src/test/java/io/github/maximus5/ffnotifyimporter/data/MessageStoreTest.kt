@@ -313,4 +313,17 @@ class MessageStoreTest {
 
         assertEquals(0, notified)
     }
+
+    @Test
+    fun `setTransactionId stores the applied rule label with the link and clears it on unlink`() {
+        val store = MessageStore(dedupWindowMillis = 1000, clock = { 0L })
+        store.add("bank.a", "Bank A", "Payment", "text")
+        val message = store.snapshot().single()
+
+        assertEquals("Bank rule", store.setTransactionId(message, "7", "Bank rule")?.appliedRuleLabel)
+        assertEquals("Bank rule", store.snapshot().single().appliedRuleLabel)
+
+        assertEquals(null, store.setTransactionId(message, null, "ignored")?.appliedRuleLabel)
+        assertEquals(null, store.snapshot().single().appliedRuleLabel)
+    }
 }

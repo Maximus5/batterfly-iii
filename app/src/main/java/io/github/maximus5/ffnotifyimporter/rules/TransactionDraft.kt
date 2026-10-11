@@ -60,4 +60,7 @@ data class TransactionDraft(
     val category: String?,
     val tags: List<String>,
     val issues: Set<DraftIssue>,
+    /** Label of the rule this draft came from, for display only (notifications, the transaction
+     * screen) and for `CapturedMessage.appliedRuleLabel`; null if the rule has no label. */
+    val ruleLabel: String? = null,
 )

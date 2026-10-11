@@ -12,4 +12,10 @@ data class CapturedMessage(
     val text: String,
     val timestampMillis: Long,
     val fireflyTransactionId: String? = null,
+    /** Label of the rule that was applied when [fireflyTransactionId] was created from this message
+     * (null if linked another way, or not linked). Lives and dies with [fireflyTransactionId]: set
+     * and cleared together by `MessageStore.setTransactionId`, and ignored for identity everywhere
+     * that already ignores that field. A label, not a rule id: it must still read right after the
+     * rule is renamed or deleted, and shows the rule as it was named when it fired. */
+    val appliedRuleLabel: String? = null,
 )

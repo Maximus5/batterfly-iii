@@ -21,7 +21,8 @@ class MessageHistoryDb(context: Context) : SQLiteOpenHelper(context, DB_NAME, nu
                 $COL_TITLE TEXT NOT NULL,
                 $COL_TEXT TEXT NOT NULL,
                 $COL_TIMESTAMP INTEGER NOT NULL,
-                $COL_FIREFLY_TRANSACTION_ID TEXT
+                $COL_FIREFLY_TRANSACTION_ID TEXT,
+                $COL_APPLIED_RULE_LABEL TEXT
             )
             """.trimIndent(),
         )
@@ -36,6 +37,9 @@ class MessageHistoryDb(context: Context) : SQLiteOpenHelper(context, DB_NAME, nu
         if (oldVersion < 2) {
             db.execSQL("ALTER TABLE $TABLE ADD COLUMN $COL_FIREFLY_TRANSACTION_ID TEXT")
         }
+        if (oldVersion < 3) {
+            db.execSQL("ALTER TABLE $TABLE ADD COLUMN $COL_APPLIED_RULE_LABEL TEXT")
+        }
     }
 
     fun insert(message: CapturedMessage) {
@@ -46,6 +50,7 @@ class MessageHistoryDb(context: Context) : SQLiteOpenHelper(context, DB_NAME, nu
             put(COL_TEXT, message.text)
             put(COL_TIMESTAMP, message.timestampMillis)
             put(COL_FIREFLY_TRANSACTION_ID, message.fireflyTransactionId)
+            put(COL_APPLIED_RULE_LABEL, message.appliedRuleLabel)
         }
         writableDatabase.insert(TABLE, null, values)
     }
@@ -55,7 +60,10 @@ class MessageHistoryDb(context: Context) : SQLiteOpenHelper(context, DB_NAME, nu
      * `MessageStore.setTransactionId`, which calls this via `RetentionController`'s
      * `onMessageUpdated` hook) to carry [message]'s current `fireflyTransactionId`. */
     fun updateTransactionId(message: CapturedMessage) {
-        val values = ContentValues().apply { put(COL_FIREFLY_TRANSACTION_ID, message.fireflyTransactionId) }
+        val values = ContentValues().apply {
+            put(COL_FIREFLY_TRANSACTION_ID, message.fireflyTransactionId)
+            put(COL_APPLIED_RULE_LABEL, message.appliedRuleLabel)
+        }
         writableDatabase.update(
             TABLE,
             values,
@@ -82,6 +90,7 @@ class MessageHistoryDb(context: Context) : SQLiteOpenHelper(context, DB_NAME, nu
             val textIdx = cursor.getColumnIndexOrThrow(COL_TEXT)
             val timestampIdx = cursor.getColumnIndexOrThrow(COL_TIMESTAMP)
             val transactionIdIdx = cursor.getColumnIndexOrThrow(COL_FIREFLY_TRANSACTION_ID)
+            val ruleLabelIdx = cursor.getColumnIndexOrThrow(COL_APPLIED_RULE_LABEL)
             while (cursor.moveToNext()) {
                 messages.add(
                     CapturedMessage(
@@ -91,6 +100,7 @@ class MessageHistoryDb(context: Context) : SQLiteOpenHelper(context, DB_NAME, nu
                         text = cursor.getString(textIdx),
                         timestampMillis = cursor.getLong(timestampIdx),
                         fireflyTransactionId = if (cursor.isNull(transactionIdIdx)) null else cursor.getString(transactionIdIdx),
+                        appliedRuleLabel = if (cursor.isNull(ruleLabelIdx)) null else cursor.getString(ruleLabelIdx),
                     ),
                 )
             }
@@ -118,7 +128,7 @@ class MessageHistoryDb(context: Context) : SQLiteOpenHelper(context, DB_NAME, nu
 
     companion object {
         private const val DB_NAME = "message_history.db"
-        private const val DB_VERSION = 2
+        private const val DB_VERSION = 3
         private const val TABLE = "messages"
         private const val COL_PACKAGE_NAME = "package_name"
         private const val COL_APP_LABEL = "app_label"
@@ -126,6 +136,7 @@ class MessageHistoryDb(context: Context) : SQLiteOpenHelper(context, DB_NAME, nu
         private const val COL_TEXT = "text"
         private const val COL_TIMESTAMP = "timestamp_millis"
         private const val COL_FIREFLY_TRANSACTION_ID = "firefly_transaction_id"
+        private const val COL_APPLIED_RULE_LABEL = "applied_rule_label"
 
         @Volatile
         private var instance: MessageHistoryDb? = null

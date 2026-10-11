@@ -69,7 +69,8 @@ fun fullBackupToJson(data: FullBackupData): String {
                         .put("title", message.title)
                         .put("text", message.text)
                         .put("timestampMillis", message.timestampMillis)
-                        .put("fireflyTransactionId", message.fireflyTransactionId),
+                        .put("fireflyTransactionId", message.fireflyTransactionId)
+                        .put("appliedRuleLabel", message.appliedRuleLabel),
                 )
             }
         },
@@ -133,6 +134,7 @@ fun fullBackupFromJson(json: String): FullBackupData? {
                 text = entry.optString("text", ""),
                 timestampMillis = timestamp,
                 fireflyTransactionId = entry.optString("fireflyTransactionId").takeIf { it.isNotBlank() },
+                appliedRuleLabel = entry.optString("appliedRuleLabel").takeIf { it.isNotBlank() },
             )
         }
     }.orEmpty()

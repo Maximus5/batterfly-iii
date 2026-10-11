@@ -113,6 +113,7 @@ class AutoCreateWorker(context: Context, params: WorkerParameters) : CoroutineWo
                     AutoCreateNotifications.notifySkippedDuplicate(
                         applicationContext, prefs.getBaseUrl(), message,
                         amount, resolved.currencyCode, resolved.description, result.id,
+                        resolved.ruleLabel,
                     )
                 }
                 Result.success()
@@ -122,6 +123,7 @@ class AutoCreateWorker(context: Context, params: WorkerParameters) : CoroutineWo
                     AutoCreateNotifications.notifySkippedDuplicate(
                         applicationContext, prefs.getBaseUrl(), message,
                         amount, resolved.currencyCode, resolved.description, result.mostRecentId,
+                        resolved.ruleLabel,
                     )
                 }
                 Result.success()
@@ -158,13 +160,14 @@ class AutoCreateWorker(context: Context, params: WorkerParameters) : CoroutineWo
                     fireflyTransactionId = result.value,
                 )
                 RetentionController.purgeCreatedTransactions(createdDb, RetentionPrefs(applicationContext).getRetentionDays())
-                MessageStore.shared.setTransactionId(message, result.value)
+                MessageStore.shared.setTransactionId(message, result.value, draft.ruleLabel)
                 // A precise source just created this payment: the bank message that only guessed the
                 // account (still waiting for review in the shade) is redundant now.
                 if (!draft.accountApproximate) ReviewNotifications.supersedeApproximate(applicationContext, draft)
                 AutoCreateNotifications.notifySuccess(
                     applicationContext, prefs.getBaseUrl(), message,
                     amount, draft.currencyCode, draft.description, result.value,
+                    draft.ruleLabel,
                 )
                 Result.success()
             }
