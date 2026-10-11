@@ -1,7 +1,7 @@
 # ARCHITECTURE.md
 
 Architecture, module layout, and real bugs found while building
-FF-Notify-Importer. Keep this up to date - update it in the same
+Butterfly III. Keep this up to date - update it in the same
 commit as any code change that changes a module, data flow, or rule
 format.
 

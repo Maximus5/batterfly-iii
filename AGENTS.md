@@ -4,7 +4,7 @@ Guidance for an agent working in this repository.
 
 ## Project
 
-FF-Notify-Importer - an Android app that listens to notifications from
+Butterfly III - an Android app that listens to notifications from
 other apps (banks) via `NotificationListenerService`, matches them
 against user-defined rules, and creates transactions in a Firefly III
 instance (a personal finance server the user already runs elsewhere -

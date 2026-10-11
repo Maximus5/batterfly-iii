@@ -277,7 +277,7 @@
     <string name="firefly_pick_currency_failed">Не удалось загрузить валюты из Firefly III: %1$s</string>
     <string name="firefly_no_currencies">В Firefly III не найдено включённых валют.</string>
     <string name="firefly_field_all_transactions_tags">Добавлять теги ко всем создаваемым транзакциям</string>
-    <string name="firefly_field_all_transactions_tags_hint">Через запятую, напр. firefly-importer, bank-import — добавляются к каждой транзакции независимо от правила</string>
+    <string name="firefly_field_all_transactions_tags_hint">Через запятую, напр. butterfly-iii, bank-import — добавляются к каждой транзакции независимо от правила</string>
 
     <string name="settings_notifications_title">Уведомления</string>
     <string name="settings_notifications_subtitle">Что показывают собственные уведомления приложения</string>

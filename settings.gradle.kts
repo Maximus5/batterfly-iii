@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "FF-Notify-Importer"
+rootProject.name = "Butterfly III"
 include(":app")

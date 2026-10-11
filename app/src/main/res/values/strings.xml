@@ -275,7 +275,7 @@
     <string name="firefly_pick_currency_failed">Couldn\'t load currencies from Firefly III: %1$s</string>
     <string name="firefly_no_currencies">No enabled currencies found in Firefly III.</string>
     <string name="firefly_field_all_transactions_tags">Add tags to all created transactions</string>
-    <string name="firefly_field_all_transactions_tags_hint">Comma separated, e.g. firefly-importer, bank-import - added to every transaction this app creates, regardless of which rule matched</string>
+    <string name="firefly_field_all_transactions_tags_hint">Comma separated, e.g. butterfly-iii, bank-import - added to every transaction this app creates, regardless of which rule matched</string>
 
     <string name="settings_notifications_title">Notifications</string>
     <string name="settings_notifications_subtitle">What this app\'s own notifications show</string>

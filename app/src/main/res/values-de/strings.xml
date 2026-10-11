@@ -275,7 +275,7 @@
     <string name="firefly_pick_currency_failed">Währungen konnten nicht aus Firefly III geladen werden: %1$s</string>
     <string name="firefly_no_currencies">In Firefly III wurden keine aktivierten Währungen gefunden.</string>
     <string name="firefly_field_all_transactions_tags">Tags zu allen angelegten Buchungen hinzufügen</string>
-    <string name="firefly_field_all_transactions_tags_hint">Kommagetrennt, z. B. firefly-importer, bank-import - wird jeder von dieser App angelegten Buchung hinzugefügt, unabhängig von der passenden Regel</string>
+    <string name="firefly_field_all_transactions_tags_hint">Kommagetrennt, z. B. butterfly-iii, bank-import - wird jeder von dieser App angelegten Buchung hinzugefügt, unabhängig von der passenden Regel</string>
 
     <string name="settings_notifications_title">Benachrichtigungen</string>
     <string name="settings_notifications_subtitle">Was die eigenen Benachrichtigungen dieser App zeigen</string>
