@@ -62,17 +62,16 @@ class FireflyPrefs(context: Context) {
     fun setDefaultAccountCurrency(currencyCode: String) =
         prefs.edit().putString(KEY_DEFAULT_ACCOUNT_CURRENCY, currencyCode).apply()
 
-    /** Pre-fills `ui.CreateTransactionFragment`'s source account field on create, but **only**
-     * when a match leaves *both* account sides blank (the user's own explicit scoping, not "source
-     * blank" alone - pre-filling source unconditionally could turn a legitimate DEPOSIT rule's own
-     * already-filled destination into a wrongly-inferred TRANSFER once source also looked like a
-     * real asset account, see `CreateTransactionFragment.inferKindFromAccounts`). Onboarding-
-     * focused, the user's own reasoning: most users monitor one app, mostly card payments from one
-     * account, so most `rules.BuiltInRules` matches can be one tap away from "Create" instead of
-     * requiring the account to be picked by hand every single time. A *display-only* convenience -
-     * deliberately never read by `rules.RuleEngine`/`posting.AutoCreateWorker`, so automatic
-     * creation still requires a rule (built-in or user-authored) to actually resolve an account on
-     * its own, exactly as before this existed. */
+    /** The user's own account, used by `rules.RuleEngine` (`defaultSourceAccount`) whenever a rule
+     * leaves *both* account sides blank: as the source of a withdrawal/transfer, as the destination
+     * of a deposit. Applied when the draft is built, so the create screen, the duplicate checks
+     * and the test-match dialog all see the same account (v0.206 - it used to be only a create-
+     * screen pre-fill, which left the tap-time duplicate check with nothing to search on).
+     * Onboarding-focused, the user's own reasoning: most users monitor one app, mostly card
+     * payments from one account, so most `rules.BuiltInRules` matches can be one tap away from
+     * "Create". Automatic creation still isn't affected: the draft keeps
+     * `DraftIssue.ACCOUNT_SELECTION_REQUIRED` (the *rule* named no account), so
+     * `posting.AutoCreateWorker` still stops at a review notification. */
     fun getDefaultSourceAccount(): String = prefs.getString(KEY_DEFAULT_SOURCE_ACCOUNT, "").orEmpty()
     fun setDefaultSourceAccount(accountName: String) =
         prefs.edit().putString(KEY_DEFAULT_SOURCE_ACCOUNT, accountName).apply()

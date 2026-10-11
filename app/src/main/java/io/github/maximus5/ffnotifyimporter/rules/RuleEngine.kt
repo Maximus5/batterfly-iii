@@ -37,12 +37,21 @@ private val whitespaceRun = Regex("\\s+")
  * request: a rule isn't always scoped to one real account the way most user-authored ones are -
  * most notably [BuiltInRules]'s generic fallback rules, which have no account (and so no known
  * currency) to inherit from at all. Same plain-`String` injection shape as [allTransactionsTags].
+ *
+ * [defaultSourceAccount] (`FireflyPrefs.getDefaultSourceAccount()`) - the account counterpart of
+ * the above, applied in [buildDraft] only when a rule leaves *both* account sides blank: as the
+ * source for a withdrawal/transfer, as the destination for a deposit (in every case the user's own
+ * account). Applied at match time so every consumer of a draft (the dedup checks, the create
+ * screen, the test-match dialog) sees the same account. The draft still carries
+ * [DraftIssue.ACCOUNT_SELECTION_REQUIRED] in that case - the rule itself didn't name an account,
+ * so automatic creation keeps stopping at a review notification instead of posting on its own.
  */
 class RuleEngine(
     private val rules: List<ParseRule>,
     private val currencySymbols: Map<String, String> = emptyMap(),
     private val allTransactionsTags: String = "",
     private val defaultAccountCurrency: String = "",
+    private val defaultSourceAccount: String = "",
 ) {
 
     fun match(message: CapturedMessage): ParseOutcome {
@@ -118,11 +127,14 @@ class RuleEngine(
             .filter { it.isNotEmpty() && it !in ruleTags }
         val tags = ruleTags + extraTags
 
-        val sourceName = renderOptional(rule.sourceAccountName)
-        val destinationName = renderOptional(rule.destinationAccountName)
+        var sourceName = renderOptional(rule.sourceAccountName)
+        var destinationName = renderOptional(rule.destinationAccountName)
         val missingSource = rule.kind != RuleKind.DEPOSIT && sourceName == null
         val missingDestination = rule.kind != RuleKind.WITHDRAWAL && destinationName == null
         if (missingSource || missingDestination) issues += DraftIssue.ACCOUNT_SELECTION_REQUIRED
+        if (sourceName == null && destinationName == null && defaultSourceAccount.isNotBlank()) {
+            if (rule.kind == RuleKind.DEPOSIT) destinationName = defaultSourceAccount else sourceName = defaultSourceAccount
+        }
 
         return TransactionDraft(
             kind = rule.kind,

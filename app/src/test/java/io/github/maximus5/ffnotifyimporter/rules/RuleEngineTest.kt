@@ -178,6 +178,43 @@ class RuleEngineTest {
         assertEquals(listOf("recurring", "Shop1234"), outcome.draft.tags)
     }
 
+
+    @Test
+    fun `defaultSourceAccount is the source of a withdrawal when the rule names no account, and the account-selection issue stays`() {
+        val r = rule(sourceAccountName = "", destinationAccountName = "", pattern = """spent (?<amount>[\d,]+) EUR""")
+        val outcome = RuleEngine(listOf(r), defaultSourceAccount = "My Account").match(message()) as ParseOutcome.Matched
+
+        assertEquals("My Account", outcome.draft.sourceName)
+        assertNull(outcome.draft.destinationName)
+        assertTrue(DraftIssue.ACCOUNT_SELECTION_REQUIRED in outcome.draft.issues)
+    }
+
+    @Test
+    fun `defaultSourceAccount is the destination of a deposit`() {
+        val r = rule(kind = RuleKind.DEPOSIT, sourceAccountName = "", destinationAccountName = "", pattern = """spent (?<amount>[\d,]+) EUR""")
+        val outcome = RuleEngine(listOf(r), defaultSourceAccount = "My Account").match(message()) as ParseOutcome.Matched
+
+        assertNull(outcome.draft.sourceName)
+        assertEquals("My Account", outcome.draft.destinationName)
+    }
+
+    @Test
+    fun `defaultSourceAccount is ignored when the rule names an account itself`() {
+        val r = rule(sourceAccountName = "Bank Account A", pattern = """spent (?<amount>[\d,]+) EUR""")
+        val outcome = RuleEngine(listOf(r), defaultSourceAccount = "My Account").match(message()) as ParseOutcome.Matched
+
+        assertEquals("Bank Account A", outcome.draft.sourceName)
+        assertTrue(DraftIssue.ACCOUNT_SELECTION_REQUIRED !in outcome.draft.issues)
+    }
+
+    @Test
+    fun `a blank defaultSourceAccount leaves a rule without accounts as it was`() {
+        val r = rule(sourceAccountName = "", pattern = """spent (?<amount>[\d,]+) EUR""")
+        val outcome = RuleEngine(listOf(r)).match(message()) as ParseOutcome.Matched
+
+        assertNull(outcome.draft.sourceName)
+        assertNull(outcome.draft.destinationName)
+    }
     @Test
     fun `defaultAccountCurrency fills in currencyCode when the rule's own homeCurrency is blank`() {
         val r = rule(homeCurrency = "", pattern = """spent (?<amount>[\d,]+)""")

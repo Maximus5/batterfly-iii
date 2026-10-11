@@ -1813,9 +1813,11 @@ Single `:app` module, packages under
       used to produce no query at all (`dedupSearchQuery` -> `null`), so
       Firefly was never asked, "not found" was reported and the dialog's
       "open search" button opened an empty search page. Now
-      `checkIfCreated` (a) fills the blank side from the global "Default
-      source account" (`withDefaultAccountIfUnknown`: source for
-      withdrawal/transfer, destination for deposit), (b) if that is blank
+      `checkIfCreated` (a) gets the blank side filled from the global
+      "Default source account" - since v0.206 by `RuleEngine` itself when
+      the draft is built (see the "Default Source account" paragraph
+      under `CreateTransactionFragment`), (b) if that is blank
+      too, searches unscoped (`dedupSearchQuery(allowUnscoped = true)`) and
       too, searches unscoped (`dedupSearchQuery(allowUnscoped = true)`) and
       treats an unknown account side as a wildcard
       (`remoteCandidateMatches(ignoreUnknownAccounts = true)`), and (c)
@@ -2373,31 +2375,28 @@ Single `:app` module, packages under
     wider weighting alone (an edge case - a long locale month name
     plus large accessibility font scaling - would otherwise still
     wrap and reintroduce the same row-height mismatch).
-    **"Default Source account" pre-fill, the user's own onboarding-
-    focused request**: `prefillDefaultSourceAccountIfBothBlank`, called
-    right after `populateFields` in `loadForCreate`, sets
-    `sourceAccountInput`'s text to `FireflyPrefs.
-    getDefaultSourceAccount()` (new field on `ui.
-    TransactionCreationFragment`, own `FireflyApiClient.
-    listAssetAccounts()`-backed picker) - but **only** when the match
-    left *both* `draft.sourceName`/`destinationName` blank, never when
-    just one side is. Narrower than "source blank" alone would be,
-    deliberately - a legitimate DEPOSIT rule that already filled in a
-    real destination would otherwise get source silently pre-filled
-    too, and `inferKindFromAccounts` would then see both sides as real
-    asset accounts and wrongly flip `kind` to TRANSFER. Purely a text
-    fill, not a full `PickedAccount` - the account field's own
-    `TextWatcher` (registered unconditionally in `onViewCreated`)
-    already re-runs `inferKindFromAccounts` off this exact text
-    change, same as if the user had typed it by hand, so no special
-    casing is needed for the kind to resolve correctly once
-    `prefetchAssetAccountsForInference`'s own fetch lands. **Deliberately
-    display-only** - `FireflyPrefs.getDefaultSourceAccount()` is read
-    only here, never by `rules.RuleEngine`/`posting.AutoCreateWorker`,
-    the user's own explicit safety requirement: automatic creation
-    still requires a rule (built-in or user-authored) to resolve an
-    account on its own, exactly as before this setting existed - this
-    only ever saves a manual pick on the visual create screen.
+    **"Default Source account", the user's own onboarding-focused
+    request** (field on `ui.TransactionCreationFragment`, own
+    `FireflyApiClient.listAssetAccounts()`-backed picker): since v0.206
+    applied **when the draft is built** (`RuleEngine(defaultSourceAccount
+    = FireflyPrefs.getDefaultSourceAccount())`, wired in
+    `posting.RuleMatching.buildEngine`), not as a create-screen pre-fill
+    any more - so the create form (via `populateFields`), the tap-time
+    and manual duplicate checks, and the test-match dialog all see the
+    same account (the old pre-fill left the tap-time check with no
+    account to search on, so a message whose rule names no account went
+    straight to the create screen even when the transaction already
+    existed). Only when the rule left *both* sides blank, never when
+    just one side is - a legitimate DEPOSIT rule that already filled in
+    a real destination must not get a source added too, or
+    `inferKindFromAccounts` would flip `kind` to TRANSFER. The default
+    becomes the source of a withdrawal/transfer and the destination of
+    a deposit. **Automatic creation is unchanged, the user's own
+    explicit safety requirement**: the draft still carries
+    `DraftIssue.ACCOUNT_SELECTION_REQUIRED` (computed from the *rule's
+    own* accounts), so `AutoCreateWorker` still stops at a review
+    notification instead of posting. (The default currency works the
+    same way: `RuleEngine.defaultAccountCurrency`.)
     **Both currency fields (home and foreign) now pick from a list
     too, the user's own request**: `currencyCodeLayout`/
     `foreignCurrencyCodeLayout` get the same end-icon `AlertDialog`

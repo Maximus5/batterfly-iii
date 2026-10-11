@@ -157,7 +157,6 @@ class CreateTransactionFragment : Fragment() {
 
     private fun showCreateForm(context: Context, matched: ParseOutcome.Matched?) {
         val binding = binding ?: return
-        val fireflyPrefs = FireflyPrefs(context)
         if (matched == null) {
             // Shouldn't happen in practice - this screen is only ever launched right after a
             // successful match - but the message could in theory have been edited away from under
@@ -179,7 +178,6 @@ class CreateTransactionFragment : Fragment() {
         kind = draft.kind
         populateFields(draft)
         enableAccountPickersForCreate()
-        prefillDefaultSourceAccountIfBothBlank(draft, fireflyPrefs)
         updateKindText()
 
         // Best-effort, silent - [inferKindFromAccounts] can already resolve kind from whichever
@@ -350,24 +348,6 @@ class CreateTransactionFragment : Fragment() {
             destinationAccountPick = it
             inferKindFromAccounts()
         }
-    }
-
-    /** Pre-fills [FragmentCreateTransactionBinding.sourceAccountInput] with `FireflyPrefs.
-     * getDefaultSourceAccount()` - but **only** when [draft] leaves both account sides blank, the
-     * user's own explicit scoping (not "source blank" alone): pre-filling source unconditionally
-     * could turn a legitimate DEPOSIT rule's own already-filled destination into a
-     * wrongly-inferred TRANSFER once source also looked like a real asset account (see
-     * [inferKindFromAccounts]). Deliberately just a text fill, not a full [PickedAccount] - the
-     * account-field `TextWatcher` already registered in `onViewCreated` re-runs
-     * [inferKindFromAccounts] off this same text change, same as if the user had typed it by hand;
-     * no special-casing needed here for that. A no-op when the setting is blank (most users
-     * haven't visited the settings screen yet) or the setting is unset. */
-    private fun prefillDefaultSourceAccountIfBothBlank(draft: TransactionDraft, fireflyPrefs: FireflyPrefs) {
-        val binding = binding ?: return
-        if (draft.sourceName != null || draft.destinationName != null) return
-        val defaultSourceAccount = fireflyPrefs.getDefaultSourceAccount()
-        if (defaultSourceAccount.isBlank()) return
-        binding.sourceAccountInput.setText(defaultSourceAccount)
     }
 
     /** Create mode only (a no-op in edit mode - `kind` is fixed there, never recomputed). Re-runs

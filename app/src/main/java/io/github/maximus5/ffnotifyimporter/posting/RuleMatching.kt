@@ -43,7 +43,7 @@ fun capturedMessageFrom(data: Data): CapturedMessage = CapturedMessage(
 private fun buildEngine(context: Context, prefs: FireflyPrefs): RuleEngine {
     val rules = RulesDb.getInstance(context).loadAllOrdered().withBuiltIns(prefs.isBuiltInRulesEnabled())
     val currencySymbols = CurrenciesDb.getInstance(context).symbolToCodeMap()
-    return RuleEngine(rules, currencySymbols, prefs.getAllTransactionsTags(), prefs.getDefaultAccountCurrency())
+    return RuleEngine(rules, currencySymbols, prefs.getAllTransactionsTags(), prefs.getDefaultAccountCurrency(), prefs.getDefaultSourceAccount())
 }
 
 /**
