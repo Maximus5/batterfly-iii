@@ -2,7 +2,6 @@ package io.github.maximus5.ffnotifyimporter.ui
 
 import android.content.Context
 import android.util.AttributeSet
-import com.google.android.material.textfield.MaterialAutoCompleteTextView
 
 /**
  * A comma-separated list field that suggests matches for the tag being typed (the text after the
@@ -15,7 +14,7 @@ class TagsAutoCompleteTextView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
     defStyleAttr: Int = com.google.android.material.R.attr.autoCompleteTextViewStyle,
-) : MaterialAutoCompleteTextView(context, attrs, defStyleAttr) {
+) : SuggestAutoCompleteTextView(context, attrs, defStyleAttr) {
 
     private var suggestionAdapter: SuggestionAdapter? = null
 
@@ -52,9 +51,10 @@ class TagsAutoCompleteTextView @JvmOverloads constructor(
 
     override fun enoughToFilter(): Boolean = currentToken().length >= threshold
 
-    override fun performFiltering(text: CharSequence?, keyCode: Int) {
+    /** Filters by the tag at the cursor as it is when typing pauses, not as it was at the keystroke. */
+    override fun filterNow(text: CharSequence?, keyCode: Int) {
         suggestionAdapter?.excluded = otherTags()
-        super.performFiltering(currentToken(), keyCode)
+        super.filterNow(currentToken(), keyCode)
     }
 
     override fun replaceText(text: CharSequence) {

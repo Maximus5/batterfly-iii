@@ -2495,7 +2495,14 @@ Single `:app` module, packages under
     tag and "tags for all transactions"). Matching is
     `suggestionMatches` (the entry or any word of it starts with what is
     typed, case-insensitive, unit-tested); `TagsAutoCompleteTextView`
-    leaves out tags already in the field.
+    leaves out tags already in the field. **Since v0.234** the list
+    appears only after typing has paused for 300 ms
+    (`SuggestAutoCompleteTextView`, the base of both field kinds), so a
+    one-letter query does not flash a long list while the user is still
+    typing. Gotcha: calling `dismissDropDown()` to clear the old list
+    before the delay also makes `AutoCompleteTextView` ignore the next
+    filtering result, so the list never came back - the old list is left
+    as is until the new one is ready.
     `PickedAccount(id, name)` + `pick?.takeIf { it.name == currentText }
     ?.id` at build time (not a live `TextWatcher`) is the exact same
     stale-id-after-manual-edit handling `RuleEditFragment.buildDraft`

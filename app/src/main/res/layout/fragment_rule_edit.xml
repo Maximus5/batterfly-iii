@@ -270,7 +270,7 @@
             app:endIconDrawable="@drawable/ic_insert_macro"
             app:endIconContentDescription="@string/rule_insert_macro">
 
-            <com.google.android.material.textfield.MaterialAutoCompleteTextView
+            <io.github.maximus5.ffnotifyimporter.ui.SuggestAutoCompleteTextView
                 android:id="@+id/categoryTemplateInput"
                 style="@style/Widget.Material3.AutoCompleteTextView.OutlinedBox"
                 android:layout_width="match_parent"
