@@ -351,7 +351,7 @@
     <string name="reliability_battery_card_body">Android restricts this app in the background, so it may miss notifications. Set Butterfly III to \"Don\'t optimize\" (or \"Unrestricted\").</string>
     <string name="reliability_battery_button">Open battery optimization settings</string>
     <string name="reliability_autorevoke_card_title">Permissions may be removed</string>
-    <string name="reliability_autorevoke_card_body">If you do not open the app for a few months, Android can remove its permissions and stop it. Turn off \"Remove permissions if app isn\'t used\" (the name differs between phones).</string>
+    <string name="reliability_autorevoke_card_body">If you do not open the app for a long time, Android can remove its permissions and stop it. Turn off \"Remove permissions if app isn\'t used\" (the name differs between phones).</string>
     <string name="reliability_autorevoke_button">Open app permission settings</string>
     <string name="reliability_app_info_button">Open app info…</string>
 </resources>

@@ -353,7 +353,7 @@
     <string name="reliability_battery_card_body">Android ограничивает работу приложения в фоне, поэтому оно может пропускать уведомления. Выберите для Butterfly III «Не оптимизировать» (или «Без ограничений»).</string>
     <string name="reliability_battery_button">Открыть настройки оптимизации батареи</string>
     <string name="reliability_autorevoke_card_title">Разрешения могут быть отозваны</string>
-    <string name="reliability_autorevoke_card_body">Если не открывать приложение несколько месяцев, Android может отозвать его разрешения и остановить его. Отключите «Удалять разрешения, если приложение не используется» (название на разных телефонах отличается).</string>
+    <string name="reliability_autorevoke_card_body">Если не открывать приложение долгое время, Android может отозвать его разрешения и остановить его. Отключите «Удалять разрешения, если приложение не используется» (название на разных телефонах отличается).</string>
     <string name="reliability_autorevoke_button">Открыть настройки разрешений приложения</string>
     <string name="reliability_app_info_button">Открыть сведения о приложении…</string>
 </resources>

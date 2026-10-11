@@ -351,7 +351,7 @@
     <string name="reliability_battery_card_body">Android schränkt diese App im Hintergrund ein, daher kann sie Benachrichtigungen verpassen. Stellen Sie Butterfly III auf „Nicht optimieren“ (oder „Uneingeschränkt“).</string>
     <string name="reliability_battery_button">Einstellungen der Akku-Optimierung öffnen</string>
     <string name="reliability_autorevoke_card_title">Berechtigungen können entzogen werden</string>
-    <string name="reliability_autorevoke_card_body">Wenn Sie die App einige Monate nicht öffnen, kann Android ihre Berechtigungen entfernen und sie stoppen. Schalten Sie „Berechtigungen entfernen, wenn App nicht verwendet wird“ aus (der Name unterscheidet sich je nach Gerät).</string>
+    <string name="reliability_autorevoke_card_body">Wenn Sie die App lange nicht öffnen, kann Android ihre Berechtigungen entfernen und sie stoppen. Schalten Sie „Berechtigungen entfernen, wenn App nicht verwendet wird“ aus (der Name unterscheidet sich je nach Gerät).</string>
     <string name="reliability_autorevoke_button">Berechtigungen der App öffnen</string>
     <string name="reliability_app_info_button">App-Info öffnen…</string>
 </resources>
