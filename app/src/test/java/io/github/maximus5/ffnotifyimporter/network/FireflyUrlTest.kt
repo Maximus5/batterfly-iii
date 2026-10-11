@@ -280,3 +280,20 @@ class ServerChangeTest {
         assertTrue(isServerChange("https://firefly.example.com", "http://firefly.example.com"))
     }
 }
+
+class RedirectMessageTest {
+    @Test
+    fun `redirect message shows the code and the target, and says it was not followed`() {
+        val message = redirectMessage(301, "https://other.example.com/api/v1/about")
+
+        assertTrue(message.contains("301"))
+        assertTrue(message.contains("https://other.example.com/api/v1/about"))
+        assertTrue(message.contains("not followed"))
+    }
+
+    @Test
+    fun `redirect message copes with a missing or blank Location`() {
+        assertFalse(redirectMessage(302, null).contains("(302) to"))
+        assertFalse(redirectMessage(302, "  ").contains("(302) to"))
+    }
+}

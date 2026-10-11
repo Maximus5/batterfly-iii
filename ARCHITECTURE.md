@@ -998,6 +998,13 @@ Single `:app` module, packages under
     (`updateUrlState()`, shown for any `http://` URL: "blocked" wording while the
     switch is off, a plain warning once on) - no separate warning view; the
     "Allow unencrypted HTTP" switch sits directly under the field.
+  - Redirects are never followed (AI-Review P2): `FireflyApiClient.openConnection`
+    sets `instanceFollowRedirects = false`, because `HttpURLConnection` would
+    otherwise re-send the `Authorization` header to a different host on a
+    same-scheme redirect, and would turn a redirected POST/PUT into a GET. Any
+    3xx becomes a `Result.Failure` (`redirectMessage`, showing the `Location`
+    so the user can correct the Firefly URL) - never retried, nothing re-sent.
+    Typical trigger: a saved `http://` URL whose server redirects to `https://`.
   - `ExchangeRateClient`/`ExchangeRateUrl` - same split as
     `FireflyApiClient`/`FireflyUrl` (real call vs. plain-Kotlin
     unit-testable URL-building/response-parsing, `ExchangeRateUrlTest`),

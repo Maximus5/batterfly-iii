@@ -270,6 +270,7 @@ class FireflyApiClient(baseUrl: String, private val token: String, private val a
         if (isCleartextUrl(baseUrl) && !allowCleartext) throw CleartextBlockedException()
         val connection = URL(baseUrl + path).openConnection() as HttpURLConnection
         connection.requestMethod = method
+        connection.instanceFollowRedirects = false
         connection.setRequestProperty("Authorization", "Bearer $token")
         connection.setRequestProperty("Accept", "application/vnd.api+json")
         connection.connectTimeout = TIMEOUT_MILLIS
@@ -278,6 +279,7 @@ class FireflyApiClient(baseUrl: String, private val token: String, private val a
     }
 
     private fun errorMessage(connection: HttpURLConnection, code: Int): String {
+        if (code in 300..399) return redirectMessage(code, connection.getHeaderField("Location"))
         val errorBody = connection.errorStream?.bufferedReader()?.use { it.readText() }.orEmpty()
         return "$code ${connection.responseMessage.orEmpty()}".trim() +
             errorBody.takeIf { it.isNotBlank() }?.let { ": $it" }.orEmpty()
@@ -287,6 +289,14 @@ class FireflyApiClient(baseUrl: String, private val token: String, private val a
         const val TIMEOUT_MILLIS = 15_000
     }
 }
+
+/** Redirects are never followed: the request carries the bearer token, and a redirect to another
+ * host (or a write silently re-sent as a GET) must not be acted on automatically. The server's
+ * `Location` is shown so the user can correct the Firefly URL instead. */
+internal fun redirectMessage(code: Int, location: String?): String =
+    "The server redirected the request ($code)" +
+        location?.takeIf { it.isNotBlank() }?.let { " to $it" }.orEmpty() +
+        " - redirects are not followed, so the token is never sent anywhere else. Set the Firefly URL to the final address."
 
 /** Thrown instead of sending the bearer token over plain `http://` while the user hasn't opted in
  * ("Allow unencrypted HTTP" on the Firefly connection screen) - an [IOException] so every caller's
