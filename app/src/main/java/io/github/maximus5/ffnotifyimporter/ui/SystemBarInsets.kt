@@ -8,7 +8,6 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.doOnAttach
-import androidx.core.view.updateLayoutParams
 import androidx.core.view.updatePadding
 import androidx.core.widget.NestedScrollView
 import androidx.fragment.app.Fragment
@@ -26,7 +25,7 @@ import com.google.android.material.color.MaterialColors
  * navigation-bar height as extra bottom padding with `clipToPadding=false` (see
  * [padBottomForNavigationBar]), and views tagged in XML are handled explicitly:
  * `skip_bottom_inset` (a scroller that sits above a pinned bar - the bar is padded instead),
- * `bottom_bar` (a pinned bottom bar: padded), `bottom_fab` (a floating button: bottom margin).
+ * `bottom_bar` (a pinned bottom bar: padded).
  *
  * The IME (keyboard) inset is folded in too: under edge-to-edge the classic
  * `adjustResize` no longer happens for free, so while the keyboard is up [root] gets the full IME
@@ -69,13 +68,11 @@ fun AppCompatActivity.useClassicSystemBars(root: View) {
 
 private const val TAG_SKIP = "skip_bottom_inset"
 private const val TAG_BAR = "bottom_bar"
-private const val TAG_FAB = "bottom_fab"
 
 private fun View.applyNavigationBarInsetsToContent() {
     when (tag) {
         TAG_SKIP -> return
         TAG_BAR -> { padBottomForNavigationBar(clip = false); return }
-        TAG_FAB -> { marginBottomForNavigationBar(); return }
     }
     if (this is ScrollView || this is NestedScrollView || this is RecyclerView) {
         padBottomForNavigationBar(clip = true)
@@ -94,15 +91,6 @@ private fun View.padBottomForNavigationBar(clip: Boolean) {
     if (clip) (this as? ViewGroup)?.clipToPadding = false
     ViewCompat.setOnApplyWindowInsetsListener(this) { view, insets ->
         view.updatePadding(bottom = basePadding + navigationBarBottom(insets))
-        insets
-    }
-    doOnAttach { it.requestApplyInsets() }
-}
-
-private fun View.marginBottomForNavigationBar() {
-    val baseMargin = (layoutParams as? ViewGroup.MarginLayoutParams)?.bottomMargin ?: 0
-    ViewCompat.setOnApplyWindowInsetsListener(this) { view, insets ->
-        view.updateLayoutParams<ViewGroup.MarginLayoutParams> { bottomMargin = baseMargin + navigationBarBottom(insets) }
         insets
     }
     doOnAttach { it.requestApplyInsets() }

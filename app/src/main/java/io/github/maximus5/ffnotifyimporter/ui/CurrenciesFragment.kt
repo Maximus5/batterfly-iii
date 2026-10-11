@@ -2,13 +2,18 @@ package io.github.maximus5.ffnotifyimporter.ui
 
 import android.os.Bundle
 import android.view.LayoutInflater
+import android.view.Menu
+import android.view.MenuInflater
+import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.PopupMenu
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
+import androidx.core.view.MenuProvider
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import io.github.maximus5.ffnotifyimporter.R
@@ -49,7 +54,22 @@ class CurrenciesFragment : Fragment() {
         binding.currenciesRecyclerView.layoutManager = LinearLayoutManager(requireContext())
         binding.currenciesRecyclerView.adapter = adapter
 
-        binding.addCurrencyButton.setOnClickListener { showEditDialog(null) }
+        // Toolbar action, same as the Rules screen's add button.
+        requireActivity().addMenuProvider(
+            object : MenuProvider {
+                override fun onCreateMenu(menu: Menu, menuInflater: MenuInflater) {
+                    menuInflater.inflate(R.menu.menu_currencies_list, menu)
+                }
+
+                override fun onMenuItemSelected(menuItem: MenuItem): Boolean {
+                    if (menuItem.itemId != R.id.action_add_currency) return false
+                    showEditDialog(null)
+                    return true
+                }
+            },
+            viewLifecycleOwner,
+            Lifecycle.State.RESUMED,
+        )
     }
 
     override fun onResume() {

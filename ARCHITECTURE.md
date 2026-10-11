@@ -3163,7 +3163,8 @@ Single `:app` module, packages under
       focused/filled and others not looks visually inconsistent ("zoo
       of labels", per user feedback). Save runs `validateRule` and
       shows every error in one dialog before writing anything.
-    - `CurrenciesFragment`/`CurrenciesAdapter` - list + add/edit (one
+    - `CurrenciesFragment`/`CurrenciesAdapter` - list + add/edit (add is a
+      toolbar "+" action via a `MenuProvider`, like the Rules screen; one
       `AlertDialog` with two fields: code, symbol - the code field is
       still freely typeable but has a dropdown end icon listing Firefly's
       *enabled* currencies ("EUR - Euro (€)"); picking one also fills
@@ -3255,7 +3256,8 @@ Single `:app` module, packages under
     bottom padding with `clipToPadding=false`, so the last row still scrolls
     above the bar. XML tags override that: `skip_bottom_inset` (scroller
     above a pinned bar), `bottom_bar` (pinned bar -> padded, e.g. the consent
-    buttons), `bottom_fab` (FAB -> bottom margin). New screens with a pinned
+    buttons). Floating action buttons are not used (the Currencies and
+    Rules "add" actions live in the toolbar). New screens with a pinned
     bottom element must use these tags. Status/nav bar icon colors are set
     explicitly from the theme background brightness.
 - `FfNotifyImporterApp` (`Application` subclass, declared in the
