@@ -468,10 +468,10 @@ class MessagesFragment : Fragment() {
      * other field-summary dialog in this fragment. */
     private fun buildFoundTransactionInfo(candidate: RemoteTransactionCandidate): CharSequence {
         val amountText = if (candidate.foreignAmount != null && candidate.foreignCurrencyCode != null) {
-            "${candidate.amount.toPlainString()} ${candidate.currencyCode} " +
-                "(${candidate.foreignAmount.toPlainString()} ${candidate.foreignCurrencyCode})"
+            "${formatAmountForDisplay(candidate.amount)} ${candidate.currencyCode} " +
+                "(${formatAmountForDisplay(candidate.foreignAmount)} ${candidate.foreignCurrencyCode})"
         } else {
-            "${candidate.amount.toPlainString()} ${candidate.currencyCode}"
+            "${formatAmountForDisplay(candidate.amount)} ${candidate.currencyCode}"
         }
         val text = SpannableStringBuilder()
         val field = boldField(text)
