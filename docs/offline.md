@@ -51,3 +51,18 @@ meantime. You can also open it and create the transaction yourself.
 - The saved notification text is stored on the phone without encryption beyond
   the normal protection of Android's app storage.
   Do not keep it longer than you need.
+
+## Keep the app running in the background
+
+Butterfly III can only save a notification while Android lets it run. If the
+phone stops the app after weeks without use, payments are missed. To avoid
+this:
+
+- In **Settings → Notifications**, scroll to *Keeping the monitoring running*.
+  If the app is battery-optimized or may lose its permissions, a warning with
+  a button is shown there. Follow it.
+- On Samsung phones, make sure Butterfly III is not in *Sleeping apps* or
+  *Deep sleeping apps* (Settings → Battery → Background usage limits). The app
+  cannot check this for you.
+- Do not use *Force stop* on the app. After that, Android does not deliver
+  notifications to it until you open it again.

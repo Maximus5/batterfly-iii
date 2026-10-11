@@ -1,8 +1,12 @@
 package io.github.maximus5.ffnotifyimporter.ui
 
 import android.Manifest
+import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.os.PowerManager
 import android.provider.Settings
 import android.view.LayoutInflater
 import android.view.View
@@ -63,11 +67,56 @@ class NotificationSettingsFragment : Fragment() {
             prefs.setNotifySkippedDuplicatesEnabled(isChecked)
         }
         binding.openSystemSettingsButton.setOnClickListener { openSystemNotificationSettings() }
+        binding.batteryCardButton.setOnClickListener {
+            openSystemScreen(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+        }
+        binding.autoRevokeCardButton.setOnClickListener {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                openSystemScreen(
+                    Intent(Intent.ACTION_AUTO_REVOKE_PERMISSIONS)
+                        .setData(Uri.fromParts("package", requireContext().packageName, null)),
+                )
+            }
+        }
+        binding.appInfoButton.setOnClickListener { openAppInfo() }
     }
 
     override fun onResume() {
         super.onResume()
         updatePermissionState()
+        updateReliabilityState()
+    }
+
+    /** The two warning cards are shown only while the system state really can make the listener
+     * miss notifications. What the app cannot read - vendor power savers such as Samsung's
+     * "Sleeping apps" - is covered by the always-visible static hint instead. */
+    private fun updateReliabilityState() {
+        val binding = binding ?: return
+        val context = requireContext()
+        val powerManager = context.getSystemService(PowerManager::class.java)
+        val batteryOptimized = powerManager != null && !powerManager.isIgnoringBatteryOptimizations(context.packageName)
+        binding.batteryCard.visibility = if (batteryOptimized) View.VISIBLE else View.GONE
+        val autoRevokeActive = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
+            !context.packageManager.isAutoRevokeWhitelisted
+        binding.autoRevokeCard.visibility = if (autoRevokeActive) View.VISIBLE else View.GONE
+    }
+
+    private fun openSystemScreen(intent: Intent) {
+        try {
+            startActivity(intent)
+        } catch (e: ActivityNotFoundException) {
+            openAppInfo()
+        }
+    }
+
+    private fun openAppInfo() {
+        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+            .setData(Uri.fromParts("package", requireContext().packageName, null))
+        try {
+            startActivity(intent)
+        } catch (e: ActivityNotFoundException) {
+            // Nothing more basic to fall back to.
+        }
     }
 
     private val notificationPermissionLauncher =

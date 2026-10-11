@@ -1,6 +1,7 @@
 package io.github.maximus5.ffnotifyimporter.notifications
 
 import android.app.Notification
+import android.content.ComponentName
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import io.github.maximus5.ffnotifyimporter.data.MessageStore
@@ -25,6 +26,17 @@ class BankNotificationListenerService : NotificationListenerService() {
     override fun onCreate() {
         super.onCreate()
         monitoredAppsPrefs = MonitoredAppsPrefs(applicationContext)
+    }
+
+    /** The system (or a vendor power manager) can unbind the listener without the process dying;
+     * asking to be rebound is the documented way back. A no-op when the user has revoked access. */
+    override fun onListenerDisconnected() {
+        super.onListenerDisconnected()
+        try {
+            requestRebind(ComponentName(this, BankNotificationListenerService::class.java))
+        } catch (e: RuntimeException) {
+            // Access revoked or the system refused: nothing to do, the user has to re-enable it.
+        }
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {

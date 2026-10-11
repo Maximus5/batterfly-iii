@@ -345,4 +345,14 @@
     <string name="setup_step_test_message">Add a test message</string>
     <string name="setup_step_test_message_sub">Try the setup without waiting for a real bank notification</string>
     <string name="setup_hide">Hide this guide</string>
+    <string name="reliability_title">Keeping the monitoring running</string>
+    <string name="reliability_intro">Android can stop apps that are not opened for a long time. Then Butterfly III would miss payment notifications. These settings help to prevent that.</string>
+    <string name="reliability_battery_card_title">Battery optimization is on</string>
+    <string name="reliability_battery_card_body">Android restricts this app in the background, so it may miss notifications. Set Butterfly III to \"Don\'t optimize\" (or \"Unrestricted\").</string>
+    <string name="reliability_battery_button">Open battery optimization settings</string>
+    <string name="reliability_autorevoke_card_title">Permissions may be removed</string>
+    <string name="reliability_autorevoke_card_body">If you do not open the app for a few months, Android can remove its permissions and stop it. Turn off \"Remove permissions if app isn\'t used\" (the name differs between phones).</string>
+    <string name="reliability_autorevoke_button">Open app permission settings</string>
+    <string name="reliability_other_hint">Some phones have their own power savers that this app cannot check, for example \"Sleeping apps\" and \"Deep sleeping apps\" on Samsung. Make sure Butterfly III is not on those lists. Never use \"Force stop\" on it.</string>
+    <string name="reliability_app_info_button">Open app info…</string>
 </resources>

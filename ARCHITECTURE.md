@@ -3429,3 +3429,21 @@ came out in English with the app set to German. `posting/AppLocaleContext.kt`
 them; every public notify function starts with it. Any new background code that builds
 user-visible strings must do the same. A notification's text is fixed when it is posted, so a
 later language change doesn't relabel notifications already in the shade.
+
+## Keeping the listener bound
+
+Monitoring is the system-bound `BankNotificationListenerService`, not a worker: a killed process
+is restarted and rebound by the system on the next notification as long as access is granted.
+What really stops it is a user "Force stop", vendor power savers (Samsung "Sleeping apps"),
+app hibernation after months unused, or a binding the system dropped. There is still no
+foreground service (see TODO.md). Two mitigations:
+
+- `onListenerDisconnected` calls `requestRebind(...)`, the documented way back after a
+  system-initiated unbind (a no-op once the user has revoked access; failures are swallowed).
+- The "Notifications" settings screen has a "Keeping the monitoring running" section. It shows a
+  warning card while `PowerManager.isIgnoringBatteryOptimizations` is false, and (API 30+) while
+  `PackageManager.isAutoRevokeWhitelisted` is false, each with a button to the matching system
+  screen (`ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS`, `ACTION_AUTO_REVOKE_PERMISSIONS`; both
+  fall back to the app-info page). The direct "allow" dialog
+  (`REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`) is deliberately not used - Play restricts it. Vendor
+  sleep lists cannot be read, so they only get a static hint and an app-info button.
