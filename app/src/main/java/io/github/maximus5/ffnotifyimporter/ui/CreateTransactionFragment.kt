@@ -422,7 +422,7 @@ class CreateTransactionFragment : Fragment() {
         val prefs = FireflyPrefs(context)
         if (!prefs.isConfigured()) return
         viewLifecycleOwner.lifecycleScope.launch {
-            val result = FireflyApiClient(prefs.getBaseUrl(), prefs.getToken()).listAssetAccounts()
+            val result = prefs.apiClient().listAssetAccounts()
             if (result is FireflyApiClient.Result.Success) {
                 assetAccounts = result.value
                 inferKindFromAccounts()
@@ -454,7 +454,7 @@ class CreateTransactionFragment : Fragment() {
             return
         }
         viewLifecycleOwner.lifecycleScope.launch {
-            when (val result = FireflyApiClient(prefs.getBaseUrl(), prefs.getToken()).listAssetAccounts()) {
+            when (val result = prefs.apiClient().listAssetAccounts()) {
                 is FireflyApiClient.Result.Success -> {
                     assetAccounts = result.value
                     showAccountPickerDialog(target, result.value, onPicked)
@@ -500,7 +500,7 @@ class CreateTransactionFragment : Fragment() {
             return
         }
         viewLifecycleOwner.lifecycleScope.launch {
-            when (val result = FireflyApiClient(prefs.getBaseUrl(), prefs.getToken()).listCategories()) {
+            when (val result = prefs.apiClient().listCategories()) {
                 is FireflyApiClient.Result.Success -> {
                     categories = result.value
                     showCategoryPickerDialog(target, result.value)
@@ -606,7 +606,7 @@ class CreateTransactionFragment : Fragment() {
             return
         }
         viewLifecycleOwner.lifecycleScope.launch {
-            when (val result = FireflyApiClient(prefs.getBaseUrl(), prefs.getToken()).listCurrencies()) {
+            when (val result = prefs.apiClient().listCurrencies()) {
                 is FireflyApiClient.Result.Success -> {
                     val enabled = result.value.filter { it.enabled }
                     enabledCurrencies = enabled
@@ -706,7 +706,7 @@ class CreateTransactionFragment : Fragment() {
         val prefs = FireflyPrefs(context)
         val amount = draft.amount ?: return
         val request = buildTransactionRequest(draft, amount)
-        val client = FireflyApiClient(prefs.getBaseUrl(), prefs.getToken())
+        val client = prefs.apiClient()
         when (val result = client.createTransaction(request)) {
             is FireflyApiClient.Result.Success -> onSaveSuccess(context, draft, result.value)
             is FireflyApiClient.Result.Failure -> onSaveFailure(context, result.message)
@@ -728,7 +728,7 @@ class CreateTransactionFragment : Fragment() {
         val prefs = FireflyPrefs(context)
         val amount = draft.amount ?: return
         val request = buildTransactionRequest(draft, amount)
-        val client = FireflyApiClient(prefs.getBaseUrl(), prefs.getToken())
+        val client = prefs.apiClient()
         when (val result = client.updateTransaction(transactionId, request)) {
             is FireflyApiClient.Result.Success -> onSaveSuccess(context, draft, result.value)
             is FireflyApiClient.Result.Failure -> onSaveFailure(context, result.message)

@@ -112,7 +112,7 @@ class CurrenciesFragment : Fragment() {
             return
         }
         viewLifecycleOwner.lifecycleScope.launch {
-            when (val result = FireflyApiClient(prefs.getBaseUrl(), prefs.getToken()).listCurrencies()) {
+            when (val result = prefs.apiClient().listCurrencies()) {
                 is FireflyApiClient.Result.Success -> {
                     val enabled = result.value.filter { it.enabled }
                     enabledCurrencies = enabled

@@ -139,7 +139,7 @@ class AutoCreateWorker(context: Context, params: WorkerParameters) : CoroutineWo
             foreignAmount = draft.foreignAmount?.toPlainString(),
             foreignCurrencyCode = draft.foreignCurrencyCode,
         )
-        val client = FireflyApiClient(prefs.getBaseUrl(), prefs.getToken())
+        val client = prefs.apiClient()
         return when (val result = client.createTransaction(request)) {
             is FireflyApiClient.Result.Success -> {
                 val createdDb = CreatedTransactionsDb.getInstance(applicationContext)

@@ -13,7 +13,7 @@ import java.net.URLEncoder
  * the framework already covers it" reasoning already used for the planned rules export/import
  * JSON format (see TODO.md) - a handful of endpoints doesn't justify a full HTTP client library.
  */
-class FireflyApiClient(baseUrl: String, private val token: String) {
+class FireflyApiClient(baseUrl: String, private val token: String, private val allowCleartext: Boolean = false) {
 
     private val baseUrl = normalizeBaseUrl(baseUrl)
 
@@ -267,6 +267,7 @@ class FireflyApiClient(baseUrl: String, private val token: String) {
     }
 
     private fun openConnection(path: String, method: String): HttpURLConnection {
+        if (isCleartextUrl(baseUrl) && !allowCleartext) throw CleartextBlockedException()
         val connection = URL(baseUrl + path).openConnection() as HttpURLConnection
         connection.requestMethod = method
         connection.setRequestProperty("Authorization", "Bearer $token")
@@ -286,3 +287,9 @@ class FireflyApiClient(baseUrl: String, private val token: String) {
         const val TIMEOUT_MILLIS = 15_000
     }
 }
+
+/** Thrown instead of sending the bearer token over plain `http://` while the user hasn't opted in
+ * ("Allow unencrypted HTTP" on the Firefly connection screen) - an [IOException] so every caller's
+ * existing catch turns it into a `Result.Failure`, but never retried (see [withNetworkRetry]). */
+class CleartextBlockedException :
+    IOException("Plain http:// is blocked - use https://, or enable \"Allow unencrypted HTTP\" in the Firefly connection settings")

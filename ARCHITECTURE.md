@@ -962,14 +962,21 @@ Single `:app` module, packages under
     instead - that one's for typing a rule's `homeCurrency` by hand
     without a typo, this one's "what does my actual Firefly instance
     have switched on right now".
-  - Cleartext (`http://`) support: Android blocks it by default at
-    API 28+. `res/xml/network_security_config.xml` allows it globally
-    (`<base-config cleartextTrafficPermitted="true" />`) rather than
-    for a specific domain, since the Firefly host is whatever the user
-    types in Settings - not knowable at build time. The URL field warns
-    in the UI when it's `http://`; the manifest's
-    `android:networkSecurityConfig` is what actually lets that
-    connection succeed instead of failing silently.
+  - Cleartext (`http://`) support is opt-in (AI-Review P1). Android blocks
+    it by default at API 28+, and `res/xml/network_security_config.xml`
+    allows it globally (`<base-config cleartextTrafficPermitted="true" />`)
+    rather than for a domain, since the Firefly host is whatever the user
+    types in Settings and a network security config can't be toggled at
+    runtime. The real gate is in `FireflyApiClient.openConnection`: for an
+    `http://` base URL it throws `CleartextBlockedException` (an
+    `IOException`, never retried by `withNetworkRetry`) *before* the bearer
+    token is sent, unless `FireflyPrefs.isAllowCleartext()` is on - the
+    "Allow unencrypted HTTP" switch on `FireflyConnectionFragment`, shown
+    only for an `http://` URL, off by default, and Save refuses an `http://`
+    URL while it's off. An install that already had an `http://` URL saved
+    is migrated to on once (`FireflyPrefs.migrateAllowCleartext`). Every
+    call site builds its client through `FireflyPrefs.apiClient()` so none
+    can forget the flag.
   - `ExchangeRateClient`/`ExchangeRateUrl` - same split as
     `FireflyApiClient`/`FireflyUrl` (real call vs. plain-Kotlin
     unit-testable URL-building/response-parsing, `ExchangeRateUrlTest`),

@@ -59,3 +59,27 @@ class NetworkRetryTest {
         assertEquals(1, calls)
     }
 }
+
+class CleartextGateTest {
+
+    @Test
+    fun `does not retry a blocked cleartext attempt`() = runBlocking {
+        var calls = 0
+        assertThrows(CleartextBlockedException::class.java) {
+            runBlocking {
+                withNetworkRetry(maxAttempts = 3) {
+                    calls++
+                    throw CleartextBlockedException()
+                }
+            }
+        }
+        assertEquals(1, calls)
+    }
+
+    @Test
+    fun `http base url fails without opt-in and never reaches the network`() = runBlocking {
+        val result = FireflyApiClient("http://firefly.example.com", "<token>").testConnection()
+        val failure = result as FireflyApiClient.Result.Failure
+        assertEquals(CleartextBlockedException().message, failure.message)
+    }
+}

@@ -1,6 +1,8 @@
 package io.github.maximus5.ffnotifyimporter.prefs
 
 import android.content.Context
+import io.github.maximus5.ffnotifyimporter.network.FireflyApiClient
+import io.github.maximus5.ffnotifyimporter.network.isCleartextUrl
 
 /**
  * Firefly III connection + posting-behavior settings. Base URL and personal access token are the
@@ -20,6 +22,25 @@ class FireflyPrefs(context: Context) {
     fun setToken(token: String) = putEncrypted(KEY_TOKEN, token)
 
     fun isConfigured(): Boolean = getBaseUrl().isNotBlank() && getToken().isNotBlank()
+
+    /** Off by default: the bearer token is never sent over plain `http://` unless the user opts in
+     * on the connection screen. Installs that already had an `http://` URL saved before this
+     * existed are migrated to on once ([migrateAllowCleartext]), so they keep working. */
+    fun isAllowCleartext(): Boolean = prefs.getBoolean(KEY_ALLOW_CLEARTEXT, false)
+    fun setAllowCleartext(allow: Boolean) = prefs.edit().putBoolean(KEY_ALLOW_CLEARTEXT, allow).apply()
+
+    /** The one way to build an API client from saved settings, so no call site can forget the
+     * cleartext opt-in. */
+    fun apiClient(): FireflyApiClient = FireflyApiClient(getBaseUrl(), getToken(), isAllowCleartext())
+
+    init {
+        migrateAllowCleartext()
+    }
+
+    private fun migrateAllowCleartext() {
+        if (prefs.contains(KEY_ALLOW_CLEARTEXT)) return
+        setAllowCleartext(isCleartextUrl(getBaseUrl()))
+    }
 
     /** Tag applied to a transaction whose amount was computed from a fetched exchange rate
      * rather than read straight off the notification - a plain, visible Firefly tag the user
@@ -115,6 +136,7 @@ class FireflyPrefs(context: Context) {
         private const val PREFS_NAME = "firefly_connection"
         private const val KEY_BASE_URL = "base_url"
         private const val KEY_TOKEN = "token"
+        private const val KEY_ALLOW_CLEARTEXT = "allow_cleartext"
         private const val KEY_APPROX_TAG = "approx_conversion_tag"
         private const val KEY_ALL_TRANSACTIONS_TAGS = "all_transactions_tag"
         private const val KEY_DEFAULT_ACCOUNT_CURRENCY = "default_account_currency"

@@ -74,7 +74,7 @@ sealed interface LinkedTransactionCheck {
  * keep agreeing on the answer. Every caller that already has a known id (not a fresh search) now
  * goes through this one function instead. */
 suspend fun verifyLinkedTransaction(prefs: FireflyPrefs, id: String): LinkedTransactionCheck {
-    val client = FireflyApiClient(prefs.getBaseUrl(), prefs.getToken())
+    val client = prefs.apiClient()
     return when (val result = client.getTransaction(id)) {
         is FireflyApiClient.Result.Success -> {
             val candidate = result.value
@@ -143,7 +143,7 @@ suspend fun findDuplicate(context: Context, draft: TransactionDraft, prefs: Fire
         includeDescription = includeDescription,
     ) ?: return DuplicateCheckResult.None()
 
-    val client = FireflyApiClient(prefs.getBaseUrl(), prefs.getToken())
+    val client = prefs.apiClient()
     return when (val result = client.searchTransactionsByQuery(query)) {
         is FireflyApiClient.Result.Success -> {
             val candidates = result.value.map { it.toRemoteCandidate() }

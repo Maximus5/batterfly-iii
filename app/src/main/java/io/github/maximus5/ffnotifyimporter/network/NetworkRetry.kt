@@ -23,6 +23,8 @@ internal suspend inline fun <T> withNetworkRetry(maxAttempts: Int = 3, block: ()
     while (true) {
         try {
             return block()
+        } catch (e: CleartextBlockedException) {
+            throw e
         } catch (e: IOException) {
             if (attempt >= maxAttempts) throw e
             delay(RETRY_BASE_DELAY_MILLIS shl (attempt - 1))

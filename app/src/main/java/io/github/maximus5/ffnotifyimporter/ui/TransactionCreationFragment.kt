@@ -188,7 +188,7 @@ class TransactionCreationFragment : Fragment() {
             return
         }
         viewLifecycleOwner.lifecycleScope.launch {
-            when (val result = FireflyApiClient(prefs.getBaseUrl(), prefs.getToken()).listCurrencies()) {
+            when (val result = prefs.apiClient().listCurrencies()) {
                 is FireflyApiClient.Result.Success -> {
                     val enabled = result.value.filter { it.enabled }
                     enabledCurrencies = enabled
@@ -232,7 +232,7 @@ class TransactionCreationFragment : Fragment() {
             return
         }
         viewLifecycleOwner.lifecycleScope.launch {
-            when (val result = FireflyApiClient(prefs.getBaseUrl(), prefs.getToken()).listAssetAccounts()) {
+            when (val result = prefs.apiClient().listAssetAccounts()) {
                 is FireflyApiClient.Result.Success -> {
                     assetAccounts = result.value
                     showAccountPickerDialog(target, result.value)

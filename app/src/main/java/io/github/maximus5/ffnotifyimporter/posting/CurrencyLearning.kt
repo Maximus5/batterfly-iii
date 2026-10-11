@@ -38,7 +38,7 @@ fun learnableSymbolEntry(symbol: String, fireflyCurrencies: List<FireflyCurrency
  * anything was added. A failed request is swallowed - same as not having looked. */
 suspend fun learnCurrencySymbols(context: Context, prefs: FireflyPrefs, symbols: Set<String>): Boolean {
     if (symbols.isEmpty()) return false
-    val result = FireflyApiClient(prefs.getBaseUrl(), prefs.getToken()).listCurrencies()
+    val result = prefs.apiClient().listCurrencies()
     val fireflyCurrencies = (result as? FireflyApiClient.Result.Success)?.value ?: return false
     val db = CurrenciesDb.getInstance(context)
     var learned = false

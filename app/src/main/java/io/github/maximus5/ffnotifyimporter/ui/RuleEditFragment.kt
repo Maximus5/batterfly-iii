@@ -210,7 +210,7 @@ class RuleEditFragment : Fragment() {
             return
         }
         viewLifecycleOwner.lifecycleScope.launch {
-            when (val result = FireflyApiClient(prefs.getBaseUrl(), prefs.getToken()).listAssetAccounts()) {
+            when (val result = prefs.apiClient().listAssetAccounts()) {
                 is FireflyApiClient.Result.Success -> {
                     assetAccounts = result.value
                     showAccountPickerDialog(target, result.value)

@@ -65,7 +65,7 @@ class FireflyConnectionFragment : Fragment() {
      * worth confirming - there's nothing for [save] to lose. [tokenInput] starts genuinely blank
      * every time (write-once design, same KDoc) and gets cleared again after a successful save, so
      * comparing it against a blank baseline still correctly flags "typed but not yet saved". */
-    private var initialSnapshot: Pair<String, String>? = null
+    private var initialSnapshot: Triple<String, String, Boolean>? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -82,6 +82,7 @@ class FireflyConnectionFragment : Fragment() {
         prefs = FireflyPrefs(requireContext())
 
         binding.urlInput.setText(prefs.getBaseUrl())
+        binding.allowCleartextSwitch.isChecked = prefs.isAllowCleartext()
         updateTokenHint()
         updateCleartextWarning(prefs.getBaseUrl())
 
@@ -100,9 +101,9 @@ class FireflyConnectionFragment : Fragment() {
         (activity as? SettingsActivity)?.setBackGuard { handleBackPressed() }
     }
 
-    private fun buildSnapshot(): Pair<String, String>? {
+    private fun buildSnapshot(): Triple<String, String, Boolean>? {
         val binding = binding ?: return null
-        return binding.urlInput.text?.toString()?.trim().orEmpty() to binding.tokenInput.text?.toString()?.trim().orEmpty()
+        return Triple(binding.urlInput.text?.toString()?.trim().orEmpty(), binding.tokenInput.text?.toString()?.trim().orEmpty(), binding.allowCleartextSwitch.isChecked)
     }
 
     private fun hasUnsavedChanges(): Boolean = buildSnapshot() != initialSnapshot
@@ -139,7 +140,9 @@ class FireflyConnectionFragment : Fragment() {
     }
 
     private fun updateCleartextWarning(url: String) {
-        binding?.cleartextWarning?.visibility = if (isCleartextUrl(url)) View.VISIBLE else View.GONE
+        val visibility = if (isCleartextUrl(url)) View.VISIBLE else View.GONE
+        binding?.cleartextWarning?.visibility = visibility
+        binding?.allowCleartextSwitch?.visibility = visibility
     }
 
     private fun updateTokenHint() {
@@ -159,8 +162,9 @@ class FireflyConnectionFragment : Fragment() {
         }
 
         binding.testConnectionResult.text = null
+        val allowCleartext = binding.allowCleartextSwitch.isChecked
         viewLifecycleOwner.lifecycleScope.launch {
-            val client = FireflyApiClient(url, token)
+            val client = FireflyApiClient(url, token, allowCleartext)
             when (val result = client.testConnection()) {
                 is FireflyApiClient.Result.Success -> {
                     this@FireflyConnectionFragment.binding?.testConnectionResult?.text =
@@ -202,7 +206,13 @@ class FireflyConnectionFragment : Fragment() {
             return
         }
 
+        if (isCleartextUrl(url) && !binding.allowCleartextSwitch.isChecked) {
+            binding.urlInput.error = getString(R.string.firefly_cleartext_required)
+            return
+        }
+
         prefs.setBaseUrl(url)
+        prefs.setAllowCleartext(binding.allowCleartextSwitch.isChecked)
         if (typedToken.isNotBlank()) {
             prefs.setToken(typedToken)
             binding.tokenInput.text?.clear()
@@ -217,7 +227,7 @@ class FireflyConnectionFragment : Fragment() {
         val settings = activity as? SettingsActivity
         saving = true
         viewLifecycleOwner.lifecycleScope.launch {
-            showAutofillToast(context, autofillDefaults(prefs, FireflyApiClient(url, prefs.getToken())))
+            showAutofillToast(context, autofillDefaults(prefs, prefs.apiClient()))
             settings?.leaveScreen()
         }
     }
