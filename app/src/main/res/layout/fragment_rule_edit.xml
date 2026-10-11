@@ -270,10 +270,13 @@
             app:endIconDrawable="@drawable/ic_insert_macro"
             app:endIconContentDescription="@string/rule_insert_macro">
 
-            <com.google.android.material.textfield.TextInputEditText
+            <com.google.android.material.textfield.MaterialAutoCompleteTextView
                 android:id="@+id/categoryTemplateInput"
+                style="@style/Widget.Material3.AutoCompleteTextView.OutlinedBox"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content" />
+                android:layout_height="wrap_content"
+                android:completionThreshold="1"
+                android:inputType="text" />
 
         </com.google.android.material.textfield.TextInputLayout>
 
@@ -288,10 +291,13 @@
             app:endIconDrawable="@drawable/ic_insert_macro"
             app:endIconContentDescription="@string/rule_insert_macro">
 
-            <com.google.android.material.textfield.TextInputEditText
+            <io.github.maximus5.ffnotifyimporter.ui.TagsAutoCompleteTextView
                 android:id="@+id/tagsTemplateInput"
+                style="@style/Widget.Material3.AutoCompleteTextView.OutlinedBox"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content" />
+                android:layout_height="wrap_content"
+                android:completionThreshold="1"
+                android:inputType="text" />
 
         </com.google.android.material.textfield.TextInputLayout>
 

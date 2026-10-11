@@ -23,6 +23,7 @@ import io.github.maximus5.ffnotifyimporter.data.MessageStore
 import io.github.maximus5.ffnotifyimporter.databinding.FragmentRuleEditBinding
 import io.github.maximus5.ffnotifyimporter.network.FireflyAccount
 import io.github.maximus5.ffnotifyimporter.network.FireflyApiClient
+import io.github.maximus5.ffnotifyimporter.posting.FireflySuggestions
 import io.github.maximus5.ffnotifyimporter.notifications.AppLabelResolver
 import io.github.maximus5.ffnotifyimporter.parser.namedGroupNames
 import io.github.maximus5.ffnotifyimporter.prefs.FireflyPrefs
@@ -72,6 +73,21 @@ class RuleEditFragment : Fragment() {
         return binding!!.root
     }
 
+    /** Best-effort and silent: the category and tags template fields offer Firefly's existing names
+     * while typing (the shared [FireflySuggestions] cache). A template may also hold `{macros}`, so
+     * the list is only a convenience; without a server the fields stay plain text. */
+    private fun loadSuggestions() {
+        val prefs = FireflyPrefs(requireContext())
+        if (!prefs.isConfigured()) return
+        viewLifecycleOwner.lifecycleScope.launch {
+            val categories = (FireflySuggestions.categories(prefs) as? FireflyApiClient.Result.Success)?.value
+            val tags = (FireflySuggestions.tags(prefs) as? FireflyApiClient.Result.Success)?.value
+            val binding = binding ?: return@launch
+            if (categories != null) binding.categoryTemplateInput.setAdapter(SuggestionAdapter(requireContext(), categories.map { it.name }))
+            if (tags != null) binding.tagsTemplateInput.setSuggestions(tags)
+        }
+    }
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         val binding = binding ?: return
@@ -79,6 +95,7 @@ class RuleEditFragment : Fragment() {
 
         setupKindDropdown()
         setupAppsDropdown()
+        loadSuggestions()
 
         val ruleId = arguments?.getString(ARG_RULE_ID)
         existingRule = ruleId?.let { id -> rulesDb.loadAllOrdered().firstOrNull { it.id == id } }

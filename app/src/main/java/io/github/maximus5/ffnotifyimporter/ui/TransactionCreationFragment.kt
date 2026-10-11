@@ -16,6 +16,7 @@ import io.github.maximus5.ffnotifyimporter.R
 import io.github.maximus5.ffnotifyimporter.databinding.FragmentTransactionCreationBinding
 import io.github.maximus5.ffnotifyimporter.network.FireflyAccount
 import io.github.maximus5.ffnotifyimporter.network.FireflyApiClient
+import io.github.maximus5.ffnotifyimporter.posting.FireflySuggestions
 import io.github.maximus5.ffnotifyimporter.network.FireflyCurrency
 import io.github.maximus5.ffnotifyimporter.posting.isNotificationPermissionGranted
 import io.github.maximus5.ffnotifyimporter.prefs.FireflyPrefs
@@ -105,6 +106,18 @@ class TransactionCreationFragment : Fragment() {
         return binding!!.root
     }
 
+    /** Best-effort and silent: the two tag fields offer Firefly's existing tags while typing (the
+     * shared [FireflySuggestions] cache); without a server they stay plain text fields. */
+    private fun loadTagSuggestions() {
+        if (!prefs.isConfigured()) return
+        viewLifecycleOwner.lifecycleScope.launch {
+            val tags = (FireflySuggestions.tags(prefs) as? FireflyApiClient.Result.Success)?.value ?: return@launch
+            val binding = binding ?: return@launch
+            binding.allTransactionsTagInput.setSuggestions(tags)
+            binding.approxTagInput.setSuggestions(tags)
+        }
+    }
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         val binding = binding ?: return
@@ -118,6 +131,7 @@ class TransactionCreationFragment : Fragment() {
         binding.defaultSourceAccountInput.setText(prefs.getDefaultSourceAccount())
         binding.allTransactionsTagInput.setText(prefs.getAllTransactionsTags())
         binding.approxTagInput.setText(prefs.getApproxConversionTag())
+        loadTagSuggestions()
 
         binding.defaultAccountCurrencyLayout.setEndIconOnClickListener { showCurrencyPicker(binding.defaultAccountCurrencyInput) }
         binding.defaultSourceAccountLayout.setEndIconOnClickListener { showAccountPicker(binding.defaultSourceAccountInput) }

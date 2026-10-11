@@ -2480,11 +2480,22 @@ Single `:app` module, packages under
     icon still opens the full modal picker); for tags the list is for
     the tag after the last comma, and picking one inserts "tag, ".
     `loadSuggestions` fills both from Firefly in the background
-    (`listCategories`, shared cache with the picker, and the new
-    `listTags()` - `GET /v1/tags`, paginated like categories, name under
-    `attributes.tag`, `parseTagList`; checked against Firefly's
-    `TagTransformer`/route source) and stays silent on failure - the
-    fields work as plain text without it.
+    (`listCategories` and the new `listTags()` - `GET /v1/tags`,
+    paginated like categories, name under `attributes.tag`,
+    `parseTagList`; checked against Firefly's `TagTransformer`/route
+    source) and stays silent on failure - the fields work as plain text
+    without it. **Since v0.233** the two lists come from
+    `posting.FireflySuggestions`, a process-wide in-memory cache (10
+    minutes, per server address; a failed refetch falls back to the stale
+    list; `remember` adds the category/tags of a just-saved transaction;
+    deliberately not written to disk - the names can be personal), the
+    same cache feeds the category picker, and the suggestions are also on
+    the rule editor's category and tags *template* fields and on the two
+    tag fields of the Transactions settings (the approximate-conversion
+    tag and "tags for all transactions"). Matching is
+    `suggestionMatches` (the entry or any word of it starts with what is
+    typed, case-insensitive, unit-tested); `TagsAutoCompleteTextView`
+    leaves out tags already in the field.
     `PickedAccount(id, name)` + `pick?.takeIf { it.name == currentText }
     ?.id` at build time (not a live `TextWatcher`) is the exact same
     stale-id-after-manual-edit handling `RuleEditFragment.buildDraft`

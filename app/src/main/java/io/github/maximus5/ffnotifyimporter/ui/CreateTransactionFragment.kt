@@ -12,7 +12,6 @@ import android.text.style.StyleSpan
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ArrayAdapter
 import android.widget.EditText
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
@@ -33,6 +32,7 @@ import io.github.maximus5.ffnotifyimporter.network.FireflyCategory
 import io.github.maximus5.ffnotifyimporter.network.FireflyCurrency
 import io.github.maximus5.ffnotifyimporter.network.FireflyTransactionRequest
 import io.github.maximus5.ffnotifyimporter.posting.DuplicateCheckResult
+import io.github.maximus5.ffnotifyimporter.posting.FireflySuggestions
 import io.github.maximus5.ffnotifyimporter.posting.LinkedTransactionCheck
 import io.github.maximus5.ffnotifyimporter.posting.ReviewNotifications
 import io.github.maximus5.ffnotifyimporter.posting.checkForDuplicate
@@ -112,7 +112,6 @@ class CreateTransactionFragment : Fragment() {
      * that a stale cache for the rest of this one screen is an acceptable trade for not hitting
      * the network on every picker tap. */
     private var assetAccounts: List<FireflyAccount>? = null
-    private var categories: List<FireflyCategory>? = null
     private var enabledCurrencies: List<FireflyCurrency>? = null
 
     private var saveMenu: SaveMenuHandle? = null
@@ -262,22 +261,20 @@ class CreateTransactionFragment : Fragment() {
     /** Best-effort, silent (no toast on failure - the fields work as plain text without it): fills
      * the category and tags fields' suggestion lists from Firefly, so typing "Clo" offers matching
      * categories in a small non-modal list under the field (the end icon's full picker is
-     * separate). Reuses the category cache the picker also fills. */
+     * separate). Both lists come from the process-wide [FireflySuggestions] cache, shared with the
+     * picker and the other screens that offer them. */
     private fun loadSuggestions(context: Context) {
         val prefs = FireflyPrefs(context)
         if (!prefs.isConfigured()) return
         viewLifecycleOwner.lifecycleScope.launch {
-            val client = prefs.apiClient()
-            val categoryList = categories ?: (client.listCategories() as? FireflyApiClient.Result.Success)?.value?.also { categories = it }
-            val tagList = (client.listTags() as? FireflyApiClient.Result.Success)?.value
+            val categoryList = (FireflySuggestions.categories(prefs) as? FireflyApiClient.Result.Success)?.value
+            val tagList = (FireflySuggestions.tags(prefs) as? FireflyApiClient.Result.Success)?.value
             val binding = binding ?: return@launch
             if (categoryList != null) {
-                binding.categoryInput.setAdapter(
-                    ArrayAdapter(context, android.R.layout.simple_dropdown_item_1line, categoryList.map { it.name }),
-                )
+                binding.categoryInput.setAdapter(SuggestionAdapter(context, categoryList.map { it.name }))
             }
             if (tagList != null) {
-                binding.tagsInput.setAdapter(ArrayAdapter(context, android.R.layout.simple_dropdown_item_1line, tagList))
+                binding.tagsInput.setSuggestions(tagList)
             }
         }
     }
@@ -564,17 +561,9 @@ class CreateTransactionFragment : Fragment() {
             Toast.makeText(context, R.string.rule_firefly_not_configured, Toast.LENGTH_LONG).show()
             return
         }
-        val cached = categories
-        if (cached != null) {
-            showCategoryPickerDialog(target, cached)
-            return
-        }
         viewLifecycleOwner.lifecycleScope.launch {
-            when (val result = prefs.apiClient().listCategories()) {
-                is FireflyApiClient.Result.Success -> {
-                    categories = result.value
-                    showCategoryPickerDialog(target, result.value)
-                }
+            when (val result = FireflySuggestions.categories(prefs)) {
+                is FireflyApiClient.Result.Success -> showCategoryPickerDialog(target, result.value)
                 is FireflyApiClient.Result.Failure ->
                     Toast.makeText(context, getString(R.string.create_tx_categories_failed, result.message), Toast.LENGTH_LONG).show()
             }
@@ -843,6 +832,7 @@ class CreateTransactionFragment : Fragment() {
             fireflyTransactionId = transactionId,
         )
         RetentionController.purgeCreatedTransactions(createdDb, RetentionPrefs(context).getRetentionDays())
+        FireflySuggestions.remember(FireflyPrefs(context), draft.category, draft.tags)
         MessageStore.shared.setTransactionId(message, transactionId, appliedRuleLabel)
         if (!isEditMode && !createdFromApproximateRule) ReviewNotifications.supersedeApproximate(context, draft)
         ReviewNotifications.cancel(context, message)

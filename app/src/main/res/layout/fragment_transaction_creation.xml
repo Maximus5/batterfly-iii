@@ -124,10 +124,13 @@
             android:hint="@string/firefly_field_all_transactions_tags"
             app:expandedHintEnabled="false">
 
-            <com.google.android.material.textfield.TextInputEditText
+            <io.github.maximus5.ffnotifyimporter.ui.TagsAutoCompleteTextView
                 android:id="@+id/allTransactionsTagInput"
+                style="@style/Widget.Material3.AutoCompleteTextView.OutlinedBox"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content" />
+                android:layout_height="wrap_content"
+                android:completionThreshold="1"
+                android:inputType="text" />
 
         </com.google.android.material.textfield.TextInputLayout>
 
@@ -146,10 +149,13 @@
             android:hint="@string/firefly_field_approx_tag"
             app:expandedHintEnabled="false">
 
-            <com.google.android.material.textfield.TextInputEditText
+            <io.github.maximus5.ffnotifyimporter.ui.TagsAutoCompleteTextView
                 android:id="@+id/approxTagInput"
+                style="@style/Widget.Material3.AutoCompleteTextView.OutlinedBox"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content" />
+                android:layout_height="wrap_content"
+                android:completionThreshold="1"
+                android:inputType="text" />
 
         </com.google.android.material.textfield.TextInputLayout>
 
