@@ -197,6 +197,7 @@
     <string name="create_tx_create">Anlegen</string>
     <string name="create_tx_rate_failed">Wechselkurs konnte nicht abgerufen werden - Betrag manuell eingeben</string>
     <string name="messages_checking">Prüfe…</string>
+    <string name="messages_checking_slow">Bitte warten, die Prüfung dauert länger als üblich…</string>
     <string name="create_tx_field_amount">Betrag</string>
     <string name="create_tx_field_currency">Währung</string>
     <string name="create_tx_field_foreign_amount">Betrag in Fremdwährung</string>

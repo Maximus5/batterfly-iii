@@ -199,6 +199,7 @@
     <string name="create_tx_create">Создать</string>
     <string name="create_tx_rate_failed">Не удалось получить курс - введите сумму вручную</string>
     <string name="messages_checking">Проверяем…</string>
+    <string name="messages_checking_slow">Пожалуйста, подождите, проверка идёт дольше обычного…</string>
     <string name="create_tx_field_amount">Сумма</string>
     <string name="create_tx_field_currency">Валюта</string>
     <string name="create_tx_field_foreign_amount">Сумма в иностр. валюте</string>

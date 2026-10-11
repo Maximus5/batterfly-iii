@@ -17,4 +17,27 @@
         android:layout_height="0dp"
         android:layout_weight="1" />
 
+    <!-- Shown instead of the toolbar and list while a review notification's tap runs its duplicate
+         check, so the list does not flash before the editor opens (see MainActivity.beginReviewCheck). -->
+    <LinearLayout
+        android:id="@+id/checkingPanel"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:padding="32dp"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/checkingSlowText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:text="@string/messages_checking_slow"
+            android:textSize="16sp"
+            android:visibility="invisible" />
+
+    </LinearLayout>
+
 </LinearLayout>

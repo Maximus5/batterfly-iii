@@ -3,6 +3,7 @@ package io.github.maximus5.ffnotifyimporter.ui
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.view.View
 import android.view.Menu
 import android.view.MenuItem
 import androidx.activity.OnBackPressedCallback
@@ -36,6 +37,8 @@ class MainActivity : AppCompatActivity() {
 
         setSupportActionBar(binding.toolbar)
         onBackPressedDispatcher.addCallback(this, backPressedCallback)
+        // Before the first frame, so the list never shows up for a review notification's tap.
+        if (hasPendingCheck(intent)) beginReviewCheck()
 
         // Gates the very first screen the user sees on notification-listener access, not just
         // a banner buried in Settings -> Monitored apps - the user's own call: the app does
@@ -98,7 +101,30 @@ class MainActivity : AppCompatActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        if (hasPendingCheck(intent)) beginReviewCheck()
         (supportFragmentManager.findFragmentById(R.id.fragmentContainer) as? MessagesFragment)?.consumePendingMessageCheck()
+    }
+
+    /** While a review notification's tap runs its duplicate check, show a blank panel instead of the
+     * toolbar and list: the check usually ends by opening the editor (and finishing this activity,
+     * see `MessagesFragment.showTestMatch`), and the list flashing for that moment looked like a
+     * glitch. The "taking longer than usual" text is revealed by [showCheckingSlow]. */
+    fun beginReviewCheck() {
+        binding.toolbar.visibility = View.GONE
+        binding.fragmentContainer.visibility = View.GONE
+        binding.checkingSlowText.visibility = View.INVISIBLE
+        binding.checkingPanel.visibility = View.VISIBLE
+    }
+
+    fun showCheckingSlow() {
+        binding.checkingSlowText.visibility = View.VISIBLE
+    }
+
+    /** Back to the normal screen; harmless when [beginReviewCheck] never ran. */
+    fun endReviewCheck() {
+        binding.checkingPanel.visibility = View.GONE
+        binding.toolbar.visibility = View.VISIBLE
+        binding.fragmentContainer.visibility = View.VISIBLE
     }
 
     /**
@@ -162,6 +188,9 @@ class MainActivity : AppCompatActivity() {
                 putExtra(EXTRA_CHECK_TEXT, message.text)
                 putExtra(EXTRA_CHECK_TIMESTAMP_MILLIS, message.timestampMillis)
             }
+
+        /** True when [intent] is a [checkMessageIntent] launch that has not been consumed yet. */
+        fun hasPendingCheck(intent: Intent): Boolean = intent.hasExtra(EXTRA_CHECK_PACKAGE_NAME)
 
         /** Reconstructs the message [checkMessageIntent] carried (same plain-fields shape
          * `CreateTransactionActivity.messageFrom` uses, for the same "don't serialize a

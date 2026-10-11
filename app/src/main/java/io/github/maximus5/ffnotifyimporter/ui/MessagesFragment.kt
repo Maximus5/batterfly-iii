@@ -186,7 +186,15 @@ class MessagesFragment : Fragment() {
                 it.text == reconstructed.text &&
                 it.timestampMillis == reconstructed.timestampMillis
         } ?: reconstructed
-        showTestMatch(live)
+        showTestMatch(live, fromNotification = true)
+    }
+
+    /** Set when a check opened [CreateTransactionActivity]; see [showTestMatch]'s `fromNotification`. */
+    private var screenStarted = false
+
+    private fun openCreateScreen(intent: Intent) {
+        screenStarted = true
+        startActivity(intent)
     }
 
     private fun handleClick(message: CapturedMessage) {
@@ -213,20 +221,31 @@ class MessagesFragment : Fragment() {
      * no more read-only info dialog with "Open"/"Create Again" buttons for that case at all. The
      * no-match/not-configured cases still show the plain dialog directly - there's nothing to
      * check or review/edit in either. */
-    private fun showTestMatch(message: CapturedMessage) {
+    private fun showTestMatch(message: CapturedMessage, fromNotification: Boolean = false) {
         // The checks below can take a while on a slow network; without this a second tap started
         // a second identical chain and every one of them opened its own screen when it finished.
-        if (openingMessage) return
+        if (openingMessage) {
+            if (fromNotification) (activity as? MainActivity)?.endReviewCheck()
+            return
+        }
         openingMessage = true
+        screenStarted = false
         val context = requireContext()
         val fireflyPrefs = FireflyPrefs(context)
         // Launched (Main.immediate - runs inline unless matchMessage actually has to wait on a
         // Firefly currency-symbol lookup, see posting.learnCurrencySymbols).
         viewLifecycleOwner.lifecycleScope.launch {
-            // Only for a check that's actually slow - a toast on every tap would just flicker.
+            // Only for a check that's actually slow - a toast on every tap would just flicker. From a
+            // review notification the activity shows a blank panel meanwhile (MainActivity.
+            // beginReviewCheck), so the hint goes there, sooner: an empty screen looks like a hang.
             val slowHint = launch {
-                delay(SLOW_CHECK_HINT_MILLIS)
-                Toast.makeText(context, R.string.messages_checking, Toast.LENGTH_SHORT).show()
+                if (fromNotification) {
+                    delay(SLOW_REVIEW_CHECK_HINT_MILLIS)
+                    (activity as? MainActivity)?.showCheckingSlow()
+                } else {
+                    delay(SLOW_CHECK_HINT_MILLIS)
+                    Toast.makeText(context, R.string.messages_checking, Toast.LENGTH_SHORT).show()
+                }
             }
             try {
                 when (val outcome = matchMessage(context, message)) {
@@ -250,6 +269,12 @@ class MessagesFragment : Fragment() {
             } finally {
                 slowHint.cancel()
                 openingMessage = false
+                if (fromNotification) {
+                    // The editor is up: this screen was only the host of the check, so leave it - Back
+                    // from the editor then goes back to wherever the user was, not to the list. A dialog
+                    // (duplicate found, error) keeps the screen and reveals the list behind it.
+                    if (screenStarted) activity?.finish() else (activity as? MainActivity)?.endReviewCheck()
+                }
             }
         }
     }
@@ -278,7 +303,7 @@ class MessagesFragment : Fragment() {
     private suspend fun verifyLinkedThenShow(context: Context, outcome: ParseOutcome.Matched, message: CapturedMessage, existingId: String) {
         when (val result = verifyLinkedTransaction(FireflyPrefs(context), existingId)) {
             is LinkedTransactionCheck.Found ->
-                startActivity(CreateTransactionActivity.editIntent(context, message, existingId))
+                openCreateScreen(CreateTransactionActivity.editIntent(context, message, existingId))
             is LinkedTransactionCheck.Gone ->
                 // Deliberately not cleared here - the user's own catch: wiping the stale
                 // link the instant it's confirmed gone, before any dialog is even shown,
@@ -321,12 +346,12 @@ class MessagesFragment : Fragment() {
         // service), and the duplicate check then happens when the user presses Create, with the
         // amount actually shown there. Nothing to hash/search with until then.
         if (initialDraft.amount == null) {
-            startActivity(CreateTransactionActivity.intent(context, cleanMessage, staleLinkedId))
+            openCreateScreen(CreateTransactionActivity.intent(context, cleanMessage, staleLinkedId))
             return
         }
         when (val result = checkForDuplicate(context, initialDraft)) {
             is DuplicateCheckResult.None ->
-                startActivity(CreateTransactionActivity.intent(context, cleanMessage, staleLinkedId))
+                openCreateScreen(CreateTransactionActivity.intent(context, cleanMessage, staleLinkedId))
             is DuplicateCheckResult.SearchFailed ->
                 showResultDialog(context, R.string.check_search_failed_title, result.message)
             is DuplicateCheckResult.Found ->
@@ -1004,5 +1029,6 @@ class MessagesFragment : Fragment() {
         const val ID_COPY_SINGLE = 5
         const val ID_DELETE_SINGLE = 6
         const val SLOW_CHECK_HINT_MILLIS = 1500L
+        const val SLOW_REVIEW_CHECK_HINT_MILLIS = 500L
     }
 }

@@ -1402,7 +1402,17 @@ Single `:app` module, packages under
     and the list does not flash - or the web `ACTION_VIEW`) and finishes. An activity,
     not a receiver/service, so the notification-trampoline restriction
     doesn't apply. The review notifications are unchanged (they stay
-    until a transaction is actually linked).
+    until a transaction is actually linked). **Tap on a review
+    notification (v0.226)** still goes through `MainActivity` (the check's
+    dialogs live in `MessagesFragment`), but the toolbar and list are
+    hidden behind a blank panel while the check runs
+    (`MainActivity.beginReviewCheck`, decided from the unconsumed check
+    extras in `onCreate`/`onNewIntent`, so the list never draws); after
+    500 ms the panel adds "taking longer than usual". When the check ends
+    by opening the editor, `MessagesFragment.showTestMatch(...,
+    fromNotification = true)` finishes `MainActivity`, so Back from the
+    editor leaves the app instead of landing on the list; when it ends in
+    a dialog, the list is revealed behind it and stays.
     **Fixed a real "can't tell what happened without opening Firefly"
     gap, caught directly on-device**: two notifications from the same
     app (Google Wallet), worded differently enough that `posting.
