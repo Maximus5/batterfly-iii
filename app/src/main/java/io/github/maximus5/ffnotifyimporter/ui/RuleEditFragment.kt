@@ -255,7 +255,7 @@ class RuleEditFragment : Fragment() {
         val context = requireContext()
         val pattern = binding?.patternInput?.text?.toString().orEmpty()
         val groups = runCatching { namedGroupNames(pattern) }.getOrDefault(emptyList())
-        val macroEntries = (groups + FIXED_MACROS).map { "{$it}" to "{$it}" }
+        val macroEntries = (groups + FIXED_MACROS).distinct().sortedBy { it.lowercase() }.map { "{$it}" to "{$it}" }
         val appLabel = monitoredApps.firstOrNull { it.first == selectedPackageName }?.second
         val appEntry = appLabel?.let { listOf(it to it) }.orEmpty()
         val entries = macroEntries + appEntry
