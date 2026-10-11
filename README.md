@@ -5,6 +5,11 @@
 Butterfly III reads the payment notifications on your phone and adds them to
 Firefly III for you. It works with Google Wallet and your bank's apps.
 
+Your server does not have to be reachable when a payment happens. Butterfly III
+saves the notification on your phone, and you can create the transaction later,
+for example when you are back in your home network. This is handy on a trip.
+See [Using the app without a connection](docs/offline.md).
+
 **Before you start:** you need your own working Firefly III server.
 New to Firefly III? Read
 [what it is](https://docs.firefly-iii.org/explanation/firefly-iii/about/introduction/).
