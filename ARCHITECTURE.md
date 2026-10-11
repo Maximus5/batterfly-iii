@@ -287,7 +287,15 @@ Single `:app` module, packages under
     wins behavior for `\{\{(\w+)\}\}|\{(\w+)\}`), and `templateMacroNames`
     only ever counts the plain-macro capture group, never the escaped
     one. `RuleEditFragment`'s "available macros" hint gained a second,
-    static line pointing at the `{{word}}` syntax.
+    static line pointing at the `{{word}}` syntax. That hint (now
+    "Macros for the fields below", macros found in the typed regex plus
+    `title`/`body`) sits under the template buttons; the regex field
+    itself carries a separate `helperText` listing the recognized group
+    names (`amount` required, `currency`, `foreignAmount`,
+    `foreignCurrency`, `date`), and its end icon (dropdown) opens the
+    existing-pattern picker - which replaced a standalone "Pick
+    existing..." button, leaving only "Pick message..." (left) and
+    "Test..." (right-aligned) in the button row.
   - `TransactionDraft`/`DraftIssue`/`ParseOutcome`/`NoMatchReason` -
     what a match produced (or why it didn't match) - postable now
     (`ui.MessagesFragment`'s "Создать" button, see its entry above),

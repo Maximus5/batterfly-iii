@@ -93,7 +93,7 @@ class RuleEditFragment : Fragment() {
         })
 
         binding.pickMessageButton.setOnClickListener { showMessagePicker() }
-        binding.pickPatternButton.setOnClickListener { showPatternPicker() }
+        binding.patternLayout.setEndIconOnClickListener { showPatternPicker() }
         binding.testAgainstHistoryButton.setOnClickListener { testAgainstHistory() }
         addSaveMenu(onDelete = if (existingRule != null) ::confirmDelete else null, onSave = ::save)
         binding.homeCurrencyLayout.setEndIconOnClickListener { showCurrencyPicker() }

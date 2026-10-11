@@ -122,7 +122,7 @@ class SettingsActivity : AppCompatActivity() {
     enum class SetupScreen(val titleRes: Int, val newFragment: () -> Fragment) {
         NOTIFICATION_ACCESS(R.string.notification_access_consent_title, ::NotificationAccessConsentFragment),
         FIREFLY(R.string.settings_firefly_title, ::FireflyConnectionFragment),
-        APPS(R.string.settings_monitored_apps_title, ::AppsFragment),
+        APPS(R.string.settings_apps_screen_title, ::AppsFragment),
         TRANSACTIONS(R.string.settings_transaction_creation_title, ::TransactionCreationFragment),
         NOTIFICATIONS(R.string.settings_notifications_title, ::NotificationSettingsFragment),
         ADD_TEST_MESSAGE(R.string.settings_add_test_message_title, ::AddTestMessageFragment),

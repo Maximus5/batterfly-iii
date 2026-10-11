@@ -16,6 +16,8 @@
     <string name="action_settings">Settings</string>
 
     <string name="settings_monitored_apps_title">Monitored apps</string>
+    <string name="settings_apps_screen_title">Apps</string>
+    <string name="apps_purpose">The app reads notifications only from the apps checked here - to find payments in them and create transactions in Firefly III.</string>
     <string name="settings_monitored_apps_subtitle">Choose which apps\' notifications to watch</string>
 
     <string name="settings_message_history_title">Message history</string>
@@ -116,8 +118,9 @@
     <string name="rule_field_source_account">Source account</string>
     <string name="rule_field_destination_account">Destination account</string>
     <string name="rule_field_home_currency">Account currency</string>
-    <string name="rule_field_date_format">Date format (optional - leave blank to use the notification\'s own time)</string>
-    <string name="rule_field_pattern">Regular expression (matched against title + text)</string>
+    <string name="rule_field_date_format">Date format for the date macro</string>
+    <string name="rule_field_pattern">Regular expression</string>
+    <string name="rule_pattern_groups_hint">Named groups: (?&lt;amount&gt;…) is required; also currency, foreignAmount, foreignCurrency, date</string>
     <string name="rule_pick_existing_pattern">Pick existing…</string>
     <string name="rule_pick_message">Pick message…</string>
     <string name="rule_no_captured_messages">No captured messages for this app yet.</string>
@@ -125,7 +128,7 @@
     <string name="rule_test_title">Test results</string>
     <string name="rule_test_no_matches">No matches in %1$d captured message(s).</string>
     <string name="rule_test_matches_found">%1$d match(es) found (scanned %2$d).</string>
-    <string name="rule_available_macros">Available macros: %1$s</string>
+    <string name="rule_available_macros">Macros for the fields below: %1$s</string>
     <string name="rule_escape_hint">For a literal {word} that isn\'t a macro, write {{word}}.</string>
     <string name="rule_insert_macro">Insert macro</string>
     <string name="rule_pick_currency">Pick currency</string>
@@ -190,7 +193,7 @@
     <string name="messages_checking">Checking…</string>
     <string name="create_tx_field_amount">Amount</string>
     <string name="create_tx_field_currency">Currency</string>
-    <string name="create_tx_field_foreign_amount">Foreign amount (optional)</string>
+    <string name="create_tx_field_foreign_amount">Foreign amount</string>
     <string name="create_tx_field_date">Date</string>
     <string name="create_tx_field_time">Time</string>
     <string name="create_tx_rule_prefix">Rule:</string>
@@ -263,8 +266,8 @@
     <string name="firefly_field_default_source_account_hint">Pre-fills the source account on the create screen when a match leaves both account fields blank. Only a starting point - you can still change or clear it there; auto-create still requires the rule itself to set an account.</string>
     <string name="firefly_pick_currency_failed">Couldn\'t load currencies from Firefly: %1$s</string>
     <string name="firefly_no_currencies">No enabled currencies found in Firefly.</string>
-    <string name="firefly_field_all_transactions_tags">Add tags for all transactions (comma separated)</string>
-    <string name="firefly_field_all_transactions_tags_hint">e.g. firefly-importer, bank-import - added to every transaction this app creates, regardless of which rule matched</string>
+    <string name="firefly_field_all_transactions_tags">Add tags to all created transactions</string>
+    <string name="firefly_field_all_transactions_tags_hint">Comma separated, e.g. firefly-importer, bank-import - added to every transaction this app creates, regardless of which rule matched</string>
 
     <string name="settings_notifications_title">Notifications</string>
     <string name="settings_notifications_subtitle">What this app\'s own notifications show</string>

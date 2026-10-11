@@ -16,6 +16,8 @@
     <string name="action_settings">Настройки</string>
 
     <string name="settings_monitored_apps_title">Приложения для мониторинга</string>
+    <string name="settings_apps_screen_title">Приложения</string>
+    <string name="apps_purpose">Приложение читает уведомления только от отмеченных здесь приложений — чтобы находить в них платежи и создавать транзакции в Firefly III.</string>
     <string name="settings_monitored_apps_subtitle">Выберите, чьи уведомления отслеживать</string>
 
     <string name="settings_message_history_title">История сообщений</string>
@@ -118,8 +120,9 @@
     <string name="rule_field_source_account">Счёт-источник</string>
     <string name="rule_field_destination_account">Счёт назначения</string>
     <string name="rule_field_home_currency">Валюта счёта</string>
-    <string name="rule_field_date_format">Формат даты (необязательно — пусто = время нотификации)</string>
-    <string name="rule_field_pattern">Регулярное выражение (матчится против title + text)</string>
+    <string name="rule_field_date_format">Формат даты для макроса date</string>
+    <string name="rule_field_pattern">Регулярное выражение</string>
+    <string name="rule_pattern_groups_hint">Именованные группы: (?&lt;amount&gt;…) обязательна; также currency, foreignAmount, foreignCurrency, date</string>
     <string name="rule_pick_existing_pattern">Выбрать существующее…</string>
     <string name="rule_pick_message">Выбрать сообщение…</string>
     <string name="rule_no_captured_messages">Для этого приложения пока нет пойманных сообщений.</string>
@@ -127,7 +130,7 @@
     <string name="rule_test_title">Результаты проверки</string>
     <string name="rule_test_no_matches">Совпадений не найдено (просмотрено сообщений: %1$d).</string>
     <string name="rule_test_matches_found">Найдено совпадений: %1$d (просмотрено: %2$d).</string>
-    <string name="rule_available_macros">Доступные макросы: %1$s</string>
+    <string name="rule_available_macros">Макросы для полей ниже: %1$s</string>
     <string name="rule_escape_hint">Чтобы вставить {word} буквально, а не как макрос, напишите {{word}}.</string>
     <string name="rule_insert_macro">Вставить макрос</string>
     <string name="rule_pick_currency">Выбрать валюту</string>
@@ -175,8 +178,8 @@
     <string name="create_checking">Проверка…</string>
     <string name="create_remote_duplicates_found">Внимание: в Firefly найдено %1$d подходящих транзакций, а не одна.</string>
     <string name="create_duplicate_confirm_title">Возможный дубль</string>
-    <string name="create_duplicate_confirm_message">В пределах окна дедупликации уже создана транзакция (№%1$s) с теми же счетами, суммой и валютой. Всё равно создать эту?</string>
-    <string name="create_duplicate_confirm_button">Всё равно создать</string>
+    <string name="create_duplicate_confirm_message">В пределах окна дедупликации уже создана транзакция (№%1$s) с теми же счетами, суммой и валютой. Всё равно создать новую?</string>
+    <string name="create_duplicate_confirm_button">Создать копию</string>
     <string name="create_duplicate_use_created">Привязать</string>
     <string name="create_already_created_linked">Привязано к транзакции Firefly №%1$s.</string>
     <string name="create_success_message">Транзакция Firefly №%1$s.</string>
@@ -192,7 +195,7 @@
     <string name="messages_checking">Проверяем…</string>
     <string name="create_tx_field_amount">Сумма</string>
     <string name="create_tx_field_currency">Валюта</string>
-    <string name="create_tx_field_foreign_amount">Сумма в валюте платежа (опционально)</string>
+    <string name="create_tx_field_foreign_amount">Сумма в иностр. валюте</string>
     <string name="create_tx_field_date">Дата</string>
     <string name="create_tx_field_time">Время</string>
     <string name="create_tx_rule_prefix">Правило:</string>
@@ -265,8 +268,8 @@
     <string name="firefly_field_default_source_account_hint">Автоматически подставляется в поле счёта-источника на экране создания, если оба поля счетов пусты. Это лишь отправная точка — поле можно изменить или очистить; для автоматического создания счёт по-прежнему должен быть задан в самом правиле.</string>
     <string name="firefly_pick_currency_failed">Не удалось загрузить валюты из Firefly: %1$s</string>
     <string name="firefly_no_currencies">В Firefly не найдено включённых валют.</string>
-    <string name="firefly_field_all_transactions_tags">Добавить теги для всех транзакций (через запятую)</string>
-    <string name="firefly_field_all_transactions_tags_hint">напр. firefly-importer, bank-import — добавляются ко всем создаваемым приложением транзакциям, независимо от правила</string>
+    <string name="firefly_field_all_transactions_tags">Добавлять теги ко всем создаваемым транзакциям</string>
+    <string name="firefly_field_all_transactions_tags_hint">Через запятую, напр. firefly-importer, bank-import — добавляются к каждой транзакции независимо от правила</string>
 
     <string name="settings_notifications_title">Уведомления</string>
     <string name="settings_notifications_subtitle">Что показывают собственные уведомления приложения</string>

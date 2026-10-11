@@ -49,7 +49,7 @@ class SettingsRootFragment : Fragment() {
         binding.rowMonitoredApps.setOnClickListener {
             (activity as? SettingsActivity)?.openScreen(
                 AppsFragment(),
-                R.string.settings_monitored_apps_title,
+                R.string.settings_apps_screen_title,
             )
         }
         binding.rowRules.setOnClickListener {
