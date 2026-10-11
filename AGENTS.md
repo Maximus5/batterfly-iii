@@ -96,3 +96,9 @@ Read both before making non-trivial changes, once they exist.
   *app names* (Google Wallet, a specific bank's app) are fine to
   mention - they're not transaction data - but anything parsed out of
   one of their notifications is.
+  Exception, the user's own call, for documentation screenshots only:
+  *made-up* test messages (typed into "Add test message" or created by
+  the test rules, never taken from a real notification) may use
+  well-known store names - Rewe, KaDeWe, IKEA, Galeria, Rossmann,
+  Einstein - instead of `Shop1234`. Amounts, dates and card/account
+  details stay invented.

@@ -5,6 +5,14 @@
 Butterfly III reads the payment notifications on your phone and adds them to
 Firefly III for you. It works with Google Wallet and your bank's apps.
 
+<table>
+  <tr>
+    <td valign="top"><img src="docs/img/hero-messages.png" width="230" alt="The list of captured payment notifications, each with its Firefly III transaction number"></td>
+    <td valign="top"><img src="docs/img/hero-notifications.png" width="230" alt="Notifications: one transaction to review, one already created"></td>
+    <td valign="top"><img src="docs/img/rules-editor-top.png" width="230" alt="A rule that reads the amount and currency from a notification"></td>
+  </tr>
+</table>
+
 Your server does not have to be reachable when a payment happens. Butterfly III
 saves the notification on your phone, and you can create the transaction later,
 for example when you are back in your home network. This is handy on a trip.
@@ -26,7 +34,7 @@ Ready? Follow [Getting started](docs/getting-started.md), with screenshots.
 1. A payment notification arrives on your phone, for example from your bank's app.
 2. Butterfly III finds the amount, the currency and the shop name in the text.
    It uses a *rule* for this. Common notification formats work out of the box.
-   You can also write your own rules.
+   You can also write your own rules: see [Rules](docs/rules.md).
 3. Butterfly III creates the transaction in Firefly III.
    Or it sends you a notification, so you can check the details first.
    You choose which one.
