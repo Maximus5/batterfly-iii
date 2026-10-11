@@ -3329,3 +3329,12 @@ connection exists (see TODO.md).
   on-device; `listAssetAccounts()`/`createTransaction()` not yet
   exercised against a real instance, since nothing calls
   `createTransaction()` yet - see TODO.md).
+
+## Launcher icon
+
+Adaptive icon (`mipmap-anydpi-v26/ic_launcher*.xml`): solid green background
+(`ic_launcher_background`), foreground = the coin-stack artwork
+`drawable-nodpi/ic_launcher_art.png` (512x512, transparent background) wrapped
+in a 13% `<inset>` (`ic_launcher_foreground.xml`) so the artwork stays inside
+the 66dp safe zone of the 108dp canvas, and the same drawable as the
+`<monochrome>` layer for Android 13+ themed icons (the system tints by alpha).
