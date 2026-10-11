@@ -62,7 +62,7 @@
     <string name="messages_action_forget_transaction">Забыть привязанную транзакцию</string>
     <string name="messages_forget_transaction_cleared">Транзакция №%1$s больше не существует - связь удалена.</string>
     <string name="messages_forget_transaction_confirm_title">Связь всё ещё активна</string>
-    <string name="messages_forget_transaction_confirm_message">Транзакция №%1$s всё ещё существует в Firefly. Если сообщение привязалось к ней ошибочно, можно забыть связь всё равно - это удалит её только в этом приложении, в Firefly ничего не изменится и не удалится.</string>
+    <string name="messages_forget_transaction_confirm_message">Транзакция №%1$s всё ещё существует в Firefly III. Если сообщение привязалось к ней ошибочно, можно забыть связь всё равно - это удалит её только в этом приложении, в Firefly III ничего не изменится и не удалится.</string>
     <string name="messages_forget_transaction_confirm_button">Забыть всё равно</string>
     <string name="messages_action_delete">Удалить уведомление</string>
     <string name="delete_notification_confirm_title">Удалить уведомление?</string>
@@ -70,18 +70,18 @@
     <string name="delete_notification_confirm_message">Отменить нельзя. Если включена локальная история, они будут удалены и оттуда.</string>
     <string name="messages_action_copy">Копировать в буфер обмена</string>
     <string name="messages_copied_to_clipboard">Скопировано в буфер обмена</string>
-    <string name="messages_check_if_created">Проверить в Firefly</string>
+    <string name="messages_check_if_created">Проверить в Firefly III</string>
     <string name="messages_check_no_rule_matched">Ни одно правило не подошло к этому сообщению.</string>
-    <string name="check_found_title">Найдено в Firefly</string>
+    <string name="check_found_title">Найдено в Firefly III</string>
     <string name="check_found_message">Совпадает транзакция #%1$s.</string>
     <string name="check_found_description_mismatch_warning">⚠ Описание не совпадает, проверьте.</string>
-    <string name="check_linked_transaction_gone_warning">⚠ Привязанная транзакция №%1$s больше не существует в Firefly.</string>
+    <string name="check_linked_transaction_gone_warning">⚠ Привязанная транзакция №%1$s больше не существует в Firefly III.</string>
     <string name="open_transaction_gone_title">Не найдено</string>
-    <string name="open_transaction_gone_message">Транзакция №%1$s больше не существует в Firefly - возможно, она была удалена.</string>
-    <string name="check_not_found_title">Не найдено в Firefly</string>
+    <string name="open_transaction_gone_message">Транзакция №%1$s больше не существует в Firefly III - возможно, она была удалена.</string>
+    <string name="check_not_found_title">Не найдено в Firefly III</string>
     <string name="check_not_found_message">Подходящая транзакция не найдена для:\n\n%1$s</string>
-    <string name="check_not_found_message_with_candidates">*Firefly вернул результатов: %2$d, но ни один не совпал точно:\n\n%1$s\n\nКандидаты:\n%3$s</string>
-    <string name="check_open_search_in_firefly">Открыть поиск в Firefly</string>
+    <string name="check_not_found_message_with_candidates">*Firefly III вернул результатов: %2$d, но ни один не совпал точно:\n\n%1$s\n\nКандидаты:\n%3$s</string>
+    <string name="check_open_search_in_firefly">Открыть поиск в Firefly III</string>
     <string name="check_use_anyway">Использовать</string>
     <string name="check_search_failed_title">Ошибка поиска</string>
 
@@ -140,7 +140,7 @@
     <string name="rule_pick_account">Выбрать счёт</string>
     <string name="rule_firefly_not_configured">Сначала подключите Firefly III в настройках.</string>
     <string name="rule_firefly_accounts_failed">Не удалось загрузить счета: %1$s</string>
-    <string name="rule_firefly_no_accounts">В Firefly не найдено asset-счетов.</string>
+    <string name="rule_firefly_no_accounts">В Firefly III не найдено asset-счетов.</string>
     <string name="rule_field_description_template">Шаблон описания</string>
     <string name="rule_field_notes_template">Шаблон заметок</string>
     <string name="rule_field_category_template">Шаблон категории</string>
@@ -178,13 +178,13 @@
     <string name="test_match_create">Создать транзакцию</string>
     <string name="create_amount_not_ready">Сумма ещё не готова — дождитесь загрузки курса.</string>
     <string name="create_checking">Проверка…</string>
-    <string name="create_remote_duplicates_found">Внимание: в Firefly найдено %1$d подходящих транзакций, а не одна.</string>
+    <string name="create_remote_duplicates_found">Внимание: в Firefly III найдено %1$d подходящих транзакций, а не одна.</string>
     <string name="create_duplicate_confirm_title">Возможный дубль</string>
     <string name="create_duplicate_confirm_message">В пределах окна дедупликации уже создана транзакция (№%1$s) с теми же счетами, суммой и валютой.</string>
     <string name="create_duplicate_confirm_button">Создать копию</string>
     <string name="create_duplicate_use_created">Привязать</string>
-    <string name="create_already_created_linked">Привязано к транзакции Firefly №%1$s.</string>
-    <string name="create_success_message">Транзакция Firefly №%1$s.</string>
+    <string name="create_already_created_linked">Привязано к транзакции Firefly III №%1$s.</string>
+    <string name="create_success_message">Транзакция Firefly III №%1$s.</string>
     <string name="create_open_transaction">Открыть транзакцию</string>
     <string name="create_again">Создать заново</string>
     <string name="create_failed_title">Не удалось создать</string>
@@ -211,14 +211,14 @@
     <string name="create_tx_field_tags">Теги (через запятую)</string>
     <string name="create_tx_pick_category">Выбрать категорию</string>
     <string name="create_tx_categories_failed">Не удалось загрузить категории: %1$s</string>
-    <string name="create_tx_no_categories">В Firefly не найдено категорий.</string>
+    <string name="create_tx_no_categories">В Firefly III не найдено категорий.</string>
     <string name="create_tx_amount_invalid">Введите корректную сумму.</string>
     <string name="create_tx_description_required">Описание не может быть пустым.</string>
     <string name="create_tx_source_required">Счёт-источник не может быть пустым.</string>
     <string name="create_tx_destination_required">Счёт назначения не может быть пустым.</string>
-    <string name="create_tx_no_asset_account_error">Выберите или введите счёт, совпадающий с одним из ваших активных счетов Firefly, хотя бы с одной стороны.</string>
+    <string name="create_tx_no_asset_account_error">Выберите или введите счёт, совпадающий с одним из ваших активных счетов Firefly III, хотя бы с одной стороны.</string>
     <string name="create_tx_no_rule_matched">Ни одно правило не подошло к этому сообщению.</string>
-    <string name="create_tx_stale_linked_warning">⚠ Ранее привязанная транзакция №%1$s не найдена в Firefly - возможно, она была удалена.</string>
+    <string name="create_tx_stale_linked_warning">⚠ Ранее привязанная транзакция №%1$s не найдена в Firefly III - возможно, она была удалена.</string>
 
     <string name="settings_currencies_title">Валюты</string>
     <string name="settings_currencies_subtitle">Таблица код↔символ, напр. EUR↔€ — для чтения банковских уведомлений</string>
@@ -251,8 +251,8 @@
     <string name="firefly_server_change_message">При смене сервера сохранённый токен будет очищен. Продолжить?</string>
     <string name="firefly_server_change_continue">Продолжить</string>
     <string name="firefly_field_url_help">Адрес, по которому вы открываете Firefly III в браузере, без /api.</string>
-    <string name="firefly_field_token_help">Чтобы получить токен, откройте Firefly III, нажмите на иконку профиля справа вверху → Remote access and tokens и создайте новый personal access token. Firefly показывает его только один раз, поэтому сразу скопируйте его сюда.</string>
-    <string name="firefly_autofilled_currency">Валюта счёта по умолчанию: %1$s (основная валюта Firefly).</string>
+    <string name="firefly_field_token_help">Чтобы получить токен, откройте Firefly III, нажмите на иконку профиля справа вверху → Remote access and tokens и создайте новый personal access token. Firefly III показывает его только один раз, поэтому сразу скопируйте его сюда.</string>
+    <string name="firefly_autofilled_currency">Валюта счёта по умолчанию: %1$s (основная валюта Firefly III).</string>
     <string name="firefly_autofilled_account">Счёт-источник по умолчанию: %1$s (ваш единственный счёт).</string>
     <string name="firefly_settings_saved">Сохранено</string>
 
@@ -269,8 +269,8 @@
     <string name="firefly_field_default_account_currency_hint">Используется, если правило не указывает свою валюту.</string>
     <string name="firefly_field_default_source_account">Счёт-источник по умолчанию</string>
     <string name="firefly_field_default_source_account_hint">Автоматически подставляется в поле счёта-источника на экране создания, если оба поля счетов пусты. Это лишь отправная точка — поле можно изменить или очистить; для автоматического создания счёт по-прежнему должен быть задан в самом правиле.</string>
-    <string name="firefly_pick_currency_failed">Не удалось загрузить валюты из Firefly: %1$s</string>
-    <string name="firefly_no_currencies">В Firefly не найдено включённых валют.</string>
+    <string name="firefly_pick_currency_failed">Не удалось загрузить валюты из Firefly III: %1$s</string>
+    <string name="firefly_no_currencies">В Firefly III не найдено включённых валют.</string>
     <string name="firefly_field_all_transactions_tags">Добавлять теги ко всем создаваемым транзакциям</string>
     <string name="firefly_field_all_transactions_tags_hint">Через запятую, напр. firefly-importer, bank-import — добавляются к каждой транзакции независимо от правила</string>
 
@@ -280,7 +280,7 @@
     <string name="notifications_show_switch_hint">Когда уведомление от банка совпадёт с правилом, показывать уведомление о создании (или проверке) транзакции.</string>
     <string name="notifications_show_financial_switch">Показывать финансовую информацию в уведомлении</string>
     <string name="notifications_skipped_duplicates_switch">Уведомлять о пропущенных дублях</string>
-    <string name="notifications_skipped_duplicates_switch_hint">Автосоздание пропускает транзакцию, которая уже есть в Firefly (часто это тот же платёж от второго приложения). По умолчанию выключено — дубль пропускается в любом случае, переключатель управляет только уведомлением о нём.</string>
+    <string name="notifications_skipped_duplicates_switch_hint">Автосоздание пропускает транзакцию, которая уже есть в Firefly III (часто это тот же платёж от второго приложения). По умолчанию выключено — дубль пропускается в любом случае, переключатель управляет только уведомлением о нём.</string>
     <string name="notifications_show_financial_switch_hint">Показывать сумму, валюту и описание в тексте уведомления. По умолчанию выключено — уведомление может увидеть кто-то кроме вас, например на заблокированном экране.</string>
     <string name="notifications_open_system_settings_button">Открыть системные настройки уведомлений…</string>
     <string name="notifications_permission_card_title">Уведомления выключены</string>
@@ -295,7 +295,7 @@
     <string name="auto_create_success_text">%1$s · %2$s %3$s · \"%4$s\" → #%5$s</string>
     <string name="auto_create_success_text_generic">%1$s · транзакция создана</string>
     <string name="auto_create_skipped_title">Пропущен вероятный дубль</string>
-    <string name="auto_create_skipped_text">%1$s · %2$s %3$s · \"%4$s\" → #%5$s (уже есть в Firefly)</string>
+    <string name="auto_create_skipped_text">%1$s · %2$s %3$s · \"%4$s\" → #%5$s (уже есть в Firefly III)</string>
     <string name="auto_create_skipped_text_generic">%1$s · пропущен вероятный дубль</string>
     <string name="auto_create_failed_title">Ошибка автосоздания</string>
     <string name="auto_create_failed_text">%1$s: %2$s</string>
@@ -308,7 +308,7 @@
     <string name="review_match_action">Просмотреть и создать</string>
 
     <string name="settings_backup_title">Бэкап и восстановление</string>
-    <string name="settings_backup_subtitle">Сохранить или восстановить всё, кроме подключения к Firefly</string>
+    <string name="settings_backup_subtitle">Сохранить или восстановить всё, кроме подключения к Firefly III</string>
     <string name="backup_explanation">Включает мониторимые приложения, валюты, правила и историю сообщений.\n\nБэкап не включает параметры подключения к Firefly III (URL/токен)! Введите их заново после восстановления.\n\n⚠ История сообщений хранит полный текст уведомлений — суммы, цифры карт, названия продавцов. Файл бэкапа не зашифрован: храните его в приватном месте и не передавайте другим.</string>
     <string name="backup_export_button">Создать бэкап…</string>
     <string name="backup_restore_button">Восстановить из бэкапа…</string>
@@ -318,7 +318,7 @@
     <string name="backup_export_success_named">Бэкап сохранён в файл %1$s.</string>
     <string name="backup_export_failed">Ошибка экспорта: %1$s</string>
     <string name="backup_restore_confirm_title">Восстановить из этого бэкапа?</string>
-    <string name="backup_restore_confirm_message">Это заменит всё, что сейчас сохранено на устройстве — мониторимые приложения, валюты, правила и историю сообщений. Подключение к Firefly не затрагивается. Это нельзя отменить.</string>
+    <string name="backup_restore_confirm_message">Это заменит всё, что сейчас сохранено на устройстве — мониторимые приложения, валюты, правила и историю сообщений. Подключение к Firefly III не затрагивается. Это нельзя отменить.</string>
     <string name="backup_restore_confirm_button">Восстановить</string>
     <string name="backup_restore_success">Восстановлено.</string>
     <string name="backup_restore_success_named">Восстановлено из файла %1$s.</string>

@@ -60,7 +60,7 @@
     <string name="messages_action_forget_transaction">Forget linked transaction</string>
     <string name="messages_forget_transaction_cleared">Transaction #%1$s no longer exists - link removed.</string>
     <string name="messages_forget_transaction_confirm_title">Still linked</string>
-    <string name="messages_forget_transaction_confirm_message">Transaction #%1$s still exists in Firefly. If this message was matched to it incorrectly, you can forget the link anyway - this only removes it from this app, it won\'t change or delete anything in Firefly.</string>
+    <string name="messages_forget_transaction_confirm_message">Transaction #%1$s still exists in Firefly III. If this message was matched to it incorrectly, you can forget the link anyway - this only removes it from this app, it won\'t change or delete anything in Firefly III.</string>
     <string name="messages_forget_transaction_confirm_button">Forget anyway</string>
     <string name="messages_action_delete">Delete notification</string>
     <string name="delete_notification_confirm_title">Delete notification?</string>
@@ -70,16 +70,16 @@
     <string name="messages_copied_to_clipboard">Copied to clipboard</string>
     <string name="messages_check_if_created">Check if created</string>
     <string name="messages_check_no_rule_matched">No rule matched this message.</string>
-    <string name="check_found_title">Found in Firefly</string>
+    <string name="check_found_title">Found in Firefly III</string>
     <string name="check_found_message">Transaction #%1$s matches.</string>
     <string name="check_found_description_mismatch_warning">⚠ Description doesn\'t match, please verify.</string>
-    <string name="check_linked_transaction_gone_warning">⚠ Linked transaction #%1$s no longer exists in Firefly.</string>
+    <string name="check_linked_transaction_gone_warning">⚠ Linked transaction #%1$s no longer exists in Firefly III.</string>
     <string name="open_transaction_gone_title">Not found</string>
-    <string name="open_transaction_gone_message">Transaction #%1$s no longer exists in Firefly - it may have been deleted.</string>
-    <string name="check_not_found_title">Not found in Firefly</string>
+    <string name="open_transaction_gone_message">Transaction #%1$s no longer exists in Firefly III - it may have been deleted.</string>
+    <string name="check_not_found_title">Not found in Firefly III</string>
     <string name="check_not_found_message">No matching transaction found for:\n\n%1$s</string>
-    <string name="check_not_found_message_with_candidates">*Firefly returned %2$d result(s), but none matched exactly:\n\n%1$s\n\nCandidates:\n%3$s</string>
-    <string name="check_open_search_in_firefly">Open search in Firefly</string>
+    <string name="check_not_found_message_with_candidates">*Firefly III returned %2$d result(s), but none matched exactly:\n\n%1$s\n\nCandidates:\n%3$s</string>
+    <string name="check_open_search_in_firefly">Open search in Firefly III</string>
     <string name="check_use_anyway">Use anyway</string>
     <string name="check_search_failed_title">Search failed</string>
 
@@ -138,7 +138,7 @@
     <string name="rule_pick_account">Pick account</string>
     <string name="rule_firefly_not_configured">Connect Firefly III in Settings first.</string>
     <string name="rule_firefly_accounts_failed">Couldn\'t load accounts: %1$s</string>
-    <string name="rule_firefly_no_accounts">No asset accounts found in Firefly.</string>
+    <string name="rule_firefly_no_accounts">No asset accounts found in Firefly III.</string>
     <string name="rule_field_description_template">Description template</string>
     <string name="rule_field_notes_template">Notes template</string>
     <string name="rule_field_category_template">Category template</string>
@@ -176,13 +176,13 @@
     <string name="test_match_create">Create transaction</string>
     <string name="create_amount_not_ready">Amount isn\'t ready yet - wait for the exchange-rate lookup to finish.</string>
     <string name="create_checking">Checking…</string>
-    <string name="create_remote_duplicates_found">Warning: found %1$d matching transactions already in Firefly, not just one.</string>
+    <string name="create_remote_duplicates_found">Warning: found %1$d matching transactions already in Firefly III, not just one.</string>
     <string name="create_duplicate_confirm_title">Possible duplicate</string>
     <string name="create_duplicate_confirm_message">A transaction (#%1$s) with the same accounts, amount, and currency was already created within the dedup window.</string>
     <string name="create_duplicate_confirm_button">Create anyway</string>
     <string name="create_duplicate_use_created">Use created</string>
-    <string name="create_already_created_linked">Linked to Firefly transaction #%1$s.</string>
-    <string name="create_success_message">Firefly transaction #%1$s.</string>
+    <string name="create_already_created_linked">Linked to Firefly III transaction #%1$s.</string>
+    <string name="create_success_message">Firefly III transaction #%1$s.</string>
     <string name="create_open_transaction">Open transaction</string>
     <string name="create_again">Create again</string>
     <string name="create_failed_title">Create failed</string>
@@ -209,14 +209,14 @@
     <string name="create_tx_field_tags">Tags (comma-separated)</string>
     <string name="create_tx_pick_category">Pick category</string>
     <string name="create_tx_categories_failed">Couldn\'t load categories: %1$s</string>
-    <string name="create_tx_no_categories">No categories found in Firefly.</string>
+    <string name="create_tx_no_categories">No categories found in Firefly III.</string>
     <string name="create_tx_amount_invalid">Enter a valid amount.</string>
     <string name="create_tx_description_required">Description can\'t be empty.</string>
     <string name="create_tx_source_required">Source account can\'t be empty.</string>
     <string name="create_tx_destination_required">Destination account can\'t be empty.</string>
-    <string name="create_tx_no_asset_account_error">Pick or enter an account that matches one of your Firefly asset accounts, on at least one side.</string>
+    <string name="create_tx_no_asset_account_error">Pick or enter an account that matches one of your Firefly III asset accounts, on at least one side.</string>
     <string name="create_tx_no_rule_matched">No rule matched this message.</string>
-    <string name="create_tx_stale_linked_warning">⚠ Previously linked transaction #%1$s was not found in Firefly - it may have been deleted.</string>
+    <string name="create_tx_stale_linked_warning">⚠ Previously linked transaction #%1$s was not found in Firefly III - it may have been deleted.</string>
 
     <string name="settings_currencies_title">Currencies</string>
     <string name="settings_currencies_subtitle">Code↔symbol table, e.g. EUR↔€ - used to read bank notifications</string>
@@ -249,8 +249,8 @@
     <string name="firefly_server_change_message">The saved access token will be cleared because the server address changed. Continue?</string>
     <string name="firefly_server_change_continue">Continue</string>
     <string name="firefly_field_url_help">The address you open your Firefly III at in a browser, without /api.</string>
-    <string name="firefly_field_token_help">To get a token, open Firefly III, tap the profile icon at the top right → Remote access and tokens, and create a new personal access token. Firefly shows it only once, so copy it here right away.</string>
-    <string name="firefly_autofilled_currency">Default account currency set to %1$s (Firefly\'s primary currency).</string>
+    <string name="firefly_field_token_help">To get a token, open Firefly III, tap the profile icon at the top right → Remote access and tokens, and create a new personal access token. Firefly III shows it only once, so copy it here right away.</string>
+    <string name="firefly_autofilled_currency">Default account currency set to %1$s (Firefly III\'s primary currency).</string>
     <string name="firefly_autofilled_account">Default source account set to %1$s (your only asset account).</string>
     <string name="firefly_settings_saved">Saved</string>
 
@@ -267,8 +267,8 @@
     <string name="firefly_field_default_account_currency_hint">Used when a rule doesn\'t specify its own currency.</string>
     <string name="firefly_field_default_source_account">Default Source account</string>
     <string name="firefly_field_default_source_account_hint">Pre-fills the source account on the create screen when a match leaves both account fields blank. Only a starting point - you can still change or clear it there; auto-create still requires the rule itself to set an account.</string>
-    <string name="firefly_pick_currency_failed">Couldn\'t load currencies from Firefly: %1$s</string>
-    <string name="firefly_no_currencies">No enabled currencies found in Firefly.</string>
+    <string name="firefly_pick_currency_failed">Couldn\'t load currencies from Firefly III: %1$s</string>
+    <string name="firefly_no_currencies">No enabled currencies found in Firefly III.</string>
     <string name="firefly_field_all_transactions_tags">Add tags to all created transactions</string>
     <string name="firefly_field_all_transactions_tags_hint">Comma separated, e.g. firefly-importer, bank-import - added to every transaction this app creates, regardless of which rule matched</string>
 
@@ -278,7 +278,7 @@
     <string name="notifications_show_switch_hint">When a bank notification matches a rule, show a notification for creating (or reviewing) the transaction.</string>
     <string name="notifications_show_financial_switch">Show financial information in notification</string>
     <string name="notifications_skipped_duplicates_switch">Notify about skipped duplicates</string>
-    <string name="notifications_skipped_duplicates_switch_hint">Auto-create skips a transaction that already exists in Firefly (often the same payment reported by a second app). Off by default - the duplicate is skipped either way, this only controls the notification about it.</string>
+    <string name="notifications_skipped_duplicates_switch_hint">Auto-create skips a transaction that already exists in Firefly III (often the same payment reported by a second app). Off by default - the duplicate is skipped either way, this only controls the notification about it.</string>
     <string name="notifications_show_financial_switch_hint">Include the amount, currency, and description in the notification text. Off by default - a notification can be seen by someone other than you, e.g. on a locked screen.</string>
     <string name="notifications_open_system_settings_button">Open system notification settings…</string>
     <string name="notifications_permission_card_title">Notifications are off</string>
@@ -293,7 +293,7 @@
     <string name="auto_create_success_text">%1$s · %2$s %3$s · \"%4$s\" → #%5$s</string>
     <string name="auto_create_success_text_generic">%1$s · transaction created</string>
     <string name="auto_create_skipped_title">Skipped a likely duplicate</string>
-    <string name="auto_create_skipped_text">%1$s · %2$s %3$s · \"%4$s\" → #%5$s (already in Firefly)</string>
+    <string name="auto_create_skipped_text">%1$s · %2$s %3$s · \"%4$s\" → #%5$s (already in Firefly III)</string>
     <string name="auto_create_skipped_text_generic">%1$s · skipped a likely duplicate</string>
     <string name="auto_create_failed_title">Auto-create failed</string>
     <string name="auto_create_failed_text">%1$s: %2$s</string>
@@ -306,7 +306,7 @@
     <string name="review_match_action">Review and create</string>
 
     <string name="settings_backup_title">Backup &amp; restore</string>
-    <string name="settings_backup_subtitle">Save or restore everything except the Firefly connection</string>
+    <string name="settings_backup_subtitle">Save or restore everything except the Firefly III connection</string>
     <string name="backup_explanation">Includes monitored apps, currencies, rules, and message history.\n\nBackup does not include the Firefly III connection parameters (base URL/token)! Re-enter them after a restore.\n\n⚠ The message history holds the full text of the notifications - amounts, card digits, merchant names. The backup file is not encrypted: keep it somewhere private and don\'t share it.</string>
     <string name="backup_export_button">Create backup…</string>
     <string name="backup_restore_button">Restore backup…</string>
@@ -316,7 +316,7 @@
     <string name="backup_export_success_named">Backup saved to %1$s.</string>
     <string name="backup_export_failed">Backup failed: %1$s</string>
     <string name="backup_restore_confirm_title">Restore this backup?</string>
-    <string name="backup_restore_confirm_message">This replaces everything currently saved on this device - monitored apps, currencies, rules, and message history. The Firefly connection isn\'t included and won\'t change. This can\'t be undone.</string>
+    <string name="backup_restore_confirm_message">This replaces everything currently saved on this device - monitored apps, currencies, rules, and message history. The Firefly III connection isn\'t included and won\'t change. This can\'t be undone.</string>
     <string name="backup_restore_confirm_button">Restore</string>
     <string name="backup_restore_success">Restored.</string>
     <string name="backup_restore_success_named">Restored from %1$s.</string>

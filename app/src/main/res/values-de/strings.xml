@@ -60,7 +60,7 @@
     <string name="messages_action_forget_transaction">Verknüpfte Buchung vergessen</string>
     <string name="messages_forget_transaction_cleared">Buchung #%1$s existiert nicht mehr - Verknüpfung entfernt.</string>
     <string name="messages_forget_transaction_confirm_title">Noch verknüpft</string>
-    <string name="messages_forget_transaction_confirm_message">Buchung #%1$s existiert in Firefly noch. Wurde diese Nachricht fälschlich zugeordnet, können Sie die Verknüpfung trotzdem vergessen - das entfernt sie nur in dieser App und ändert oder löscht nichts in Firefly.</string>
+    <string name="messages_forget_transaction_confirm_message">Buchung #%1$s existiert in Firefly III noch. Wurde diese Nachricht fälschlich zugeordnet, können Sie die Verknüpfung trotzdem vergessen - das entfernt sie nur in dieser App und ändert oder löscht nichts in Firefly III.</string>
     <string name="messages_forget_transaction_confirm_button">Trotzdem vergessen</string>
     <string name="messages_action_delete">Benachrichtigung löschen</string>
     <string name="delete_notification_confirm_title">Benachrichtigung löschen?</string>
@@ -70,16 +70,16 @@
     <string name="messages_copied_to_clipboard">In die Zwischenablage kopiert</string>
     <string name="messages_check_if_created">Prüfen, ob angelegt</string>
     <string name="messages_check_no_rule_matched">Keine Regel passt zu dieser Nachricht.</string>
-    <string name="check_found_title">In Firefly gefunden</string>
+    <string name="check_found_title">In Firefly III gefunden</string>
     <string name="check_found_message">Buchung #%1$s passt.</string>
     <string name="check_found_description_mismatch_warning">⚠ Die Beschreibung stimmt nicht überein, bitte prüfen.</string>
-    <string name="check_linked_transaction_gone_warning">⚠ Die verknüpfte Buchung #%1$s existiert in Firefly nicht mehr.</string>
+    <string name="check_linked_transaction_gone_warning">⚠ Die verknüpfte Buchung #%1$s existiert in Firefly III nicht mehr.</string>
     <string name="open_transaction_gone_title">Nicht gefunden</string>
-    <string name="open_transaction_gone_message">Buchung #%1$s existiert in Firefly nicht mehr - sie wurde möglicherweise gelöscht.</string>
-    <string name="check_not_found_title">In Firefly nicht gefunden</string>
+    <string name="open_transaction_gone_message">Buchung #%1$s existiert in Firefly III nicht mehr - sie wurde möglicherweise gelöscht.</string>
+    <string name="check_not_found_title">In Firefly III nicht gefunden</string>
     <string name="check_not_found_message">Keine passende Buchung gefunden für:\n\n%1$s</string>
-    <string name="check_not_found_message_with_candidates">*Firefly lieferte %2$d Ergebnis(se), aber keines passte genau:\n\n%1$s\n\nKandidaten:\n%3$s</string>
-    <string name="check_open_search_in_firefly">Suche in Firefly öffnen</string>
+    <string name="check_not_found_message_with_candidates">*Firefly III lieferte %2$d Ergebnis(se), aber keines passte genau:\n\n%1$s\n\nKandidaten:\n%3$s</string>
+    <string name="check_open_search_in_firefly">Suche in Firefly III öffnen</string>
     <string name="check_use_anyway">Trotzdem verwenden</string>
     <string name="check_search_failed_title">Suche fehlgeschlagen</string>
 
@@ -138,7 +138,7 @@
     <string name="rule_pick_account">Konto wählen</string>
     <string name="rule_firefly_not_configured">Verbinden Sie zuerst Firefly III in den Einstellungen.</string>
     <string name="rule_firefly_accounts_failed">Konten konnten nicht geladen werden: %1$s</string>
-    <string name="rule_firefly_no_accounts">In Firefly wurden keine Bestandskonten gefunden.</string>
+    <string name="rule_firefly_no_accounts">In Firefly III wurden keine Bestandskonten gefunden.</string>
     <string name="rule_field_description_template">Vorlage für die Beschreibung</string>
     <string name="rule_field_notes_template">Vorlage für die Notizen</string>
     <string name="rule_field_category_template">Vorlage für die Kategorie</string>
@@ -176,13 +176,13 @@
     <string name="test_match_create">Buchung anlegen</string>
     <string name="create_amount_not_ready">Der Betrag ist noch nicht bereit - warten Sie, bis der Wechselkurs abgerufen ist.</string>
     <string name="create_checking">Prüfe…</string>
-    <string name="create_remote_duplicates_found">Achtung: In Firefly wurden bereits %1$d passende Buchungen gefunden, nicht nur eine.</string>
+    <string name="create_remote_duplicates_found">Achtung: In Firefly III wurden bereits %1$d passende Buchungen gefunden, nicht nur eine.</string>
     <string name="create_duplicate_confirm_title">Mögliches Duplikat</string>
     <string name="create_duplicate_confirm_message">Innerhalb des Duplikat-Zeitfensters wurde bereits eine Buchung (#%1$s) mit denselben Konten, demselben Betrag und derselben Währung angelegt.</string>
     <string name="create_duplicate_confirm_button">Kopie erstellen</string>
     <string name="create_duplicate_use_created">Verknüpfen</string>
-    <string name="create_already_created_linked">Mit Firefly-Buchung #%1$s verknüpft.</string>
-    <string name="create_success_message">Firefly-Buchung #%1$s.</string>
+    <string name="create_already_created_linked">Mit Firefly-III-Buchung #%1$s verknüpft.</string>
+    <string name="create_success_message">Firefly-III-Buchung #%1$s.</string>
     <string name="create_open_transaction">Buchung öffnen</string>
     <string name="create_again">Erneut anlegen</string>
     <string name="create_failed_title">Anlegen fehlgeschlagen</string>
@@ -209,14 +209,14 @@
     <string name="create_tx_field_tags">Tags (kommagetrennt)</string>
     <string name="create_tx_pick_category">Kategorie wählen</string>
     <string name="create_tx_categories_failed">Kategorien konnten nicht geladen werden: %1$s</string>
-    <string name="create_tx_no_categories">In Firefly wurden keine Kategorien gefunden.</string>
+    <string name="create_tx_no_categories">In Firefly III wurden keine Kategorien gefunden.</string>
     <string name="create_tx_amount_invalid">Geben Sie einen gültigen Betrag ein.</string>
     <string name="create_tx_description_required">Die Beschreibung darf nicht leer sein.</string>
     <string name="create_tx_source_required">Das Quellkonto darf nicht leer sein.</string>
     <string name="create_tx_destination_required">Das Zielkonto darf nicht leer sein.</string>
-    <string name="create_tx_no_asset_account_error">Wählen oder geben Sie auf mindestens einer Seite ein Konto an, das zu einem Ihrer Firefly-Bestandskonten passt.</string>
+    <string name="create_tx_no_asset_account_error">Wählen oder geben Sie auf mindestens einer Seite ein Konto an, das zu einem Ihrer Firefly-III-Bestandskonten passt.</string>
     <string name="create_tx_no_rule_matched">Keine Regel passt zu dieser Nachricht.</string>
-    <string name="create_tx_stale_linked_warning">⚠ Die zuvor verknüpfte Buchung #%1$s wurde in Firefly nicht gefunden - sie wurde möglicherweise gelöscht.</string>
+    <string name="create_tx_stale_linked_warning">⚠ Die zuvor verknüpfte Buchung #%1$s wurde in Firefly III nicht gefunden - sie wurde möglicherweise gelöscht.</string>
 
     <string name="settings_currencies_title">Währungen</string>
     <string name="settings_currencies_subtitle">Tabelle Code↔Symbol, z. B. EUR↔€ - dient zum Lesen von Bankbenachrichtigungen</string>
@@ -249,8 +249,8 @@
     <string name="firefly_server_change_message">Das gespeicherte Zugriffstoken wird gelöscht, weil sich die Serveradresse geändert hat. Fortfahren?</string>
     <string name="firefly_server_change_continue">Fortfahren</string>
     <string name="firefly_field_url_help">Die Adresse, unter der Sie Firefly III im Browser öffnen, ohne /api.</string>
-    <string name="firefly_field_token_help">Um ein Token zu erhalten, öffnen Sie Firefly III, tippen Sie oben rechts auf das Profilsymbol → Fernzugriff und Tokens und erstellen Sie ein neues persönliches Zugriffstoken. Firefly zeigt es nur einmal an, kopieren Sie es also gleich hierher.</string>
-    <string name="firefly_autofilled_currency">Standard-Kontowährung auf %1$s gesetzt (Primärwährung von Firefly).</string>
+    <string name="firefly_field_token_help">Um ein Token zu erhalten, öffnen Sie Firefly III, tippen Sie oben rechts auf das Profilsymbol → Fernzugriff und Tokens und erstellen Sie ein neues persönliches Zugriffstoken. Firefly III zeigt es nur einmal an, kopieren Sie es also gleich hierher.</string>
+    <string name="firefly_autofilled_currency">Standard-Kontowährung auf %1$s gesetzt (Primärwährung von Firefly III).</string>
     <string name="firefly_autofilled_account">Standard-Quellkonto auf %1$s gesetzt (Ihr einziges Bestandskonto).</string>
     <string name="firefly_settings_saved">Gespeichert</string>
 
@@ -267,8 +267,8 @@
     <string name="firefly_field_default_account_currency_hint">Wird verwendet, wenn eine Regel keine eigene Währung angibt.</string>
     <string name="firefly_field_default_source_account">Standard-Quellkonto</string>
     <string name="firefly_field_default_source_account_hint">Füllt das Quellkonto auf dem Erstellungsbildschirm vor, wenn ein Treffer beide Kontofelder leer lässt. Nur ein Ausgangspunkt - Sie können es dort ändern oder löschen; das automatische Anlegen setzt weiterhin voraus, dass die Regel selbst ein Konto festlegt.</string>
-    <string name="firefly_pick_currency_failed">Währungen konnten nicht aus Firefly geladen werden: %1$s</string>
-    <string name="firefly_no_currencies">In Firefly wurden keine aktivierten Währungen gefunden.</string>
+    <string name="firefly_pick_currency_failed">Währungen konnten nicht aus Firefly III geladen werden: %1$s</string>
+    <string name="firefly_no_currencies">In Firefly III wurden keine aktivierten Währungen gefunden.</string>
     <string name="firefly_field_all_transactions_tags">Tags zu allen angelegten Buchungen hinzufügen</string>
     <string name="firefly_field_all_transactions_tags_hint">Kommagetrennt, z. B. firefly-importer, bank-import - wird jeder von dieser App angelegten Buchung hinzugefügt, unabhängig von der passenden Regel</string>
 
@@ -278,7 +278,7 @@
     <string name="notifications_show_switch_hint">Wenn eine Bankbenachrichtigung zu einer Regel passt, wird eine Benachrichtigung zum Anlegen (oder Prüfen) der Buchung angezeigt.</string>
     <string name="notifications_show_financial_switch">Finanzdaten in der Benachrichtigung anzeigen</string>
     <string name="notifications_skipped_duplicates_switch">Über übersprungene Duplikate benachrichtigen</string>
-    <string name="notifications_skipped_duplicates_switch_hint">Das automatische Anlegen überspringt eine Buchung, die in Firefly bereits existiert (oft dieselbe Zahlung, gemeldet von einer zweiten App). Standardmäßig aus - das Duplikat wird in jedem Fall übersprungen, hier steuern Sie nur die Benachrichtigung darüber.</string>
+    <string name="notifications_skipped_duplicates_switch_hint">Das automatische Anlegen überspringt eine Buchung, die in Firefly III bereits existiert (oft dieselbe Zahlung, gemeldet von einer zweiten App). Standardmäßig aus - das Duplikat wird in jedem Fall übersprungen, hier steuern Sie nur die Benachrichtigung darüber.</string>
     <string name="notifications_show_financial_switch_hint">Betrag, Währung und Beschreibung in den Benachrichtigungstext aufnehmen. Standardmäßig aus - eine Benachrichtigung kann auch von anderen gesehen werden, z. B. auf dem Sperrbildschirm.</string>
     <string name="notifications_open_system_settings_button">Systemeinstellungen für Benachrichtigungen öffnen…</string>
     <string name="notifications_permission_card_title">Benachrichtigungen sind aus</string>
@@ -293,7 +293,7 @@
     <string name="auto_create_success_text">%1$s · %2$s %3$s · \"%4$s\" → #%5$s</string>
     <string name="auto_create_success_text_generic">%1$s · Buchung angelegt</string>
     <string name="auto_create_skipped_title">Wahrscheinliches Duplikat übersprungen</string>
-    <string name="auto_create_skipped_text">%1$s · %2$s %3$s · \"%4$s\" → #%5$s (bereits in Firefly)</string>
+    <string name="auto_create_skipped_text">%1$s · %2$s %3$s · \"%4$s\" → #%5$s (bereits in Firefly III)</string>
     <string name="auto_create_skipped_text_generic">%1$s · wahrscheinliches Duplikat übersprungen</string>
     <string name="auto_create_failed_title">Automatisches Anlegen fehlgeschlagen</string>
     <string name="auto_create_failed_text">%1$s: %2$s</string>
@@ -306,7 +306,7 @@
     <string name="review_match_action">Prüfen und anlegen</string>
 
     <string name="settings_backup_title">Sicherung &amp; Wiederherstellung</string>
-    <string name="settings_backup_subtitle">Alles außer der Firefly-Verbindung sichern oder wiederherstellen</string>
+    <string name="settings_backup_subtitle">Alles außer der Firefly-III-Verbindung sichern oder wiederherstellen</string>
     <string name="backup_explanation">Enthält überwachte Apps, Währungen, Regeln und den Nachrichtenverlauf.\n\nDie Sicherung enthält NICHT die Verbindungsdaten zu Firefly III (Basisadresse/Token)! Geben Sie sie nach einer Wiederherstellung erneut ein.\n\n⚠ Der Nachrichtenverlauf enthält den vollständigen Text der Benachrichtigungen - Beträge, Kartenziffern, Händlernamen. Die Sicherungsdatei ist nicht verschlüsselt: Bewahren Sie sie an einem privaten Ort auf und geben Sie sie nicht weiter.</string>
     <string name="backup_export_button">Sicherung erstellen…</string>
     <string name="backup_restore_button">Sicherung wiederherstellen…</string>
@@ -316,7 +316,7 @@
     <string name="backup_export_success_named">Sicherung in %1$s gespeichert.</string>
     <string name="backup_export_failed">Sicherung fehlgeschlagen: %1$s</string>
     <string name="backup_restore_confirm_title">Diese Sicherung wiederherstellen?</string>
-    <string name="backup_restore_confirm_message">Dadurch wird alles ersetzt, was aktuell auf diesem Gerät gespeichert ist - überwachte Apps, Währungen, Regeln und Nachrichtenverlauf. Die Firefly-Verbindung ist nicht enthalten und ändert sich nicht. Das kann nicht rückgängig gemacht werden.</string>
+    <string name="backup_restore_confirm_message">Dadurch wird alles ersetzt, was aktuell auf diesem Gerät gespeichert ist - überwachte Apps, Währungen, Regeln und Nachrichtenverlauf. Die Firefly-III-Verbindung ist nicht enthalten und ändert sich nicht. Das kann nicht rückgängig gemacht werden.</string>
     <string name="backup_restore_confirm_button">Wiederherstellen</string>
     <string name="backup_restore_success">Wiederhergestellt.</string>
     <string name="backup_restore_success_named">Aus %1$s wiederhergestellt.</string>
