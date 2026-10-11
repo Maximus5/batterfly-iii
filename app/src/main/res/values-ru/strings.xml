@@ -17,7 +17,7 @@
 
     <string name="settings_monitored_apps_title">Приложения для мониторинга</string>
     <string name="settings_apps_screen_title">Приложения</string>
-    <string name="apps_purpose">Приложение читает уведомления только от отмеченных здесь приложений — чтобы находить в них платежи и создавать транзакции в Firefly III.</string>
+    <string name="apps_purpose">Читаются уведомления только от отмеченных здесь приложений — чтобы находить в них платежи и создавать транзакции в Firefly III.</string>
     <string name="settings_monitored_apps_subtitle">Выберите, чьи уведомления отслеживать</string>
 
     <string name="settings_message_history_title">История сообщений</string>
@@ -178,7 +178,7 @@
     <string name="create_checking">Проверка…</string>
     <string name="create_remote_duplicates_found">Внимание: в Firefly найдено %1$d подходящих транзакций, а не одна.</string>
     <string name="create_duplicate_confirm_title">Возможный дубль</string>
-    <string name="create_duplicate_confirm_message">В пределах окна дедупликации уже создана транзакция (№%1$s) с теми же счетами, суммой и валютой. Всё равно создать новую?</string>
+    <string name="create_duplicate_confirm_message">В пределах окна дедупликации уже создана транзакция (№%1$s) с теми же счетами, суммой и валютой.</string>
     <string name="create_duplicate_confirm_button">Создать копию</string>
     <string name="create_duplicate_use_created">Привязать</string>
     <string name="create_already_created_linked">Привязано к транзакции Firefly №%1$s.</string>
