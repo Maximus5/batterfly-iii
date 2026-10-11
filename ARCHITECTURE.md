@@ -3508,3 +3508,13 @@ which uninstalls the app and its data afterwards:
 `./gradlew assembleDebug assembleDebugAndroidTest`, then `adb install -r` the app APK and
 `adb install -r -t` the test APK, `adb shell pm grant <package> android.permission.POST_NOTIFICATIONS`,
 `adb shell am instrument -w -e class <test class> <package>.test/androidx.test.runner.AndroidJUnitRunner`.
+
+**On-device test of the whole auto-create path**: `AutoCreateFlowInstrumentedTest` captures a bank
+message (rule marked "Account is a guess") and then a wallet message, through the real
+`AutoCreateScheduler` -> WorkManager -> `AutoCreateWorker` -> HTTP client, and checks that the bank
+review notification is dismissed and "Transaction created" is shown. It talks to a stand-in Firefly:
+`node app/src/androidTest/fake-firefly/server.js` on the host plus `adb reverse tcp:18080 tcp:18080`
+(the stub answers search with nothing and POST with an id; it only fits what the client parses).
+The test swaps in its own connection settings and rules and restores them afterwards, but it does
+use the device's real app data - run it on a test device only. Each run uses a different amount,
+because the dedup log of an earlier run would (correctly) suppress the bank notification.
