@@ -541,13 +541,7 @@ class RuleEditFragment : Fragment() {
 
     private fun handleBackPressed() {
         if (hasUnsavedChanges()) {
-            // Cancel always rightmost/last (house convention, AGENTS.md).
-            AlertDialog.Builder(requireContext())
-                .setTitle(R.string.discard_changes_title)
-                .setMessage(R.string.discard_changes_message)
-                .setNegativeButton(R.string.discard_changes_discard) { _, _ -> parentFragmentManager.popBackStack() }
-                .setPositiveButton(android.R.string.cancel, null)
-                .show()
+            confirmDiscardChanges(requireContext()) { parentFragmentManager.popBackStack() }
         } else {
             parentFragmentManager.popBackStack()
         }

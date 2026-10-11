@@ -156,7 +156,8 @@
     <string name="rule_delete_confirm_title">Delete this rule?</string>
     <string name="discard_changes_title">Discard changes?</string>
     <string name="discard_changes_message">You have unsaved changes. They\'ll be lost if you leave now.</string>
-    <string name="discard_changes_discard">Discard</string>
+    <string name="discard_changes_discard">Discard changes</string>
+    <string name="discard_changes_keep_editing">Keep editing</string>
 
     <string name="test_match_no_match_title">No match</string>
     <string name="no_match_reason_no_rules_for_app">No rules for this app.</string>

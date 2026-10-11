@@ -53,6 +53,10 @@ Read both before making non-trivial changes, once they exist.
   means the real action goes in `setNegativeButton` (left) and Cancel in
   `setPositiveButton` (right) - inverted from the usual positive/negative
   meaning, deliberately, so Cancel lands in the rightmost slot.
+- Exception, the user's own call: the "unsaved changes" confirmation
+  (`confirmDiscardChanges`) has no Cancel at all - "Keep editing" on the left
+  (staying is the action people want) and "Discard changes" on the right,
+  both explicit actions, because "Cancel" next to "Discard" was ambiguous.
 
 ## Git conventions
 

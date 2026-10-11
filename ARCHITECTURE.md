@@ -3052,7 +3052,22 @@ Single `:app` module, packages under
       to drop the rule-specific framing, now shared by all three
       screens rather than duplicated per screen - the title/discard
       label were already screen-agnostic text, only the message needed
-      a genuinely generic rewording ("to this rule" dropped). App and
+      a genuinely generic rewording ("to this rule" dropped). **Since
+      v0.230** the dialog itself lives in one place,
+      `ui.confirmDiscardChanges` (the three copies are gone), and its
+      buttons are "Keep editing" (left) / "Discard changes" (right) -
+      no "Cancel", which read as "cancel my changes" (a documented
+      exception to the "Cancel rightmost" rule, see AGENTS.md). The
+      transaction create/edit screen (`CreateTransactionFragment`) got
+      the same guard in that version - it had none before: a `baseline`
+      snapshot of the form fields taken once the form has filled itself
+      in (the rule's draft or the loaded transaction, and again after the
+      async exchange-rate result if the user has not touched anything
+      meanwhile), so only the user's own edits count; back, gesture and
+      the toolbar's up arrow (routed to the same dispatcher by
+      `CreateTransactionActivity`) ask only when something differs.
+      Saving or creating finishes the activity directly, bypassing the
+      guard. App and
       kind are both Material "exposed dropdown menu" fields (an
       outlined `TextInputLayout` wrapping a
       `MaterialAutoCompleteTextView`) rather than a bare `Spinner` -

@@ -14,6 +14,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AlertDialog
 import androidx.core.widget.addTextChangedListener
 import androidx.fragment.app.Fragment
@@ -115,6 +116,37 @@ class CreateTransactionFragment : Fragment() {
 
     private var saveMenu: SaveMenuHandle? = null
 
+    /** What the form held once it had finished filling itself in (the rule's draft, or the loaded
+     * transaction, including the async exchange-rate result) - [hasUnsavedChanges] compares the
+     * current fields against it, so only the user's own edits count. Null while the form is still
+     * loading: leaving then asks nothing. */
+    private var baseline: List<String>? = null
+
+    private fun formSnapshot(): List<String> {
+        val binding = binding ?: return emptyList()
+        fun text(input: EditText) = input.text?.toString()?.trim().orEmpty()
+        return listOf(
+            text(binding.amountInput), text(binding.currencyCodeInput),
+            text(binding.foreignAmountInput), text(binding.foreignCurrencyCodeInput),
+            selectedTimestampMillis.toString(),
+            text(binding.sourceAccountInput), text(binding.destinationAccountInput),
+            text(binding.descriptionInput), text(binding.notesInput),
+            text(binding.categoryInput), text(binding.tagsInput),
+        )
+    }
+
+    private fun hasUnsavedChanges(): Boolean = baseline?.let { it != formSnapshot() } ?: false
+
+    /** Back button, gesture and the toolbar's up arrow (the activity routes it here) all end up
+     * here: leave at once if nothing was edited, otherwise ask first. */
+    private fun leaveOrConfirm() {
+        if (hasUnsavedChanges()) {
+            confirmDiscardChanges(requireContext()) { requireActivity().finish() }
+        } else {
+            requireActivity().finish()
+        }
+    }
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -130,6 +162,12 @@ class CreateTransactionFragment : Fragment() {
         val context = requireContext()
 
         message = CreateTransactionActivity.messageFrom(requireActivity().intent)
+        requireActivity().onBackPressedDispatcher.addCallback(
+            viewLifecycleOwner,
+            object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() = leaveOrConfirm()
+            },
+        )
         binding.transactionDateInput.setOnClickListener { showDatePicker() }
         binding.transactionTimeInput.setOnClickListener { showTimePicker() }
         binding.categoryLayout.setEndIconOnClickListener { showCategoryPicker(binding.categoryInput) }
@@ -212,6 +250,7 @@ class CreateTransactionFragment : Fragment() {
         }
 
         saveMenu?.enabled = true
+        baseline = formSnapshot()
 
         if (DraftIssue.LOCAL_AMOUNT_MISSING in draft.issues) {
             viewLifecycleOwner.lifecycleScope.launch { resolveApproxConversion(draft) }
@@ -239,6 +278,7 @@ class CreateTransactionFragment : Fragment() {
                     updateAccountFieldModes()
                     updateKindText()
                     saveMenu?.enabled = true
+                    baseline = formSnapshot()
                 }
                 is LinkedTransactionCheck.Gone -> {
                     Toast.makeText(context, getString(R.string.open_transaction_gone_message, transactionId), Toast.LENGTH_LONG).show()
@@ -654,11 +694,16 @@ class CreateTransactionFragment : Fragment() {
         }
         if (!binding.amountInput.text.isNullOrBlank()) return
         val approxTag = FireflyPrefs(context).getApproxConversionTag()
+        // The fetched amount/tag is the screen filling itself in, not an edit: re-baseline - but only
+        // if the user has not changed anything while the lookup was in flight, otherwise their
+        // edits would be swallowed into the baseline.
+        val untouched = !hasUnsavedChanges()
         val updated = applyApproxConversion(draft, result.rate, approxTag)
         binding.amountInput.setText(updated.amount?.toPlainString().orEmpty())
         if (approxTag.isNotBlank() && binding.tagsInput.text.isNullOrBlank()) {
             binding.tagsInput.setText(approxTag)
         }
+        if (untouched) baseline = formSnapshot()
     }
 
     private fun onCreateClicked() {

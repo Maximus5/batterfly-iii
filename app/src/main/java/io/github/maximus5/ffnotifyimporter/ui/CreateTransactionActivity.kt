@@ -52,8 +52,10 @@ class CreateTransactionActivity : AppCompatActivity() {
         }
     }
 
+    /** The toolbar's up arrow goes through the same path as the system back, so the fragment's
+     * "discard unsaved changes?" guard covers both. */
     override fun onSupportNavigateUp(): Boolean {
-        finish()
+        onBackPressedDispatcher.onBackPressed()
         return true
     }
 

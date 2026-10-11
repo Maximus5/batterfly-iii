@@ -148,17 +148,9 @@ class TransactionCreationFragment : Fragment() {
 
     private fun hasUnsavedChanges(): Boolean = buildSnapshot() != initialSnapshot
 
-    /** Cancel always rightmost/last (house convention, AGENTS.md) - the real action (Discard)
-     * goes in [AlertDialog.Builder.setNegativeButton] (left), Cancel in
-     * [AlertDialog.Builder.setPositiveButton] (right). */
     private fun handleBackPressed() {
         if (hasUnsavedChanges()) {
-            AlertDialog.Builder(requireContext())
-                .setTitle(R.string.discard_changes_title)
-                .setMessage(R.string.discard_changes_message)
-                .setNegativeButton(R.string.discard_changes_discard) { _, _ -> (activity as? SettingsActivity)?.leaveScreen() }
-                .setPositiveButton(android.R.string.cancel, null)
-                .show()
+            confirmDiscardChanges(requireContext()) { (activity as? SettingsActivity)?.leaveScreen() }
         } else {
             (activity as? SettingsActivity)?.leaveScreen()
         }
