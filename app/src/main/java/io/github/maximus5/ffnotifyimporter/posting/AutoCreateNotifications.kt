@@ -5,13 +5,12 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import io.github.maximus5.ffnotifyimporter.R
 import io.github.maximus5.ffnotifyimporter.data.CapturedMessage
-import io.github.maximus5.ffnotifyimporter.network.transactionUrl
 import io.github.maximus5.ffnotifyimporter.prefs.NotificationPrefs
+import io.github.maximus5.ffnotifyimporter.ui.CreateTransactionActivity
 import io.github.maximus5.ffnotifyimporter.ui.MainActivity
 import java.math.BigDecimal
 
@@ -23,10 +22,9 @@ import java.math.BigDecimal
  * heads-up popup warranted for a background bookkeeping result), not `_LOW` either (a
  * skipped-duplicate or a failure is worth more attention than a silent badge).
  *
- * The whole-notification tap always opens the app ([MainActivity]) on every outcome - the user's
- * own call, after trying tap-opens-Firefly first. [notifySuccess]/[notifySkippedDuplicate] also
- * carry an explicit "Open transaction" action button for jumping straight to Firefly's page
- * without going through the app first, and their text includes the parsed amount/currency/
+ * For [notifySuccess]/[notifySkippedDuplicate] both the whole-notification tap and the "Open
+ * transaction" action open the app's own editor for that transaction ([editorIntent]); a failure
+ * only opens the app ([MainActivity]). Their text includes the parsed amount/currency/
  * description by default - another real catch: without them, there was no way to tell from the
  * notification alone *why* two notifications were treated as different payments (or the same
  * one), only the resulting Firefly id. `NotificationPrefs.isShowFinancialInfoEnabled()` - the
@@ -47,7 +45,6 @@ object AutoCreateNotifications {
 
     fun notifySuccess(
         context: Context,
-        baseUrl: String,
         message: CapturedMessage,
         amount: BigDecimal,
         currencyCode: String,
@@ -64,8 +61,8 @@ object AutoCreateNotifications {
             id = message.hashCode(),
             title = context.getString(R.string.auto_create_success_title),
             text = text,
-            pendingIntent = mainActivityIntent(context),
-            action = transactionIntent(context, baseUrl, transactionId),
+            pendingIntent = editorIntent(context, message, transactionId),
+            action = editorIntent(context, message, transactionId),
         )
     }
 
@@ -80,7 +77,6 @@ object AutoCreateNotifications {
      * case like that diagnosable at a glance. */
     fun notifySkippedDuplicate(
         context: Context,
-        baseUrl: String,
         message: CapturedMessage,
         amount: BigDecimal,
         currencyCode: String,
@@ -97,8 +93,8 @@ object AutoCreateNotifications {
             id = message.hashCode(),
             title = context.getString(R.string.auto_create_skipped_title),
             text = text,
-            pendingIntent = mainActivityIntent(context),
-            action = transactionIntent(context, baseUrl, existingTransactionId),
+            pendingIntent = editorIntent(context, message, existingTransactionId),
+            action = editorIntent(context, message, existingTransactionId),
         )
     }
 
@@ -117,9 +113,16 @@ object AutoCreateNotifications {
         )
     }
 
-    private fun transactionIntent(context: Context, baseUrl: String, transactionId: String): PendingIntent {
-        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(transactionUrl(baseUrl, transactionId)))
-        return PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_IMMUTABLE)
+    /** Opens the app's own editor for the transaction ([CreateTransactionActivity.editIntent]) on top
+     * of [MainActivity], so Back lands in the app rather than leaving it. The request code is unique
+     * per message: extras are not part of a `PendingIntent`'s identity, so a shared code would hand
+     * a second notification the first one's cached intent (see `ReviewNotifications`). */
+    private fun editorIntent(context: Context, message: CapturedMessage, transactionId: String): PendingIntent {
+        val main = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val editor = CreateTransactionActivity.editIntent(context, message, transactionId)
+        return PendingIntent.getActivities(context, message.hashCode(), arrayOf(main, editor), PendingIntent.FLAG_IMMUTABLE)
     }
 
     private fun mainActivityIntent(context: Context): PendingIntent {

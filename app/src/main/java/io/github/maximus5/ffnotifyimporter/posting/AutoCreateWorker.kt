@@ -109,7 +109,7 @@ class AutoCreateWorker(context: Context, params: WorkerParameters) : CoroutineWo
             is DuplicateCheckResult.Found -> {
                 if (NotificationPrefs(applicationContext).isNotifySkippedDuplicatesEnabled()) {
                     AutoCreateNotifications.notifySkippedDuplicate(
-                        applicationContext, prefs.getBaseUrl(), message,
+                        applicationContext, message,
                         amount, resolved.currencyCode, resolved.description, result.id,
                     )
                 }
@@ -118,7 +118,7 @@ class AutoCreateWorker(context: Context, params: WorkerParameters) : CoroutineWo
             is DuplicateCheckResult.FoundMultiple -> {
                 if (NotificationPrefs(applicationContext).isNotifySkippedDuplicatesEnabled()) {
                     AutoCreateNotifications.notifySkippedDuplicate(
-                        applicationContext, prefs.getBaseUrl(), message,
+                        applicationContext, message,
                         amount, resolved.currencyCode, resolved.description, result.mostRecentId,
                     )
                 }
@@ -157,7 +157,7 @@ class AutoCreateWorker(context: Context, params: WorkerParameters) : CoroutineWo
                 RetentionController.purgeCreatedTransactions(createdDb, RetentionPrefs(applicationContext).getRetentionDays())
                 MessageStore.shared.setTransactionId(message, result.value)
                 AutoCreateNotifications.notifySuccess(
-                    applicationContext, prefs.getBaseUrl(), message,
+                    applicationContext, message,
                     amount, draft.currencyCode, draft.description, result.value,
                 )
                 Result.success()

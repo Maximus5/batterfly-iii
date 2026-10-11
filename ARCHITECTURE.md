@@ -1376,18 +1376,18 @@ Single `:app` module, packages under
     (`IMPORTANCE_DEFAULT` - not `_HIGH`, no heads-up warranted for a
     background bookkeeping result; not `_LOW` either, a skipped-
     duplicate or a failure deserves more than a silent badge), created
-    lazily on first use. The whole-notification tap always opens the app
-    (`MainActivity`) on every outcome - the user's own call, after
-    trying tap-opens-Firefly first and preferring the app as the
-    consistent, predictable destination instead. The success and
-    skipped-duplicate notifications separately also carry an explicit
-    "Open transaction" action button pointing straight at Firefly's own
-    page for the relevant transaction - the created one for a success,
-    the *existing* one the skip was against for a skipped duplicate
-    (confirming whether it's really the same payment means looking at
-    that transaction, not the app's own message list) - so getting
-    there doesn't need going through the app first, without changing
-    what a plain tap on the body does.
+    lazily on first use. **Tap targets (v0.207, the user's own bug
+    report)**: for the success and skipped-duplicate notifications both
+    the whole-notification tap and the "Open transaction" button open
+    the app's own editor for the relevant transaction -
+    `CreateTransactionActivity.editIntent(message, id)` on top of
+    `MainActivity` (`PendingIntent.getActivities`, so Back stays in
+    the app; request code unique per message, extras don't count for
+    `PendingIntent` identity) - the created one for a success, the
+    *existing* one the skip was against for a skipped duplicate. They
+    used to open the app's message list (body) and Firefly's web page
+    (button), which is not where "open the created transaction"
+    should land. The failure notification still just opens the app.
     **Fixed a real "can't tell what happened without opening Firefly"
     gap, caught directly on-device**: two notifications from the same
     app (Google Wallet), worded differently enough that `posting.
