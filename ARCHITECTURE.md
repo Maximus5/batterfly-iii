@@ -2616,7 +2616,11 @@ Single `:app` module, packages under
       on `ACTION_MAIN`/`CATEGORY_LAUNCHER`, which needs the
       `<queries>` entry in the manifest to see apps on API 30+; loads
       on a background dispatcher, only once the screen is actually
-      opened, not eagerly). Its "grant access" banner button (shown
+      opened, not eagerly). A search field above the list filters by
+      label or package name (case-insensitive substring) via
+      `AppsAdapter.setFilter`; the adapter keeps the full list apart
+      from the visible one and mirrors checkbox changes into both, so
+      clearing the filter never reverts a toggled app. Its "grant access" banner button (shown
       when `isNotificationListenerAccessGranted` is false - the one
       shared check `MainActivity`'s own gate above, this banner, and
       `NotificationAccessConsentFragment`'s auto-dismiss all use) opens

@@ -18,6 +18,8 @@
     <string name="settings_monitored_apps_title">Приложения для мониторинга</string>
     <string name="settings_apps_screen_title">Приложения</string>
     <string name="apps_purpose">Читаются уведомления только от отмеченных здесь приложений — чтобы находить в них платежи и создавать транзакции в Firefly III.</string>
+    <string name="apps_search_hint">Поиск приложений</string>
+    <string name="apps_search_no_match">Нет приложений, подходящих под поиск.</string>
     <string name="settings_monitored_apps_subtitle">Выберите, чьи уведомления отслеживать</string>
 
     <string name="settings_message_history_title">История сообщений</string>

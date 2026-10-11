@@ -9,11 +9,31 @@ class AppsAdapter(
     private val onMonitoredChanged: (packageName: String, monitored: Boolean) -> Unit,
 ) : RecyclerView.Adapter<AppsAdapter.ViewHolder>() {
 
+    private val allItems = mutableListOf<AppEntry>()
     private val items = mutableListOf<AppEntry>()
+    private var query = ""
 
     fun submitList(newItems: List<AppEntry>) {
+        allItems.clear()
+        allItems.addAll(newItems)
+        applyFilter()
+    }
+
+    fun hasAnyItems() = allItems.isNotEmpty()
+
+    fun setFilter(newQuery: String) {
+        query = newQuery.trim()
+        applyFilter()
+    }
+
+    private fun applyFilter() {
         items.clear()
-        items.addAll(newItems)
+        items.addAll(
+            if (query.isEmpty()) allItems
+            else allItems.filter {
+                it.label.contains(query, ignoreCase = true) || it.packageName.contains(query, ignoreCase = true)
+            },
+        )
         notifyDataSetChanged()
     }
 
@@ -37,12 +57,14 @@ class AppsAdapter(
             binding.appMonitoredCheckbox.setOnCheckedChangeListener(null)
             binding.appMonitoredCheckbox.isChecked = entry.monitored
             binding.appMonitoredCheckbox.setOnCheckedChangeListener { _, isChecked ->
-                // Keep the backing item in sync so a recycled-and-rebound row (scroll away and
-                // back) doesn't snap back to the stale value it was first loaded with.
+                // Keep both backing lists in sync so a recycled-and-rebound row, or a row coming
+                // back after the filter is cleared, doesn't snap back to its stale loaded value.
                 val position = bindingAdapterPosition
                 if (position != RecyclerView.NO_POSITION) {
                     items[position] = items[position].copy(monitored = isChecked)
                 }
+                val index = allItems.indexOfFirst { it.packageName == entry.packageName }
+                if (index >= 0) allItems[index] = allItems[index].copy(monitored = isChecked)
                 onMonitoredChanged(entry.packageName, isChecked)
             }
         }

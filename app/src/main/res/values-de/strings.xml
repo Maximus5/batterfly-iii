@@ -18,6 +18,8 @@
     <string name="settings_monitored_apps_title">Überwachte Apps</string>
     <string name="settings_apps_screen_title">Apps</string>
     <string name="apps_purpose">Die App liest Benachrichtigungen nur von den hier markierten Apps - um darin Zahlungen zu finden und Buchungen in Firefly III anzulegen.</string>
+    <string name="apps_search_hint">Apps suchen</string>
+    <string name="apps_search_no_match">Keine Apps entsprechen der Suche.</string>
     <string name="settings_monitored_apps_subtitle">Wählen Sie, deren Benachrichtigungen überwacht werden</string>
 
     <string name="settings_message_history_title">Nachrichtenverlauf</string>

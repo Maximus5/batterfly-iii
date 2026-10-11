@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.widget.doAfterTextChanged
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -43,6 +44,7 @@ class AppsFragment : Fragment() {
         }
         binding.appsRecyclerView.layoutManager = LinearLayoutManager(requireContext())
         binding.appsRecyclerView.adapter = adapter
+        binding.appsSearchInput.doAfterTextChanged { applySearch() }
 
         // Google Play review requirement for an app requesting notification-listener access: an
         // explicit in-app disclosure of what the app does with notification content, shown
@@ -66,6 +68,14 @@ class AppsFragment : Fragment() {
             hasLoadedApps = true
             loadInstalledApps()
         }
+    }
+
+    private fun applySearch() {
+        val binding = binding ?: return
+        adapter.setFilter(binding.appsSearchInput.text?.toString().orEmpty())
+        val noMatch = adapter.itemCount == 0 && adapter.hasAnyItems() &&
+            binding.appsLoadingSpinner.visibility != View.VISIBLE
+        binding.appsNoMatchText.visibility = if (noMatch) View.VISIBLE else View.GONE
     }
 
     private fun updateNotificationAccessBanner() {
@@ -92,6 +102,7 @@ class AppsFragment : Fragment() {
             adapter.submitList(entries)
             current.appsLoadingSpinner.visibility = View.GONE
             current.appsEmptyText.visibility = if (entries.isEmpty()) View.VISIBLE else View.GONE
+            applySearch()
         }
     }
 

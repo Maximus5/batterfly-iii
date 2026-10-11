@@ -18,6 +18,8 @@
     <string name="settings_monitored_apps_title">Monitored apps</string>
     <string name="settings_apps_screen_title">Apps</string>
     <string name="apps_purpose">The app reads notifications only from the apps checked here - to find payments in them and create transactions in Firefly III.</string>
+    <string name="apps_search_hint">Search apps</string>
+    <string name="apps_search_no_match">No apps match the search.</string>
     <string name="settings_monitored_apps_subtitle">Choose which apps\' notifications to watch</string>
 
     <string name="settings_message_history_title">Message history</string>
