@@ -1321,8 +1321,9 @@ work.
   texts under the URL / token fields, and autofill of the default currency
   / single asset account after Test connection and Save. **Deferred**: a
   "now add a test message" prompt after the first successful setup.
-- **Not yet verified on a real device**: the Auto Backup allowlist
-  (`backup_rules.xml` / `data_extraction_rules.xml`) is checked by
-  `BackupRulesTest` and lint only. Confirm with a real cloud backup + restore
-  (or device-to-device transfer) that rules / monitored apps survive and the
-  message history, created-transaction log and Firefly connection do not.
+- **Partly verified on a real device** (v0.176, Android 16): a real
+  `bmgr backupnow` through the local transport included only `rules.db` and
+  the four allowlisted `shared_prefs` - no message history, created-transaction
+  log, currencies or Firefly connection (see ARCHITECTURE.md for the method).
+  **Still not verified**: the restore side - a real restore / device-to-device
+  transfer actually bringing rules and monitored apps back on a fresh install.

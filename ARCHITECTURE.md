@@ -1045,6 +1045,14 @@ Single `:app` module, packages under
   absent, and every `DB_NAME`/`PREFS_NAME`/`getSharedPreferences("...")` in
   the sources is classified as included or excluded - adding a new store
   fails it until a decision is made.
+  How to verify on a device: **`adb backup` is not representative** - on a
+  debuggable build it dumped everything (history, transaction log, Firefly
+  connection) despite the allowlist. Use the real path instead: temporarily
+  `bmgr transport com.android.localtransport/.LocalTransport` (so nothing
+  reaches the user's Google account), `bmgr backupnow <package>`, then read the
+  `file_backup_helper: Name:` lines from `adb logcat` for that run, and switch
+  back with `bmgr transport com.google.android.gms/.backup.BackupTransportService`.
+  Checked this way on v0.176: only `rules.db` and the four allowlisted prefs.
 - `backup` - export/import and full backup/restore, added directly in
   response to a real data-loss incident (see "Known bugs / gotchas"
   below) - the user asked for both in the same breath once it happened:
