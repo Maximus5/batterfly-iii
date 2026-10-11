@@ -1387,7 +1387,14 @@ Single `:app` module, packages under
     `notifySkippedDuplicate` specifically, the *incoming* (skipped)
     draft's own fields, not the existing transaction's, since that's the
     data this worker actually parsed and is what needs comparing against
-    what "Open transaction" shows. Requires `POST_NOTIFICATIONS` on
+    what "Open transaction" shows. **The skipped-duplicate notification
+    is opt-in** (`FireflyPrefs.isNotifySkippedDuplicates`, off by
+    default, switch "Notify about skipped duplicates" on the
+    transaction-creation settings screen; the user's own call - a
+    skipped duplicate is usually a second app reporting the same
+    payment, so mostly noise): `AutoCreateWorker` still skips the
+    duplicate either way, the setting only gates the notification.
+    Requires `POST_NOTIFICATIONS` on
     API 33+ (declared in the manifest; `posting.
     isNotificationPermissionGranted(context)` is the one shared check,
     always true below API 33 where the permission doesn't exist) - a

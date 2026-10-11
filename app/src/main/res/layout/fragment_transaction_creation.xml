@@ -95,6 +95,13 @@
             android:layout_marginBottom="12dp"
             android:text="@string/firefly_dedup_include_description" />
 
+        <com.google.android.material.switchmaterial.SwitchMaterial
+            android:id="@+id/notifySkippedDuplicatesSwitch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            android:text="@string/firefly_notify_skipped_duplicates" />
+
         <com.google.android.material.textfield.TextInputLayout
             android:id="@+id/dedupWindowLayout"
             android:layout_width="match_parent"

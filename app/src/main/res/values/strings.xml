@@ -255,6 +255,7 @@
     <string name="firefly_auto_create">Create transactions automatically</string>
     <string name="firefly_dedup_enabled">Avoid duplicate transactions</string>
     <string name="firefly_dedup_include_description">Also compare description</string>
+    <string name="firefly_notify_skipped_duplicates">Notify about skipped duplicates</string>
     <string name="firefly_field_dedup_window">Dedup window (minutes)</string>
     <string name="firefly_dedup_window_invalid">Dedup window must be a positive number of minutes.</string>
     <string name="firefly_field_default_account_currency">Default account currency</string>

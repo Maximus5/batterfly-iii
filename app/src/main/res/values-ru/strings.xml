@@ -257,6 +257,7 @@
     <string name="firefly_auto_create">Создавать транзакции автоматически</string>
     <string name="firefly_dedup_enabled">Избегать дублей транзакций</string>
     <string name="firefly_dedup_include_description">Также сравнивать description</string>
+    <string name="firefly_notify_skipped_duplicates">Уведомлять о пропущенных дублях</string>
     <string name="firefly_field_dedup_window">Окно дедупликации (минут)</string>
     <string name="firefly_dedup_window_invalid">Окно дедупликации должно быть положительным числом минут.</string>
     <string name="firefly_field_default_account_currency">Валюта счёта по умолчанию</string>

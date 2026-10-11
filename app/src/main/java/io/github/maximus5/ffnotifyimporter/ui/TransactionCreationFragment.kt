@@ -75,6 +75,7 @@ class TransactionCreationFragment : Fragment() {
         val autoCreate: Boolean,
         val dedupEnabled: Boolean,
         val dedupIncludeDescription: Boolean,
+        val notifySkippedDuplicates: Boolean,
         val dedupWindow: String,
         val defaultAccountCurrency: String,
         val defaultSourceAccount: String,
@@ -113,6 +114,7 @@ class TransactionCreationFragment : Fragment() {
         binding.autoCreateSwitch.isChecked = prefs.isAutoCreateEnabled()
         binding.dedupEnabledSwitch.isChecked = prefs.isDedupEnabled()
         binding.dedupIncludeDescriptionSwitch.isChecked = prefs.isDedupIncludeDescription()
+        binding.notifySkippedDuplicatesSwitch.isChecked = prefs.isNotifySkippedDuplicates()
         binding.dedupWindowInput.setText(prefs.getDedupWindowMinutes().toString())
         binding.defaultAccountCurrencyInput.setText(prefs.getDefaultAccountCurrency())
         binding.defaultSourceAccountInput.setText(prefs.getDefaultSourceAccount())
@@ -138,6 +140,7 @@ class TransactionCreationFragment : Fragment() {
             autoCreate = binding.autoCreateSwitch.isChecked,
             dedupEnabled = binding.dedupEnabledSwitch.isChecked,
             dedupIncludeDescription = binding.dedupIncludeDescriptionSwitch.isChecked,
+            notifySkippedDuplicates = binding.notifySkippedDuplicatesSwitch.isChecked,
             dedupWindow = binding.dedupWindowInput.text?.toString()?.trim().orEmpty(),
             defaultAccountCurrency = binding.defaultAccountCurrencyInput.text?.toString()?.trim().orEmpty(),
             defaultSourceAccount = binding.defaultSourceAccountInput.text?.toString()?.trim().orEmpty(),
@@ -274,6 +277,7 @@ class TransactionCreationFragment : Fragment() {
         prefs.setAutoCreateEnabled(binding.autoCreateSwitch.isChecked)
         prefs.setDedupEnabled(binding.dedupEnabledSwitch.isChecked)
         prefs.setDedupIncludeDescription(binding.dedupIncludeDescriptionSwitch.isChecked)
+        prefs.setNotifySkippedDuplicates(binding.notifySkippedDuplicatesSwitch.isChecked)
         prefs.setDedupWindowMinutes(dedupWindow)
         prefs.setDefaultAccountCurrency(binding.defaultAccountCurrencyInput.text?.toString().orEmpty().trim())
         prefs.setDefaultSourceAccount(binding.defaultSourceAccountInput.text?.toString().orEmpty().trim())

@@ -106,17 +106,21 @@ class AutoCreateWorker(context: Context, params: WorkerParameters) : CoroutineWo
                 }
             }
             is DuplicateCheckResult.Found -> {
-                AutoCreateNotifications.notifySkippedDuplicate(
-                    applicationContext, prefs.getBaseUrl(), message,
-                    amount, resolved.currencyCode, resolved.description, result.id,
-                )
+                if (prefs.isNotifySkippedDuplicates()) {
+                    AutoCreateNotifications.notifySkippedDuplicate(
+                        applicationContext, prefs.getBaseUrl(), message,
+                        amount, resolved.currencyCode, resolved.description, result.id,
+                    )
+                }
                 Result.success()
             }
             is DuplicateCheckResult.FoundMultiple -> {
-                AutoCreateNotifications.notifySkippedDuplicate(
-                    applicationContext, prefs.getBaseUrl(), message,
-                    amount, resolved.currencyCode, resolved.description, result.mostRecentId,
-                )
+                if (prefs.isNotifySkippedDuplicates()) {
+                    AutoCreateNotifications.notifySkippedDuplicate(
+                        applicationContext, prefs.getBaseUrl(), message,
+                        amount, resolved.currencyCode, resolved.description, result.mostRecentId,
+                    )
+                }
                 Result.success()
             }
         }
