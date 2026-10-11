@@ -1,5 +1,6 @@
 package io.github.maximus5.ffnotifyimporter.posting
 
+import io.github.maximus5.ffnotifyimporter.network.FireflyAccount
 import io.github.maximus5.ffnotifyimporter.network.FireflyApiClient
 import io.github.maximus5.ffnotifyimporter.network.FireflyCategory
 import io.github.maximus5.ffnotifyimporter.prefs.FireflyPrefs
@@ -24,6 +25,11 @@ object FireflySuggestions {
 
     @Volatile private var categoryEntry: Entry<FireflyCategory>? = null
     @Volatile private var tagEntry: Entry<String>? = null
+    @Volatile private var assetAccountEntry: Entry<FireflyAccount>? = null
+
+    /** Asset accounts only (`listAssetAccounts`) - the ones a transaction can be booked from/to. */
+    suspend fun assetAccounts(prefs: FireflyPrefs): FireflyApiClient.Result<List<FireflyAccount>> =
+        load(prefs, assetAccountEntry, { it.listAssetAccounts() }, { assetAccountEntry = it })
 
     suspend fun categories(prefs: FireflyPrefs): FireflyApiClient.Result<List<FireflyCategory>> =
         load(prefs, categoryEntry, { it.listCategories() }, { categoryEntry = it })

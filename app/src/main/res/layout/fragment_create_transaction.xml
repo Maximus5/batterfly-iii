@@ -181,10 +181,14 @@
             android:hint="@string/create_tx_field_source_account"
             app:expandedHintEnabled="false">
 
-            <com.google.android.material.textfield.TextInputEditText
+            <!-- Suggests your own (asset) accounts while typing, on the asset side only. -->
+            <io.github.maximus5.ffnotifyimporter.ui.SuggestAutoCompleteTextView
                 android:id="@+id/sourceAccountInput"
+                style="@style/Widget.Material3.AutoCompleteTextView.OutlinedBox"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content" />
+                android:layout_height="wrap_content"
+                android:completionThreshold="1"
+                android:inputType="text" />
 
         </com.google.android.material.textfield.TextInputLayout>
 
@@ -196,10 +200,13 @@
             android:hint="@string/create_tx_field_destination_account"
             app:expandedHintEnabled="false">
 
-            <com.google.android.material.textfield.TextInputEditText
+            <io.github.maximus5.ffnotifyimporter.ui.SuggestAutoCompleteTextView
                 android:id="@+id/destinationAccountInput"
+                style="@style/Widget.Material3.AutoCompleteTextView.OutlinedBox"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content" />
+                android:layout_height="wrap_content"
+                android:completionThreshold="1"
+                android:inputType="text" />
 
         </com.google.android.material.textfield.TextInputLayout>
 

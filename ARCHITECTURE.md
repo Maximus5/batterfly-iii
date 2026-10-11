@@ -2515,7 +2515,16 @@ Single `:app` module, packages under
     `onFilterComplete(0)` instead), and unregistering a `DataSetObserver`
     from inside its own notification crashes (`IndexOutOfBounds` in
     `DataSetObservable`); (3) rows must be measured with the row's own
-    `layout_height`, `View.measure` ignores it.
+    `layout_height`, `View.measure` ignores it. **Accounts (v0.236)**:
+    the two account fields of the create/edit screen use the same view
+    and suggest the user's *asset* accounts (`FireflySuggestions.
+    assetAccounts` - the same cache the account picker now uses), on the
+    asset side only (`assetSideInputs`, set by `setAccountFieldMode`:
+    both fields in create mode, the kind's asset side in edit mode); the
+    counterparty side gets none, by the user's own decision. Tapping a
+    suggestion goes through the same `onPicked` as the modal picker
+    (`SuggestAutoCompleteTextView.onSuggestionPicked`), so the account id
+    is remembered and `inferKindFromAccounts` runs.
     `PickedAccount(id, name)` + `pick?.takeIf { it.name == currentText }
     ?.id` at build time (not a live `TextWatcher`) is the exact same
     stale-id-after-manual-edit handling `RuleEditFragment.buildDraft`

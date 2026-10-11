@@ -228,15 +228,6 @@ class CreateTransactionFragment : Fragment() {
         enableAccountPickersForCreate()
         updateKindText()
 
-        // Best-effort, silent - [inferKindFromAccounts] can already resolve kind from whichever
-        // side the user explicitly *picks* via the dropdown without this (the picked account is
-        // self-evidently an asset account), but resolving it from *typed* text (an account name
-        // the rule's own template already filled in, or the user types by hand without ever
-        // opening the picker) needs the list loaded first. A failure here just means that
-        // specific convenience doesn't kick in until the user taps a picker icon once - not worth
-        // a retry loop or an error toast for a background prefetch the user never asked for.
-        prefetchAssetAccountsForInference(context)
-
         // The user's own follow-up catch: falling through here because a previously-linked id
         // was just confirmed gone (MessagesFragment.verifyLinkedThenShow) used to show no warning
         // at all - silently dropping the fact that something *had* been linked, instead of saying
@@ -266,6 +257,7 @@ class CreateTransactionFragment : Fragment() {
     private fun loadSuggestions(context: Context) {
         val prefs = FireflyPrefs(context)
         if (!prefs.isConfigured()) return
+        loadAssetAccounts(context)
         viewLifecycleOwner.lifecycleScope.launch {
             val categoryList = (FireflySuggestions.categories(prefs) as? FireflyApiClient.Result.Success)?.value
             val tagList = (FireflySuggestions.tags(prefs) as? FireflyApiClient.Result.Success)?.value
@@ -479,25 +471,42 @@ class CreateTransactionFragment : Fragment() {
         return assetAccounts?.any { it.name == trimmed } == true
     }
 
-    /** Create mode only - loads [assetAccounts] right away instead of waiting for the account
-     * picker's own first tap (its usual lazy-fetch-on-first-use shape, still there as a fallback
-     * for when this fails), purely so [isAssetAccountName] can resolve *typed* account names
-     * (not just picked ones) without the user ever having to open a picker dialog once. Silent on
-     * failure - see the call site's own comment for why. */
-    private fun prefetchAssetAccountsForInference(context: Context) {
-        if (assetAccounts != null) return
+    /** Loads [assetAccounts] right away (shared [FireflySuggestions] cache) instead of waiting for
+     * the account picker's own first tap - so [isAssetAccountName] can resolve *typed* account names
+     * (not just picked ones), and the asset-side fields can offer them as suggestions. Both modes.
+     * Silent on failure: the picker still fetches on its own first tap. */
+    private fun loadAssetAccounts(context: Context) {
         val prefs = FireflyPrefs(context)
         if (!prefs.isConfigured()) return
         viewLifecycleOwner.lifecycleScope.launch {
-            val result = prefs.apiClient().listAssetAccounts()
+            val result = FireflySuggestions.assetAccounts(prefs)
             if (result is FireflyApiClient.Result.Success) {
                 assetAccounts = result.value
+                applyAccountSuggestions()
                 inferKindFromAccounts()
             }
         }
     }
 
+    /** The account fields that are on the asset side right now (the counterparty side never gets
+     * suggestions - only your own accounts are offered, the user's own call). */
+    private val assetSideInputs = mutableSetOf<EditText>()
+
+    private fun applyAccountSuggestions() {
+        val binding = binding ?: return
+        val names = assetAccounts?.map { it.name }.orEmpty()
+        listOf(binding.sourceAccountInput, binding.destinationAccountInput).forEach { input ->
+            input.setAdapter(if (input in assetSideInputs && names.isNotEmpty()) SuggestionAdapter(requireContext(), names) else null)
+        }
+    }
+
     private fun setAccountFieldMode(layout: TextInputLayout, input: EditText, isAsset: Boolean, onPicked: (PickedAccount) -> Unit) {
+        if (isAsset) assetSideInputs += input else assetSideInputs -= input
+        (input as? SuggestAutoCompleteTextView)?.onSuggestionPicked = { name ->
+            // A tapped suggestion counts as a pick from the account list: remember the id, like the picker does.
+            assetAccounts?.firstOrNull { it.name == name }?.let { onPicked(PickedAccount(it.id, it.name)) }
+        }
+        applyAccountSuggestions()
         if (!isAsset) {
             layout.endIconMode = TextInputLayout.END_ICON_NONE
             return
@@ -521,7 +530,7 @@ class CreateTransactionFragment : Fragment() {
             return
         }
         viewLifecycleOwner.lifecycleScope.launch {
-            when (val result = prefs.apiClient().listAssetAccounts()) {
+            when (val result = FireflySuggestions.assetAccounts(prefs)) {
                 is FireflyApiClient.Result.Success -> {
                     assetAccounts = result.value
                     showAccountPickerDialog(target, result.value, onPicked)

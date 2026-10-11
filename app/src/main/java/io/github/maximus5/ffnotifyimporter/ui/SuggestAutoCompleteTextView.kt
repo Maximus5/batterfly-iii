@@ -43,6 +43,9 @@ open class SuggestAutoCompleteTextView @JvmOverloads constructor(
     defStyleAttr: Int = com.google.android.material.R.attr.autoCompleteTextViewStyle,
 ) : MaterialAutoCompleteTextView(context, attrs, defStyleAttr) {
 
+    /** Called with the text of a suggestion the user tapped (after it was written into the field). */
+    var onSuggestionPicked: ((String) -> Unit)? = null
+
     private var pendingFilter: Runnable? = null
     private var popup: PopupWindow? = null
     private var popupList: ListView? = null
@@ -180,11 +183,13 @@ open class SuggestAutoCompleteTextView @JvmOverloads constructor(
         pendingFilter?.let { removeCallbacks(it) }
         pendingFilter = null
         selecting = true
+        val picked = convertSelectionToString(item)
         try {
-            replaceText(convertSelectionToString(item))
+            replaceText(picked)
         } finally {
             selecting = false
         }
         dismissDropDown()
+        onSuggestionPicked?.invoke(picked.toString())
     }
 }
