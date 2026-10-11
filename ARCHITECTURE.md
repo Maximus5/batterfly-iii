@@ -1388,9 +1388,10 @@ Single `:app` module, packages under
     draft's own fields, not the existing transaction's, since that's the
     data this worker actually parsed and is what needs comparing against
     what "Open transaction" shows. **The skipped-duplicate notification
-    is opt-in** (`FireflyPrefs.isNotifySkippedDuplicates`, off by
-    default, switch "Notify about skipped duplicates" on the
-    transaction-creation settings screen; the user's own call - a
+    is opt-in** (`NotificationPrefs.isNotifySkippedDuplicatesEnabled`,
+    off by default, switch "Notify about skipped duplicates" on the
+    Notifications settings screen, autosaved and disabled while
+    notifications are off, like the financial-info switch; the user's own call - a
     skipped duplicate is usually a second app reporting the same
     payment, so mostly noise): `AutoCreateWorker` still skips the
     duplicate either way, the setting only gates the notification.

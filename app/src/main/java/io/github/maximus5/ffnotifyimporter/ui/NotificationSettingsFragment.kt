@@ -49,6 +49,7 @@ class NotificationSettingsFragment : Fragment() {
 
         binding.showNotificationsSwitch.isChecked = prefs.isNotificationsEnabled()
         binding.showFinancialInfoSwitch.isChecked = prefs.isShowFinancialInfoEnabled()
+        binding.notifySkippedDuplicatesSwitch.isChecked = prefs.isNotifySkippedDuplicatesEnabled()
         updateFinancialSwitchEnabled()
 
         binding.showNotificationsSwitch.setOnCheckedChangeListener { _, isChecked ->
@@ -57,6 +58,9 @@ class NotificationSettingsFragment : Fragment() {
         }
         binding.showFinancialInfoSwitch.setOnCheckedChangeListener { _, isChecked ->
             prefs.setShowFinancialInfoEnabled(isChecked)
+        }
+        binding.notifySkippedDuplicatesSwitch.setOnCheckedChangeListener { _, isChecked ->
+            prefs.setNotifySkippedDuplicatesEnabled(isChecked)
         }
         binding.openSystemSettingsButton.setOnClickListener { openSystemNotificationSettings() }
     }
@@ -101,8 +105,9 @@ class NotificationSettingsFragment : Fragment() {
 
     private fun updateFinancialSwitchEnabled() {
         val binding = binding ?: return
-        binding.showFinancialInfoSwitch.isEnabled =
-            binding.showNotificationsSwitch.isEnabled && binding.showNotificationsSwitch.isChecked
+        val dependentEnabled = binding.showNotificationsSwitch.isEnabled && binding.showNotificationsSwitch.isChecked
+        binding.showFinancialInfoSwitch.isEnabled = dependentEnabled
+        binding.notifySkippedDuplicatesSwitch.isEnabled = dependentEnabled
     }
 
     /** `ACTION_APP_NOTIFICATION_SETTINGS` - the whole app's notification settings (every channel:

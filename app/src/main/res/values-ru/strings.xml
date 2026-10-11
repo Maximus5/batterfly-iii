@@ -257,7 +257,6 @@
     <string name="firefly_auto_create">Создавать транзакции автоматически</string>
     <string name="firefly_dedup_enabled">Избегать дублей транзакций</string>
     <string name="firefly_dedup_include_description">Также сравнивать description</string>
-    <string name="firefly_notify_skipped_duplicates">Уведомлять о пропущенных дублях</string>
     <string name="firefly_field_dedup_window">Окно дедупликации (минут)</string>
     <string name="firefly_dedup_window_invalid">Окно дедупликации должно быть положительным числом минут.</string>
     <string name="firefly_field_default_account_currency">Валюта счёта по умолчанию</string>
@@ -274,6 +273,8 @@
     <string name="notifications_show_switch">Показывать уведомления</string>
     <string name="notifications_show_switch_hint">Когда уведомление от банка совпадёт с правилом, показывать уведомление о создании (или проверке) транзакции.</string>
     <string name="notifications_show_financial_switch">Показывать финансовую информацию в уведомлении</string>
+    <string name="notifications_skipped_duplicates_switch">Уведомлять о пропущенных дублях</string>
+    <string name="notifications_skipped_duplicates_switch_hint">Автосоздание пропускает транзакцию, которая уже есть в Firefly (часто это тот же платёж от второго приложения). По умолчанию выключено — дубль пропускается в любом случае, переключатель управляет только уведомлением о нём.</string>
     <string name="notifications_show_financial_switch_hint">Показывать сумму, валюту и описание в тексте уведомления. По умолчанию выключено — уведомление может увидеть кто-то кроме вас, например на заблокированном экране.</string>
     <string name="notifications_open_system_settings_button">Открыть системные настройки уведомлений…</string>
     <string name="notifications_permission_card_title">Уведомления выключены</string>

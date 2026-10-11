@@ -32,9 +32,19 @@ class NotificationPrefs(context: Context) {
         prefs.edit().putBoolean(KEY_SHOW_FINANCIAL_INFO, enabled).apply()
     }
 
+    /** Off by default - the user's own call: a skipped duplicate is usually just a second app
+     * reporting the same payment, so the notification about it is mostly noise. The duplicate is
+     * skipped either way; this only gates the notification. */
+    fun isNotifySkippedDuplicatesEnabled(): Boolean = prefs.getBoolean(KEY_NOTIFY_SKIPPED_DUPLICATES, false)
+
+    fun setNotifySkippedDuplicatesEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_NOTIFY_SKIPPED_DUPLICATES, enabled).apply()
+    }
+
     companion object {
         private const val PREFS_NAME = "notifications"
         private const val KEY_NOTIFICATIONS_ENABLED = "notifications_enabled"
         private const val KEY_SHOW_FINANCIAL_INFO = "show_financial_info"
+        private const val KEY_NOTIFY_SKIPPED_DUPLICATES = "notify_skipped_duplicates"
     }
 }

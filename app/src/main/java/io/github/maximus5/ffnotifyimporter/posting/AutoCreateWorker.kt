@@ -10,6 +10,7 @@ import io.github.maximus5.ffnotifyimporter.data.RetentionController
 import io.github.maximus5.ffnotifyimporter.network.FireflyApiClient
 import io.github.maximus5.ffnotifyimporter.network.FireflyTransactionRequest
 import io.github.maximus5.ffnotifyimporter.prefs.FireflyPrefs
+import io.github.maximus5.ffnotifyimporter.prefs.NotificationPrefs
 import io.github.maximus5.ffnotifyimporter.prefs.RetentionPrefs
 import io.github.maximus5.ffnotifyimporter.rules.CreatedTransactionsDb
 import io.github.maximus5.ffnotifyimporter.rules.DraftIssue
@@ -106,7 +107,7 @@ class AutoCreateWorker(context: Context, params: WorkerParameters) : CoroutineWo
                 }
             }
             is DuplicateCheckResult.Found -> {
-                if (prefs.isNotifySkippedDuplicates()) {
+                if (NotificationPrefs(applicationContext).isNotifySkippedDuplicatesEnabled()) {
                     AutoCreateNotifications.notifySkippedDuplicate(
                         applicationContext, prefs.getBaseUrl(), message,
                         amount, resolved.currencyCode, resolved.description, result.id,
@@ -115,7 +116,7 @@ class AutoCreateWorker(context: Context, params: WorkerParameters) : CoroutineWo
                 Result.success()
             }
             is DuplicateCheckResult.FoundMultiple -> {
-                if (prefs.isNotifySkippedDuplicates()) {
+                if (NotificationPrefs(applicationContext).isNotifySkippedDuplicatesEnabled()) {
                     AutoCreateNotifications.notifySkippedDuplicate(
                         applicationContext, prefs.getBaseUrl(), message,
                         amount, resolved.currencyCode, resolved.description, result.mostRecentId,

@@ -255,7 +255,6 @@
     <string name="firefly_auto_create">Create transactions automatically</string>
     <string name="firefly_dedup_enabled">Avoid duplicate transactions</string>
     <string name="firefly_dedup_include_description">Also compare description</string>
-    <string name="firefly_notify_skipped_duplicates">Notify about skipped duplicates</string>
     <string name="firefly_field_dedup_window">Dedup window (minutes)</string>
     <string name="firefly_dedup_window_invalid">Dedup window must be a positive number of minutes.</string>
     <string name="firefly_field_default_account_currency">Default account currency</string>
@@ -272,6 +271,8 @@
     <string name="notifications_show_switch">Show notifications</string>
     <string name="notifications_show_switch_hint">When a bank notification matches a rule, show a notification for creating (or reviewing) the transaction.</string>
     <string name="notifications_show_financial_switch">Show financial information in notification</string>
+    <string name="notifications_skipped_duplicates_switch">Notify about skipped duplicates</string>
+    <string name="notifications_skipped_duplicates_switch_hint">Auto-create skips a transaction that already exists in Firefly (often the same payment reported by a second app). Off by default - the duplicate is skipped either way, this only controls the notification about it.</string>
     <string name="notifications_show_financial_switch_hint">Include the amount, currency, and description in the notification text. Off by default - a notification can be seen by someone other than you, e.g. on a locked screen.</string>
     <string name="notifications_open_system_settings_button">Open system notification settings…</string>
     <string name="notifications_permission_card_title">Notifications are off</string>

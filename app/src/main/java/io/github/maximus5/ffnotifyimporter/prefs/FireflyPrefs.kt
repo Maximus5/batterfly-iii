@@ -98,12 +98,6 @@ class FireflyPrefs(context: Context) {
     fun isDedupEnabled(): Boolean = prefs.getBoolean(KEY_DEDUP_ENABLED, true)
     fun setDedupEnabled(enabled: Boolean) = prefs.edit().putBoolean(KEY_DEDUP_ENABLED, enabled).apply()
 
-    /** Off by default - the user's own call: a skipped duplicate is usually just a second app
-     * reporting the same payment, so the system notification about it is mostly noise. */
-    fun isNotifySkippedDuplicates(): Boolean = prefs.getBoolean(KEY_NOTIFY_SKIPPED_DUPLICATES, false)
-    fun setNotifySkippedDuplicates(enabled: Boolean) =
-        prefs.edit().putBoolean(KEY_NOTIFY_SKIPPED_DUPLICATES, enabled).apply()
-
     /** Off by default - the user's own call: most rules derive their description straight from
      * the notification text, which varies more (timestamps, formatting quirks across runs of the
      * same bank's app) than the amount/account/date fields dedup already compares without this,
@@ -151,7 +145,6 @@ class FireflyPrefs(context: Context) {
         private const val KEY_AUTO_CREATE = "auto_create"
         private const val KEY_DEDUP_ENABLED = "dedup_enabled"
         private const val KEY_DEDUP_INCLUDE_DESCRIPTION = "dedup_include_description"
-        private const val KEY_NOTIFY_SKIPPED_DUPLICATES = "notify_skipped_duplicates"
         private const val KEY_DEDUP_WINDOW_MINUTES = "dedup_window_minutes"
         private const val KEY_BUILT_IN_RULES_ENABLED = "built_in_rules_enabled"
     }
