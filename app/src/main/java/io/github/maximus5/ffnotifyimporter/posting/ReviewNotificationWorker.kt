@@ -31,9 +31,9 @@ class ReviewNotificationWorker(context: Context, params: WorkerParameters) : Cor
         val draft = matchRule(applicationContext, message) ?: return Result.success()
 
         val resolved = resolveAmountQuietly(draft, prefs)
-        val amount = resolved.amount ?: return Result.success()
+        if (resolved.amount == null) return Result.success()
 
-        ReviewNotifications.notifyMatch(applicationContext, message, amount, resolved.currencyCode, resolved.description)
+        ReviewNotifications.notifyMatch(applicationContext, message, resolved)
         return Result.success()
     }
 

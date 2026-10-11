@@ -1484,6 +1484,22 @@ Single `:app` module, packages under
     **not** join `AutoCreateScheduler`'s unique `APPEND` work chain:
     there's no shared mutable state here (no Firefly `POST`, no
     dedup-log write) for two in-flight instances to race over.
+    **One notification per real payment (v0.205, the user's own
+    request)**: when the bank app and its wallet both notify about the
+    same payment, only the first review notification is posted. Each
+    posted notification carries its dedup hashes (with and without
+    description) and the draft's date in its `extras`; `notifyMatch`
+    (`@Synchronized`, so two workers can't both pass the check) reads
+    the review notifications still showing (`NotificationManager.
+    activeNotifications`, so a swiped/cancelled one drops out by itself
+    - no separate map to maintain, nothing lost when the process dies)
+    and posts nothing if one has the same `transactionDedupHash` (the
+    variant picked by `isDedupIncludeDescription()`) within
+    `getDedupWindowMinutes()` - the window keeps a genuinely separate,
+    identical payment hours later from being swallowed. Pure logic in
+    `posting/ShadeDedup.kt` (`ShadeDedupTest`). Only the shade is
+    deduplicated: the Messages list still records every message, and
+    `AutoCreateNotifications` (auto-create on) is unaffected.
     **Fixed two real bugs, the user's own catch/report on a real
     duplicate round-trip**:
     - The action used to deep-link straight into

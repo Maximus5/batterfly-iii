@@ -87,7 +87,7 @@ class AutoCreateWorker(context: Context, params: WorkerParameters) : CoroutineWo
         // notification posting.ReviewNotificationWorker shows when auto-create is off entirely,
         // since a human has to pick the account by hand regardless.
         if (DraftIssue.ACCOUNT_SELECTION_REQUIRED in resolved.issues) {
-            ReviewNotifications.notifyMatch(applicationContext, message, amount, resolved.currencyCode, resolved.description)
+            ReviewNotifications.notifyMatch(applicationContext, message, resolved)
             return Result.success()
         }
 

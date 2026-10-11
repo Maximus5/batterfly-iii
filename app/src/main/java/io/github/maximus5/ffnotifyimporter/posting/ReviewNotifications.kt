@@ -4,14 +4,16 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
+import android.os.Bundle
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import io.github.maximus5.ffnotifyimporter.R
 import io.github.maximus5.ffnotifyimporter.data.CapturedMessage
+import io.github.maximus5.ffnotifyimporter.prefs.FireflyPrefs
 import io.github.maximus5.ffnotifyimporter.prefs.NotificationPrefs
+import io.github.maximus5.ffnotifyimporter.rules.TransactionDraft
 import io.github.maximus5.ffnotifyimporter.ui.CreateTransactionActivity
 import io.github.maximus5.ffnotifyimporter.ui.MainActivity
-import java.math.BigDecimal
 
 /**
  * System notification for [ReviewNotificationWorker] - the counterpart to [AutoCreateNotifications]
@@ -57,21 +59,40 @@ import java.math.BigDecimal
  * `NotificationPrefs.isNotificationsEnabled()` is off, and - defaulting *off* for Google Play's
  * financial-app content guidelines - swaps the detailed amount/currency/description text for a
  * generic one (app label only) unless `isShowFinancialInfoEnabled()` is on.
+ *
+ * **No second notification for the same payment, the user's own request**: when the bank app and
+ * its wallet both notify about one payment and auto-create is off, [notifyMatch] posts nothing for
+ * the second one if a review notification with the same dedup hash (`transactionDedupHash`,
+ * honoring `isDedupIncludeDescription()`, within the dedup window - see [ShadeEntry]) is still in
+ * the shade. Only the shade is deduplicated; the in-app Messages list still gets every message.
  */
 object ReviewNotifications {
 
     private const val CHANNEL_ID = "review_match"
+    private const val EXTRA_HASH_WITH_DESCRIPTION = "shade_hash_with_description"
+    private const val EXTRA_HASH_WITHOUT_DESCRIPTION = "shade_hash_without_description"
+    private const val EXTRA_DATE_MILLIS = "shade_date_millis"
 
+    @Synchronized
     fun notifyMatch(
         context: Context,
         message: CapturedMessage,
-        amount: BigDecimal,
-        currencyCode: String,
-        description: String,
+        draft: TransactionDraft,
     ) {
+        val amount = draft.amount ?: return
+        val currencyCode = draft.currencyCode
+        val description = draft.description
         val notificationPrefs = NotificationPrefs(context)
         if (!notificationPrefs.isNotificationsEnabled()) return
         ensureChannel(context)
+        val shadeEntry = shadeEntryFor(draft)
+        if (shadeEntry != null) {
+            val fireflyPrefs = FireflyPrefs(context)
+            val active = activeEntries(context, ownId = notificationId(message))
+            // Same payment already waiting in the shade (e.g. the bank app and its wallet both
+            // notified): don't add a second one. The message still lands in the in-app list as usual.
+            if (isDuplicateInShade(active, shadeEntry, fireflyPrefs.isDedupIncludeDescription(), fireflyPrefs.getDedupWindowMinutes())) return
+        }
         val text = if (notificationPrefs.isShowFinancialInfoEnabled()) {
             context.getString(R.string.review_match_text, message.appLabel, amount.toPlainString(), currencyCode, description)
         } else {
@@ -85,6 +106,15 @@ object ReviewNotifications {
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))
             .setContentIntent(action)
             .addAction(R.drawable.ic_notification_sync, context.getString(R.string.review_match_action), action)
+        if (shadeEntry != null) {
+            builder.addExtras(
+                Bundle().apply {
+                    putString(EXTRA_HASH_WITH_DESCRIPTION, shadeEntry.hashWithDescription)
+                    putString(EXTRA_HASH_WITHOUT_DESCRIPTION, shadeEntry.hashWithoutDescription)
+                    putLong(EXTRA_DATE_MILLIS, shadeEntry.dateMillis)
+                },
+            )
+        }
         try {
             NotificationManagerCompat.from(context).notify(notificationId(message), builder.build())
         } catch (e: SecurityException) {
@@ -129,6 +159,23 @@ object ReviewNotifications {
     private fun createTransactionIntent(context: Context, message: CapturedMessage): PendingIntent {
         val intent = MainActivity.checkMessageIntent(context, message)
         return PendingIntent.getActivity(context, notificationId(message), intent, PendingIntent.FLAG_IMMUTABLE)
+    }
+
+    /** The review notifications currently in the shade (except [ownId], the one about to be
+     * replaced), as [ShadeEntry]s read back from the extras [notifyMatch] stored on them. The system
+     * itself is the "map of active notifications" - a swiped or cancelled notification is simply
+     * not returned any more, so there is no separate hash table to keep in sync or to lose when the
+     * process dies. */
+    private fun activeEntries(context: Context, ownId: Int): List<ShadeEntry> {
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        return manager.activeNotifications
+            .filter { it.id != ownId && it.notification.channelId == CHANNEL_ID }
+            .mapNotNull { active ->
+                val extras = active.notification.extras
+                val withDescription = extras.getString(EXTRA_HASH_WITH_DESCRIPTION) ?: return@mapNotNull null
+                val withoutDescription = extras.getString(EXTRA_HASH_WITHOUT_DESCRIPTION) ?: return@mapNotNull null
+                ShadeEntry(withDescription, withoutDescription, extras.getLong(EXTRA_DATE_MILLIS))
+            }
     }
 
     private fun ensureChannel(context: Context) {
