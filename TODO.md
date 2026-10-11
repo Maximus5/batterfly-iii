@@ -5,6 +5,10 @@ identified but deliberately not done now (out of scope, needs a
 decision, etc.); remove the entry in the same commit that finishes the
 work.
 
+- License: GPL-3.0-or-later (`LICENSE`, verbatim gnu.org text). Still to do once the
+  copyright holder name is chosen: add a `Copyright (C) <year> <name>` line (README /
+  About screen) and, if wanted, per-file headers.
+
 - Rule engine (`parser`/`rules`, `RulesDb`, the Rules settings screen,
   and the Messages screen's "test match" tap) is built end to end and
   reachable in the app - see ARCHITECTURE.md. Not yet verified on a
