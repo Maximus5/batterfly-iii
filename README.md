@@ -2,8 +2,14 @@
 
 *An unofficial Android companion for [Firefly III](https://www.firefly-iii.org/).*
 
-Butterfly III reads the payment notifications on your phone and adds them to
-Firefly III for you. It works with Google Wallet and your bank's apps.
+Firefly III is a free, open-source personal finance manager that you run on
+your own server. It keeps your accounts, income and spending in one place and
+turns them into clear reports and budgets.
+
+Butterfly III brings your everyday payments into it. It reads the payment
+notifications from Google Wallet and your bank's apps, finds the amount and the
+shop, and adds the transaction to your Firefly III, so you don't have to enter
+purchases by hand.
 
 <table>
   <tr>
@@ -25,9 +31,8 @@ Want to set one up? Follow
 [the Docker installation guide](https://docs.firefly-iii.org/how-to/firefly-iii/installation/docker/).
 Other ways to install it are listed on the same documentation site.
 
-Butterfly III is not made by, or affiliated with, the Firefly III project.
-
-Ready? Follow [Getting started](docs/getting-started.md), with screenshots. Every settings screen is described in [Settings](docs/settings.md).
+Ready? Follow [Getting started](docs/getting-started.md), with screenshots.
+Every settings screen is described in [Settings](docs/settings.md).
 
 ## How it works
 
