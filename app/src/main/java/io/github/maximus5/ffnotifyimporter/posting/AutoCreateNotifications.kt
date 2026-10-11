@@ -67,7 +67,7 @@ object AutoCreateNotifications {
             text = text,
             pendingIntent = editorIntent(context, message, transactionId),
             action = editorIntent(context, message, transactionId),
-            webAction = webIntent(context, baseUrl, transactionId),
+            webAction = webIntent(context, message, baseUrl, transactionId),
         )
     }
 
@@ -101,7 +101,7 @@ object AutoCreateNotifications {
             text = text,
             pendingIntent = editorIntent(context, message, existingTransactionId),
             action = editorIntent(context, message, existingTransactionId),
-            webAction = webIntent(context, baseUrl, existingTransactionId),
+            webAction = webIntent(context, message, baseUrl, existingTransactionId),
         )
     }
 
@@ -121,22 +121,23 @@ object AutoCreateNotifications {
     }
 
     /** Opens the app's own editor for the transaction ([CreateTransactionActivity.editIntent]) on top
-     * of [MainActivity], so Back lands in the app rather than leaving it. The request code is unique
-     * per message: extras are not part of a `PendingIntent`'s identity, so a shared code would hand
-     * a second notification the first one's cached intent (see `ReviewNotifications`). */
+     * of [MainActivity], so Back lands in the app rather than leaving it - via [DismissAndOpenActivity],
+     * which also dismisses the notification (an action button doesn't do that by itself). The request
+     * code is unique per message: extras are not part of a `PendingIntent`'s identity, so a shared
+     * code would hand a second notification the first one's cached intent (see `ReviewNotifications`). */
     private fun editorIntent(context: Context, message: CapturedMessage, transactionId: String): PendingIntent {
-        val main = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        }
         val editor = CreateTransactionActivity.editIntent(context, message, transactionId)
-        return PendingIntent.getActivities(context, message.hashCode(), arrayOf(main, editor), PendingIntent.FLAG_IMMUTABLE)
+        val trampoline = DismissAndOpenActivity.intent(context, message.hashCode(), editor, overMain = true)
+        return PendingIntent.getActivity(context, message.hashCode(), trampoline, PendingIntent.FLAG_IMMUTABLE)
     }
 
     /** Firefly III's own web page for [transactionId] - a second, optional action next to the in-app
-     * editor one. */
-    private fun webIntent(context: Context, baseUrl: String, transactionId: String): PendingIntent {
-        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(transactionUrl(baseUrl, transactionId)))
-        return PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_IMMUTABLE)
+     * editor one; dismisses the notification the same way. Own request code (+1) so it doesn't share
+     * a cached `PendingIntent` with [editorIntent]. */
+    private fun webIntent(context: Context, message: CapturedMessage, baseUrl: String, transactionId: String): PendingIntent {
+        val view = Intent(Intent.ACTION_VIEW, Uri.parse(transactionUrl(baseUrl, transactionId)))
+        val trampoline = DismissAndOpenActivity.intent(context, message.hashCode(), view, overMain = false)
+        return PendingIntent.getActivity(context, message.hashCode() + 1, trampoline, PendingIntent.FLAG_IMMUTABLE)
     }
 
     private fun mainActivityIntent(context: Context): PendingIntent {

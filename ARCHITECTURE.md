@@ -1391,7 +1391,17 @@ Single `:app` module, packages under
     **Second action "Open in Firefly III" (v0.208)**: the same two
     notifications also carry an `ACTION_VIEW` button for Firefly III's own
     web page (`network.transactionUrl`), next to the in-app editor
-    button (`webIntent`).
+    button (`webIntent`). **Every tap on those two notifications (body,
+    either button) dismisses them (v0.210)**: an action button never
+    auto-cancels (only a body tap does, via `setAutoCancel`), and once the
+    transaction exists the notification has nothing left to say - so
+    all three PendingIntents go through `posting.DismissAndOpenActivity`,
+    an invisible (`Theme.NoDisplay`) activity that cancels the
+    notification id, then starts the real target (editor on top of
+    `MainActivity`, or the web `ACTION_VIEW`) and finishes. An activity,
+    not a receiver/service, so the notification-trampoline restriction
+    doesn't apply. The review notifications are unchanged (they stay
+    until a transaction is actually linked).
     **Fixed a real "can't tell what happened without opening Firefly"
     gap, caught directly on-device**: two notifications from the same
     app (Google Wallet), worded differently enough that `posting.
