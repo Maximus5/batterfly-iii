@@ -46,7 +46,7 @@ import java.time.Instant
  * precision on that single transaction) - a hash that looked at it there would reintroduce the
  * exact same inconsistency against a rule-produced draft for the same account.
  *
- * [includeDescription] - on by default (`FireflyPrefs.isDedupIncludeDescription`) - trades a
+ * [includeDescription] - off by default (`FireflyPrefs.isDedupIncludeDescription`) - trades a
  * slightly higher false-negative rate (an occasional real duplicate charge from the same merchant
  * within the window goes uncaught) for zero risk of a false positive silently dropping a
  * genuinely different transaction; see TODO.md for why that tradeoff was picked deliberately.
@@ -126,8 +126,18 @@ data class RemoteTransactionCandidate(
  * bank-reported value), and the throwaway draft's amount/currency are set to [draft]'s own
  * (already-validated-identical-by-construction) values rather than [candidate]'s, so
  * [transactionDedupHash]'s own unconditional amount/currency contribution can't independently
- * re-reject what this already confirmed through the foreign-aware comparison. */
-fun remoteCandidateMatches(draft: TransactionDraft, candidate: RemoteTransactionCandidate, includeDescription: Boolean, windowMinutes: Int): Boolean {
+ * re-reject what this already confirmed through the foreign-aware comparison.
+ *
+ * [ignoreUnknownAccounts] (only the manual "Check if created" lookup sets it): an account side the
+ * draft doesn't know (null - the rule left it blank and no default applies) matches whatever the
+ * candidate has there, instead of never matching a candidate that has a real account name. */
+fun remoteCandidateMatches(
+    draft: TransactionDraft,
+    candidate: RemoteTransactionCandidate,
+    includeDescription: Boolean,
+    windowMinutes: Int,
+    ignoreUnknownAccounts: Boolean = false,
+): Boolean {
     val amount = draft.amount ?: return false
     val windowMillis = windowMinutes * 60_000L
     if (Math.abs(candidate.date.toEpochMilli() - draft.date.toEpochMilli()) > windowMillis) return false
@@ -146,8 +156,8 @@ fun remoteCandidateMatches(draft: TransactionDraft, candidate: RemoteTransaction
     val candidateAsDraft = draft.copy(
         amount = amount,
         currencyCode = draft.currencyCode,
-        sourceName = candidate.sourceName,
-        destinationName = candidate.destinationName,
+        sourceName = if (ignoreUnknownAccounts && draft.sourceName == null) null else candidate.sourceName,
+        destinationName = if (ignoreUnknownAccounts && draft.destinationName == null) null else candidate.destinationName,
         description = candidate.description,
     )
     return transactionDedupHash(draft, includeDescription) == transactionDedupHash(candidateAsDraft, includeDescription)

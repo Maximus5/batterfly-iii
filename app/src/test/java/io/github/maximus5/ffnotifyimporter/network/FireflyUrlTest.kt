@@ -115,6 +115,19 @@ class FireflyUrlTest {
         )
     }
 
+
+    @Test
+    fun `dedupSearchQuery returns null when no account name is known, unless allowUnscoped is set`() {
+        fun query(allowUnscoped: Boolean) = dedupSearchQuery(
+            amount = BigDecimal("12.50"), currencyCode = "EUR", foreignAmount = null, foreignCurrencyCode = null,
+            centerDate = searchDate, windowMinutes = 5,
+            sourceName = null, destinationName = null, description = "x", includeDescription = false,
+            allowUnscoped = allowUnscoped,
+        )
+
+        assertNull(query(allowUnscoped = false))
+        assertEquals("amount_is:12.50 currency_is:EUR date_on:2026-03-01", query(allowUnscoped = true))
+    }
     @Test
     fun `dedupSearchQuery uses date_on, not two identical date_after-date_before terms, when the window stays within one day`() {
         val query = dedupSearchQuery(

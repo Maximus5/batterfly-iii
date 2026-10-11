@@ -1792,6 +1792,20 @@ Single `:app` module, packages under
       risk linking the wrong transaction; a manual lookup always has a
       human looking at the result either way, so showing the weaker
       match (with a clear warning) is the right trade-off only there.
+      **Unknown accounts in the manual lookup (v0.204, the user's own
+      report)**: a message whose rule leaves both account sides blank
+      used to produce no query at all (`dedupSearchQuery` -> `null`), so
+      Firefly was never asked, "not found" was reported and the dialog's
+      "open search" button opened an empty search page. Now
+      `checkIfCreated` (a) fills the blank side from the global "Default
+      source account" (`withDefaultAccountIfUnknown`: source for
+      withdrawal/transfer, destination for deposit), (b) if that is blank
+      too, searches unscoped (`dedupSearchQuery(allowUnscoped = true)`) and
+      treats an unknown account side as a wildcard
+      (`remoteCandidateMatches(ignoreUnknownAccounts = true)`), and (c)
+      never offers an empty search - with no query the dialog says so and
+      the open-search button is hidden. The create-flow callers keep the
+      old "no account -> skip the remote check" behavior.
       **Always show found-transaction info, the user's own request** -
       "как ты сделал для ошибки, когда найденная не совпадает по
       счету": the not-found dialog's per-candidate field dump (above)

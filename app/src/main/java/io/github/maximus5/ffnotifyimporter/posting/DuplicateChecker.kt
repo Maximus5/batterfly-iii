@@ -113,7 +113,13 @@ suspend fun checkForDuplicate(context: Context, draft: TransactionDraft): Duplic
  * don't trust it, fall through to the remote search below exactly as if the local log had found
  * nothing; couldn't tell -> [DuplicateCheckResult.SearchFailed] immediately, see its own KDoc for
  * why that's no longer treated as "assume no duplicate". */
-suspend fun findDuplicate(context: Context, draft: TransactionDraft, prefs: FireflyPrefs, includeDescription: Boolean): DuplicateCheckResult {
+suspend fun findDuplicate(
+    context: Context,
+    draft: TransactionDraft,
+    prefs: FireflyPrefs,
+    includeDescription: Boolean,
+    allowUnscoped: Boolean = false,
+): DuplicateCheckResult {
     val windowMinutes = prefs.getDedupWindowMinutes()
     val hash = transactionDedupHash(draft, includeDescription)
     val localFoundId = CreatedTransactionsDb.getInstance(context)
@@ -141,13 +147,14 @@ suspend fun findDuplicate(context: Context, draft: TransactionDraft, prefs: Fire
         destinationName = draft.destinationName,
         description = draft.description,
         includeDescription = includeDescription,
+        allowUnscoped = allowUnscoped,
     ) ?: return DuplicateCheckResult.None()
 
     val client = prefs.apiClient()
     return when (val result = client.searchTransactionsByQuery(query)) {
         is FireflyApiClient.Result.Success -> {
             val candidates = result.value.map { it.toRemoteCandidate() }
-            val matches = candidates.filter { remoteCandidateMatches(draft, it, includeDescription, windowMinutes) }
+            val matches = candidates.filter { remoteCandidateMatches(draft, it, includeDescription, windowMinutes, ignoreUnknownAccounts = allowUnscoped) }
             when {
                 matches.isEmpty() -> DuplicateCheckResult.None(rawCandidates = candidates)
                 matches.size == 1 -> DuplicateCheckResult.Found(matches.first().groupId, matches.first())

@@ -80,6 +80,7 @@
     <string name="open_transaction_gone_message">Транзакция №%1$s больше не существует в Firefly III - возможно, она была удалена.</string>
     <string name="check_not_found_title">Не найдено в Firefly III</string>
     <string name="check_not_found_message">Подходящая транзакция не найдена для:\n\n%1$s</string>
+    <string name="check_not_found_no_query">Искать не по чему — не удалось определить сумму или дату этого сообщения.</string>
     <string name="check_not_found_message_with_candidates">*Firefly III вернул результатов: %2$d, но ни один не совпал точно:\n\n%1$s\n\nКандидаты:\n%3$s</string>
     <string name="check_open_search_in_firefly">Открыть поиск в Firefly III</string>
     <string name="check_use_anyway">Использовать</string>

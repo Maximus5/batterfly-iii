@@ -45,6 +45,7 @@ import io.github.maximus5.ffnotifyimporter.rules.DraftIssue
 import io.github.maximus5.ffnotifyimporter.rules.NoMatchReason
 import io.github.maximus5.ffnotifyimporter.rules.ParseOutcome
 import io.github.maximus5.ffnotifyimporter.rules.RemoteTransactionCandidate
+import io.github.maximus5.ffnotifyimporter.rules.RuleKind
 import io.github.maximus5.ffnotifyimporter.rules.TransactionDraft
 import io.github.maximus5.ffnotifyimporter.rules.applyApproxConversion
 import java.math.RoundingMode
@@ -802,12 +803,13 @@ class MessagesFragment : Fragment() {
                 Toast.makeText(context, R.string.create_amount_not_ready, Toast.LENGTH_SHORT).show()
                 return@launch
             }
+            val searchDraft = withDefaultAccountIfUnknown(resolved, prefs)
             val includeDescription = prefs.isDedupIncludeDescription()
-            var result = findDuplicate(context, resolved, prefs, includeDescription)
+            var result = findDuplicate(context, searchDraft, prefs, includeDescription, allowUnscoped = true)
             var effectiveIncludeDescription = includeDescription
             var matchedWithoutDescription = false
             if (result is DuplicateCheckResult.None && includeDescription) {
-                when (val retry = findDuplicate(context, resolved, prefs, includeDescription = false)) {
+                when (val retry = findDuplicate(context, searchDraft, prefs, includeDescription = false, allowUnscoped = true)) {
                     is DuplicateCheckResult.Found, is DuplicateCheckResult.FoundMultiple -> {
                         result = retry
                         effectiveIncludeDescription = false
@@ -826,16 +828,17 @@ class MessagesFragment : Fragment() {
             when (val r = result) {
                 is DuplicateCheckResult.None -> {
                     val query = dedupSearchQuery(
-                        amount = resolved.amount,
-                        currencyCode = resolved.currencyCode,
-                        foreignAmount = resolved.foreignAmount,
-                        foreignCurrencyCode = resolved.foreignCurrencyCode,
-                        centerDate = resolved.date,
+                        amount = searchDraft.amount,
+                        currencyCode = searchDraft.currencyCode,
+                        foreignAmount = searchDraft.foreignAmount,
+                        foreignCurrencyCode = searchDraft.foreignCurrencyCode,
+                        centerDate = searchDraft.date,
                         windowMinutes = prefs.getDedupWindowMinutes(),
-                        sourceName = resolved.sourceName,
-                        destinationName = resolved.destinationName,
-                        description = resolved.description,
+                        sourceName = searchDraft.sourceName,
+                        destinationName = searchDraft.destinationName,
+                        description = searchDraft.description,
                         includeDescription = effectiveIncludeDescription,
+                        allowUnscoped = true,
                     ).orEmpty()
                     showSearchNotFoundDialog(context, query, r.rawCandidates, message)
                 }
@@ -866,6 +869,17 @@ class MessagesFragment : Fragment() {
                     showResultDialog(context, R.string.check_search_failed_title, r.message)
             }
         }
+    }
+
+    /** When the rule left *both* account sides blank, "Check if created" falls back to the global
+     * "Default source account" setting (the same one `CreateTransactionFragment` pre-fills): as
+     * the source for a withdrawal/transfer, as the destination for a deposit - in every case the
+     * user's own account. Only for this manual lookup; nothing else reads it. A blank setting
+     * leaves the draft as is (the search then runs without an account filter). */
+    private fun withDefaultAccountIfUnknown(draft: TransactionDraft, prefs: FireflyPrefs): TransactionDraft {
+        if (draft.sourceName != null || draft.destinationName != null) return draft
+        val defaultAccount = prefs.getDefaultSourceAccount().takeIf { it.isNotBlank() } ?: return draft
+        return if (draft.kind == RuleKind.DEPOSIT) draft.copy(destinationName = defaultAccount) else draft.copy(sourceName = defaultAccount)
     }
 
     /** Same exchange-rate resolution as [resolveApproxConversion], without an [AlertDialog] to
@@ -910,7 +924,9 @@ class MessagesFragment : Fragment() {
         rawCandidates: List<RemoteTransactionCandidate>,
         message: CapturedMessage,
     ) {
-        val dialogMessage = if (rawCandidates.isNotEmpty()) {
+        val dialogMessage = if (query.isBlank()) {
+            getString(R.string.check_not_found_no_query)
+        } else if (rawCandidates.isNotEmpty()) {
             val candidateLines = rawCandidates.joinToString("\n") {
                 "id=${it.groupId} date=${it.date} amount=${it.amount.setScale(2, RoundingMode.HALF_UP)} ${it.currencyCode} " +
                     "desc=\"${it.description}\" src=${it.sourceId}/${it.sourceName} dst=${it.destinationId}/${it.destinationName}"
@@ -928,7 +944,9 @@ class MessagesFragment : Fragment() {
             .setView(view)
             .create()
 
-        view.findViewById<View>(R.id.openSearchButton).setOnClickListener {
+        val openSearchButton = view.findViewById<View>(R.id.openSearchButton)
+        if (query.isBlank()) openSearchButton.visibility = View.GONE
+        openSearchButton.setOnClickListener {
             val baseUrl = FireflyPrefs(context).getBaseUrl()
             startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(searchUrl(baseUrl, query))))
             dialog.dismiss()

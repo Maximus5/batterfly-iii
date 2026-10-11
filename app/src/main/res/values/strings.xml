@@ -78,6 +78,7 @@
     <string name="open_transaction_gone_message">Transaction #%1$s no longer exists in Firefly III - it may have been deleted.</string>
     <string name="check_not_found_title">Not found in Firefly III</string>
     <string name="check_not_found_message">No matching transaction found for:\n\n%1$s</string>
+    <string name="check_not_found_no_query">Nothing to search by - the amount or date of this message could not be determined.</string>
     <string name="check_not_found_message_with_candidates">*Firefly III returned %2$d result(s), but none matched exactly:\n\n%1$s\n\nCandidates:\n%3$s</string>
     <string name="check_open_search_in_firefly">Open search in Firefly III</string>
     <string name="check_use_anyway">Use anyway</string>

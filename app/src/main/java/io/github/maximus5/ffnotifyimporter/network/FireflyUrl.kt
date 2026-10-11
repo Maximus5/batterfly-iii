@@ -69,7 +69,8 @@ fun dedupSearchDateRange(centerDate: Instant, windowMinutes: Int): Pair<String, 
  * too), plus [description] when [includeDescription] is true. Null if there's nothing to search
  * on at all (no amount, or neither account name known) - the caller skips the remote check
  * entirely rather than searching unscoped (amount+date alone could coincidentally match an
- * unrelated transaction).
+ * unrelated transaction) - except when [allowUnscoped] is set, which only the manual "Check if
+ * created" lookup does (a human reviews the result, so a broader search is the more useful one).
  *
  * When [foreignAmount]/[foreignCurrencyCode] are both set, `foreign_amount_is`/
  * `foreign_currency_is` are used *instead of* `amount_is`/`currency_is` - [amount]/[currencyCode]
@@ -105,8 +106,9 @@ fun dedupSearchQuery(
     destinationName: String?,
     description: String,
     includeDescription: Boolean,
+    allowUnscoped: Boolean = false,
 ): String? {
-    if (sourceName == null && destinationName == null) return null
+    if (!allowUnscoped && sourceName == null && destinationName == null) return null
     val (start, end) = dedupSearchDateRange(centerDate, windowMinutes)
     val terms = mutableListOf<String>()
     if (foreignAmount != null && foreignCurrencyCode != null) {

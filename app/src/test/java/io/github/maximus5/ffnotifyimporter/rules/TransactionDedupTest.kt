@@ -160,6 +160,23 @@ class TransactionDedupTest {
         assertTrue(remoteCandidateMatches(draft(), candidate(), true, 5))
     }
 
+
+    @Test
+    fun `remoteCandidateMatches treats an account the draft doesn't know as a wildcard only when asked to`() {
+        val unknownSource = draft(sourceName = null)
+
+        assertFalse(remoteCandidateMatches(unknownSource, candidate(), true, 5))
+        assertTrue(remoteCandidateMatches(unknownSource, candidate(), true, 5, ignoreUnknownAccounts = true))
+    }
+
+    @Test
+    fun `remoteCandidateMatches still compares a known account when ignoreUnknownAccounts is set`() {
+        val knownSource = draft(sourceName = "Bank Account A")
+
+        assertFalse(
+            remoteCandidateMatches(knownSource, candidate(sourceName = "Other Account"), true, 5, ignoreUnknownAccounts = true),
+        )
+    }
     @Test
     fun `remoteCandidateMatches is false when the amount differs`() {
         assertFalse(remoteCandidateMatches(draft(), candidate(amount = BigDecimal("12.51")), true, 5))
