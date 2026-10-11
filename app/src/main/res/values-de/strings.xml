@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Notification Importer for Firefly III</string>
+    <string name="app_name">Butterfly III</string>
 
     <string name="apps_empty">Die Liste der installierten Apps konnte nicht geladen werden.</string>
     <string name="messages_empty">Noch nichts erfasst. Aktivieren Sie die Überwachung für die gewünschten Apps und warten Sie auf eine Benachrichtigung.</string>
@@ -9,7 +9,7 @@
     <string name="notification_access_grant">Einstellungen öffnen</string>
 
     <string name="notification_access_consent_title">Zugriff auf Benachrichtigungen</string>
-    <string name="notification_access_consent_intro"><b>Für ihre Arbeit benötigt die App Zugriff auf Benachrichtigungen. Er wird auf der Systemseite mit den Einstellungen erteilt, die sich über die Schaltfläche unten öffnet: Dazu dort den Schalter für „Notification Importer for Firefly III“ einschalten und die Systemabfrage bestätigen.</b></string>
+    <string name="notification_access_consent_intro"><b>Für ihre Arbeit benötigt die App Zugriff auf Benachrichtigungen. Er wird auf der Systemseite mit den Einstellungen erteilt, die sich über die Schaltfläche unten öffnet: Dazu dort den Schalter für „Butterfly III“ einschalten und die Systemabfrage bestätigen.</b></string>
     <string name="notification_access_consent_body">Um Ihre Banktransaktionen automatisch zu erfassen, benötigt die App Zugriff auf die eingehenden Benachrichtigungen von Android.\n\nDie App erhält Benachrichtigungen aller installierten Apps, analysiert den Inhalt aber nur bei den Apps, die Sie ausgewählt haben.\n\nAus passenden Benachrichtigungen werden die Buchungsdetails ausgelesen: Betrag, Währung, Datum und Beschreibung.\n\nDie Erkennung erfolgt vollständig auf Ihrem Gerät. Der Rohtext der Benachrichtigungen wird weder an den Entwickler noch an Analysedienste Dritter gesendet. Standardmäßig werden Benachrichtigungstexte nur im Arbeitsspeicher gehalten; das Speichern auf diesem Gerät ist eine separate Option in den Einstellungen zum Nachrichtenverlauf.\n\nErkannte Buchungsdetails werden mit Ihrem eigenen API-Token an den von Ihnen angegebenen Firefly-III-Server gesendet.\n\nSie können die Liste der Apps ändern oder den Zugriff auf Benachrichtigungen jederzeit widerrufen.</string>
     <string name="notification_access_consent_agree">Zustimmen und weiter</string>
     <string name="notification_access_consent_not_now">Nicht jetzt</string>

@@ -17,9 +17,6 @@ import io.github.maximus5.ffnotifyimporter.backup.rulesFromJson
 import io.github.maximus5.ffnotifyimporter.backup.rulesToJson
 import io.github.maximus5.ffnotifyimporter.databinding.FragmentBackupBinding
 import io.github.maximus5.ffnotifyimporter.rules.RulesDb
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 /** Full-device backup/restore - monitored apps, currencies, rules, message history. Deliberately
  * *not* the Firefly connection (base URL/token) - see `FullBackupData`'s KDoc. Also hosts
@@ -57,20 +54,10 @@ class BackupFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         val binding = binding ?: return
-        binding.exportBackupButton.setOnClickListener { exportLauncher.launch(defaultBackupFileName()) }
+        binding.exportBackupButton.setOnClickListener { exportLauncher.launch(exportFileName(requireContext(), "backup")) }
         binding.restoreBackupButton.setOnClickListener { restoreLauncher.launch(arrayOf("application/json")) }
-        binding.exportRulesButton.setOnClickListener { exportRulesLauncher.launch(defaultRulesFileName()) }
+        binding.exportRulesButton.setOnClickListener { exportRulesLauncher.launch(exportFileName(requireContext(), "rules")) }
         binding.importRulesButton.setOnClickListener { importRulesLauncher.launch(arrayOf("application/json")) }
-    }
-
-    private fun defaultBackupFileName(): String {
-        val date = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
-        return "ffnotifyimporter-backup-$date.json"
-    }
-
-    private fun defaultRulesFileName(): String {
-        val date = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
-        return "ffnotifyimporter-rules-$date.json"
     }
 
     /** Identical to `RulesListFragment.exportTo` - same sharing format, same function calls, just

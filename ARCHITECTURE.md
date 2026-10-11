@@ -3338,3 +3338,14 @@ Adaptive icon (`mipmap-anydpi-v26/ic_launcher*.xml`): solid white background
 in a 13% `<inset>` (`ic_launcher_foreground.xml`) so the artwork stays inside
 the 66dp safe zone of the 108dp canvas, and the same drawable as the
 `<monochrome>` layer for Android 13+ themed icons (the system tints by alpha).
+
+## App name
+
+The user-visible name is the `app_name` string ("Butterfly III", the same in
+every locale; the Play listing uses a descriptive subtitle instead). Backup and
+rules export default file names are derived from it (`ExportFileName.kt`:
+lowercase, non-alphanumerics collapsed to `-`, e.g.
+`butterfly-iii-backup-2026-01-01.json`), so renaming the app renames them too.
+The application id / package (`io.github.maximus5.ffnotifyimporter`) is
+deliberately unchanged - it's the app's identity for updates and not shown to
+the user. The consent screen's intro paragraph hardcodes the name per locale.

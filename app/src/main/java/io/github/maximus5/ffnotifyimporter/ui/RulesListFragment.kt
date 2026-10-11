@@ -27,9 +27,6 @@ import io.github.maximus5.ffnotifyimporter.prefs.FireflyPrefs
 import io.github.maximus5.ffnotifyimporter.rules.BuiltInRules
 import io.github.maximus5.ffnotifyimporter.rules.ParseRule
 import io.github.maximus5.ffnotifyimporter.rules.RulesDb
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 /** Long-press a row to multi-select (same gesture `MessagesFragment` already uses) - the
  * toolbar swaps to "N selected" plus move up/move down/delete (`ifRoom`) and enable/disable
@@ -113,7 +110,7 @@ class RulesListFragment : Fragment() {
                             true
                         }
                         R.id.action_export_rules -> {
-                            exportLauncher.launch(defaultExportFileName())
+                            exportLauncher.launch(exportFileName(requireContext(), "rules"))
                             true
                         }
                         R.id.action_import_rules -> {
@@ -306,10 +303,6 @@ class RulesListFragment : Fragment() {
         binding.rulesEmptyText.visibility = if (userRules.isEmpty()) View.VISIBLE else View.GONE
     }
 
-    private fun defaultExportFileName(): String {
-        val date = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
-        return "ffnotifyimporter-rules-$date.json"
-    }
 
     /** Sharing format, not a full backup (see `BackupFragment` for that) - every distinct rule
      * currently saved, newest-first-by-sort-order like the list itself shows them. */
