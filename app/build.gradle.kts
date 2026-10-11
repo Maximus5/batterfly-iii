@@ -11,8 +11,8 @@ android {
         applicationId = "io.github.maximus5.ffnotifyimporter"
         minSdk = 26
         targetSdk = 36
-        versionCode = 210
-        versionName = "0.210"
+        versionCode = 211
+        versionName = "0.211"
     }
 
     buildTypes {

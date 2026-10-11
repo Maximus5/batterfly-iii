@@ -329,7 +329,7 @@
 
     <string name="settings_about_title">О программе</string>
     <string name="about_version">Версия %1$s</string>
-    <string name="about_github_url">https://github.com/Maximus5</string>
+    <string name="about_github_url">https://github.com/Maximus5/butterfly-iii</string>
 
     <string name="setup_title">Начало работы</string>
     <string name="setup_subtitle">Несколько шагов, и приложение начнёт ловить банковские уведомления.</string>
