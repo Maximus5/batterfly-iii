@@ -1397,8 +1397,9 @@ Single `:app` module, packages under
     transaction exists the notification has nothing left to say - so
     all three PendingIntents go through `posting.DismissAndOpenActivity`,
     an invisible (`Theme.NoDisplay`) activity that cancels the
-    notification id, then starts the real target (editor on top of
-    `MainActivity`, or the web `ACTION_VIEW`) and finishes. An activity,
+    notification id, then starts the real target (the editor alone - no `MainActivity` is
+    launched under it since v0.224, so Back returns to where the user was
+    and the list does not flash - or the web `ACTION_VIEW`) and finishes. An activity,
     not a receiver/service, so the notification-trampoline restriction
     doesn't apply. The review notifications are unchanged (they stay
     until a transaction is actually linked).

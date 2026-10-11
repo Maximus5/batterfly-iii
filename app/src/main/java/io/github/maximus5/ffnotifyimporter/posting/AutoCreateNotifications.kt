@@ -133,14 +133,14 @@ object AutoCreateNotifications {
         )
     }
 
-    /** Opens the app's own editor for the transaction ([CreateTransactionActivity.editIntent]) on top
-     * of [MainActivity], so Back lands in the app rather than leaving it - via [DismissAndOpenActivity],
+    /** Opens the app's own editor for the transaction ([CreateTransactionActivity.editIntent])
+     * by itself (no [MainActivity] launched under it, so Back returns to where the user was) - via [DismissAndOpenActivity],
      * which also dismisses the notification (an action button doesn't do that by itself). The request
      * code is unique per message: extras are not part of a `PendingIntent`'s identity, so a shared
      * code would hand a second notification the first one's cached intent (see `ReviewNotifications`). */
     private fun editorIntent(context: Context, message: CapturedMessage, transactionId: String): PendingIntent {
         val editor = CreateTransactionActivity.editIntent(context, message, transactionId)
-        val trampoline = DismissAndOpenActivity.intent(context, message.hashCode(), editor, overMain = true)
+        val trampoline = DismissAndOpenActivity.intent(context, message.hashCode(), editor)
         return PendingIntent.getActivity(context, message.hashCode(), trampoline, PendingIntent.FLAG_IMMUTABLE)
     }
 
@@ -149,7 +149,7 @@ object AutoCreateNotifications {
      * a cached `PendingIntent` with [editorIntent]. */
     private fun webIntent(context: Context, message: CapturedMessage, baseUrl: String, transactionId: String): PendingIntent {
         val view = Intent(Intent.ACTION_VIEW, Uri.parse(transactionUrl(baseUrl, transactionId)))
-        val trampoline = DismissAndOpenActivity.intent(context, message.hashCode(), view, overMain = false)
+        val trampoline = DismissAndOpenActivity.intent(context, message.hashCode(), view)
         return PendingIntent.getActivity(context, message.hashCode() + 1, trampoline, PendingIntent.FLAG_IMMUTABLE)
     }
 
