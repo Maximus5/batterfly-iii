@@ -1094,7 +1094,11 @@ Single `:app` module, packages under
     themselves. Deliberately excludes `id`: a row id is this device's
     internal identity, meaningless elsewhere. (Used to also exclude
     `sourceAccountId`/`destinationAccountId` - moot now, `ParseRule`
-    doesn't carry a Firefly account id at all anymore, see its own
+    KDoc.) An entry is skipped only when it lacks a valid `kind` or a
+    non-blank `pattern`; a blank/missing `homeCurrency` is valid (means
+    "use the default account currency", same as `RuleValidation`) - both
+    this parser and `FullBackupJson`'s used to reject it, silently
+    dropping such rules on import/restore (v0.194 fix).
     KDoc.)
   - `FullBackupJson.kt` (`FullBackupData`, `fullBackupToJson`/
     `fullBackupFromJson`, `FullBackupJsonTest`) + `BackupManager`

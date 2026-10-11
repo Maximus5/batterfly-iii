@@ -76,7 +76,7 @@ class RulesJsonTest {
                 {"kind": "WITHDRAWAL", "pattern": "a", "homeCurrency": "EUR", "label": "Good"},
                 {"kind": "NOT_A_KIND", "pattern": "b", "homeCurrency": "EUR"},
                 {"kind": "DEPOSIT", "homeCurrency": "EUR"},
-                {"kind": "DEPOSIT", "pattern": "c"}
+                {"kind": "DEPOSIT", "homeCurrency": "EUR", "pattern": "  "}
             ]}
         """.trimIndent()
 
@@ -86,6 +86,21 @@ class RulesJsonTest {
         assertEquals("Good", imported?.first()?.label)
     }
 
+
+    @Test
+    fun `a rule with a blank or missing homeCurrency imports - blank means use the default account currency`() {
+        val json = """
+            {"rules": [
+                {"label": "Blank", "kind": "WITHDRAWAL", "pattern": "a", "homeCurrency": ""},
+                {"label": "Missing", "kind": "WITHDRAWAL", "pattern": "b"}
+            ]}
+        """.trimIndent()
+
+        val imported = rulesFromJson(json)
+
+        assertEquals(listOf("Blank", "Missing"), imported?.map { it.label })
+        assertEquals("", imported?.first()?.homeCurrency)
+    }
     @Test
     fun `an empty rule list round-trips to an empty list, not null`() {
         assertTrue(rulesFromJson(rulesToJson(emptyList()))?.isEmpty() == true)

@@ -100,6 +100,21 @@ class FullBackupJsonTest {
     }
 
     @Test
+    fun `a rule with a blank homeCurrency survives a restore - it isn't silently dropped`() {
+        val json = """
+            {"monitoredPackages": [], "rules": [
+                {"label": "Default currency", "kind": "WITHDRAWAL", "homeCurrency": "",
+                 "pattern": "(?<amount>[\\d,]+)"}
+            ]}
+        """.trimIndent()
+
+        val imported = fullBackupFromJson(json)
+
+        assertEquals(1, imported?.rules?.size)
+        assertEquals("", imported?.rules?.first()?.homeCurrency)
+    }
+
+    @Test
     fun `fullBackupFromJson returns null for a file that isn't shaped like a backup at all`() {
         assertNull(fullBackupFromJson("not json"))
         assertNull(fullBackupFromJson("""{"nope": true}"""))

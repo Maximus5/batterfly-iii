@@ -63,7 +63,7 @@ private fun JSONObject.toRuleOrNull(): ParseRule? {
         return null
     }
     val pattern = optString("pattern").takeIf { it.isNotBlank() } ?: return null
-    val homeCurrency = optString("homeCurrency").takeIf { it.isNotBlank() } ?: return null
+    val homeCurrency = optString("homeCurrency", "")
     val packageNames = optJSONArray("packageNames")?.let { arr ->
         (0 until arr.length()).mapNotNull { arr.optString(it).takeIf(String::isNotBlank) }.toSet()
     }.orEmpty()
