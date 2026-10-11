@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Status-bar notification icon for AutoCreateWorker's outcomes - the system renders this as a
+<!-- Icon for the notification action buttons (the status-bar small icon is ic_notification_app) - rendered as a
      flat white silhouette on API 21+ regardless of fillColor, so no theme tint is applied here. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"

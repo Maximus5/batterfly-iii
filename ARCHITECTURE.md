@@ -3353,3 +3353,9 @@ lowercase, non-alphanumerics collapsed to `-`, e.g.
 The application id / package (`io.github.maximus5.ffnotifyimporter`) is
 deliberately unchanged - it's the app's identity for updates and not shown to
 the user. The consent screen's intro paragraph hardcodes the name per locale.
+
+The status-bar small icon of the app's notifications (`AutoCreateNotifications`,
+`ReviewNotifications`) is `drawable/ic_notification_app.xml`, a flat
+coin-stack silhouette (the system masks small icons to one colour, so the
+launcher art's clover is omitted); `ic_notification_sync` remains only as the
+action-button icon.

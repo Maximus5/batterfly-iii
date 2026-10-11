@@ -79,7 +79,7 @@ object ReviewNotifications {
         }
         val action = createTransactionIntent(context, message)
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_notification_sync)
+            .setSmallIcon(R.drawable.ic_notification_app)
             .setContentTitle(context.getString(R.string.review_match_title))
             .setContentText(text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))
