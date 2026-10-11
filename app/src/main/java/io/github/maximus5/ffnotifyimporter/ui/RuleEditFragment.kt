@@ -566,7 +566,7 @@ class RuleEditFragment : Fragment() {
         // Always offered in the pattern picker, alongside any saved patterns - just enough to
         // demonstrate the named-group syntax, not meant to match anything real.
         private const val EXAMPLE_PATTERN =
-            """(?<amount>[\d.,]+)\s*(?<currency>[A-Z]{1,3}\$|[A-Z]{3}|[€£$¥]).*?(?:at|bei)\s+(?<counterparty>.+?)\.?$"""
+            """(?<amount>\d[\d.,]*)\s*(?<currency>[A-Z]{1,3}\$|[A-Z]{3}|[€£$¥]).*?(?:at|bei)\s+(?<counterparty>.+?)\.?$"""
 
         // Second example, anchored to a literal title instead of starting at the amount - real
         // case that caught a classic regex pitfall: a *greedy* `.*` before the amount group lets
@@ -576,14 +576,14 @@ class RuleEditFragment : Fragment() {
         // trailing `(?:gezahlt)?` is why counterparty doesn't end up swallowing the sentence's
         // closing verb along with the merchant name.
         private const val EXAMPLE_PATTERN_TITLE_ANCHORED =
-            """Zahlung erfolgreich[^\d]*(?<amount>[\d.,]+)\s*(?<currency>[A-Z]{1,3}\$|[A-Z]{3}|[€£$¥]).*?(?:an)\s+(?<counterparty>.+?)\s*(?:gezahlt)?\.?$"""
+            """Zahlung erfolgreich[^\d]*(?<amount>\d[\d.,]*)\s*(?<currency>[A-Z]{1,3}\$|[A-Z]{3}|[€£$¥]).*?(?:an)\s+(?<counterparty>.+?)\s*(?:gezahlt)?\.?$"""
 
         // Third example - captures `date` too, for the real case that prompted ParseRule.dateFormat:
         // a bank (Bank DE) announcing a *future* charge date in the body, separately from when the
         // notification itself arrived ("Die Abbuchung über €99,99 für 00000 findet am 01.02.30
         // statt."). Paired with a "dd.MM.yy" dateFormat, this is the pattern that actually uses it.
         private const val EXAMPLE_PATTERN_DATE_OVERRIDE =
-            """Die Abbuchung über\s*(?<currency>[A-Z]{1,3}\$|[A-Z]{3}|[€£$¥])(?<amount>[\d.,]+).*?(?:findet am)\s+(?<date>\d{2}\.\d{2}\.\d{2})\s*(?:statt)"""
+            """Die Abbuchung über\s*(?<currency>[A-Z]{1,3}\$|[A-Z]{3}|[€£$¥])(?<amount>\d[\d.,]*).*?(?:findet am)\s+(?<date>\d{2}\.\d{2}\.\d{2})\s*(?:statt)"""
 
         fun newInstance(ruleId: String?): RuleEditFragment = RuleEditFragment().apply {
             arguments = Bundle().apply { putString(ARG_RULE_ID, ruleId) }

@@ -43,7 +43,7 @@ package io.github.maximus5.ffnotifyimporter.rules
  */
 object BuiltInRules {
     private const val CURRENCY = """[A-Z]{1,3}\$|[A-Z]{3}|[€£$¥]"""
-    private const val AMOUNT = """[\d.,]+"""
+    private const val AMOUNT = """\d[\d.,]*"""
 
     val CURRENCY_BEFORE_AMOUNT = ParseRule(
         id = "builtin-currency-before-amount",

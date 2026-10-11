@@ -48,6 +48,45 @@ class BuiltInRulesTest {
     }
 
     @Test
+    fun `a lone comma before a 3-letter word is not taken as the amount`() {
+        val engine = RuleEngine(
+            listOf(BuiltInRules.CURRENCY_AFTER_AMOUNT),
+            currencySymbols = mapOf("€" to "EUR"),
+            defaultAccountCurrency = "EUR",
+        )
+        val outcome = engine.match(
+            message(
+                title = "Payment at SHOPONE, LUX",
+                text = "You paid 123,45 € with card •••• 0000 at SHOPONE, LUX.",
+            ),
+        ) as ParseOutcome.Matched
+
+        assertEquals(BigDecimal("123.45"), outcome.draft.amount)
+        assertEquals("EUR", outcome.draft.currencyCode)
+    }
+
+    @Test
+    fun `a user rule with a digit-anchored amount skips a comma in the title`() {
+        val rule = ParseRule(
+            id = "user-rule",
+            label = "User rule",
+            kind = RuleKind.WITHDRAWAL,
+            homeCurrency = "EUR",
+            pattern = """(?<amount>\d[\d.,]*)\s*(?<currency>[A-Z]{1,3}\$|[A-Z]{3}|[€£$¥]).*?(?:at|bei)\s+(?<counterparty>.+?)\.?$""",
+        )
+        val engine = RuleEngine(listOf(rule), currencySymbols = mapOf("€" to "EUR"))
+        val outcome = engine.match(
+            message(
+                title = "Payment at SHOPONE, LUX",
+                text = "You paid 123,45 € with card •••• 0000 at SHOPONE, LUX.",
+            ),
+        ) as ParseOutcome.Matched
+
+        assertEquals(BigDecimal("123.45"), outcome.draft.amount)
+        assertEquals("EUR", outcome.draft.currencyCode)
+    }
+
+    @Test
     fun `description and notes come from the raw title and body, no counterparty capture`() {
         val engine = RuleEngine(listOf(BuiltInRules.CURRENCY_AFTER_AMOUNT), defaultAccountCurrency = "EUR")
         val outcome = engine.match(message(title = "Payment notice", text = "100.50 EUR at Shop1234")) as ParseOutcome.Matched

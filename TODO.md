@@ -539,8 +539,10 @@ work.
   Googling/AI" for a typical user. Design grounded in a real rules
   export the user supplied (14 rules, 6+ apps) rather than guesswork -
   two things it confirmed directly: the currency/amount capture
-  (`[A-Z]{1,3}\$|[A-Z]{3}|[€£$¥]` / `[\d.,]+`) is the user's own,
-  reused verbatim, already battle-tested across Amex/C24/Google
+  (`[A-Z]{1,3}\$|[A-Z]{3}|[€£$¥]` / `\d[\d.,]*` - originally `[\d.,]+`,
+  tightened to require a leading digit after a lone comma in a
+  counterparty like "NAME, LUX" was read as the amount) is the user's own,
+  reused, already battle-tested across Amex/C24/Google
   Wallet/Miles & More/N26/Revolut; and direction (withdrawal/deposit)
   keyword detection would **not** have worked - none of the 14 real
   rules use an English/German keyword a generic rule could plausibly
