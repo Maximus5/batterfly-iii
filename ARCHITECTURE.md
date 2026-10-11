@@ -3500,3 +3500,11 @@ match, edit mode from the message's stored label (looked up in `MessageStore`, s
 own message is rebuilt from intent extras; links made before this existed show nothing). Shown in
 the shade ("Rule: ...", second line) on the auto-create success/skipped notifications and the
 review notification, only when "Show financial information in notification" is on.
+
+**On-device test of the shade logic**: `app/src/androidTest/.../ReviewNotificationsInstrumentedTest`
+runs `ReviewNotifications` against the real `NotificationManager` (approximate vs precise review
+notifications; `ShadeDedupTest` only covers the pure part). Run it without `connectedAndroidTest`,
+which uninstalls the app and its data afterwards:
+`./gradlew assembleDebug assembleDebugAndroidTest`, then `adb install -r` the app APK and
+`adb install -r -t` the test APK, `adb shell pm grant <package> android.permission.POST_NOTIFICATIONS`,
+`adb shell am instrument -w -e class <test class> <package>.test/androidx.test.runner.AndroidJUnitRunner`.
