@@ -5,6 +5,7 @@
     android:orientation="vertical">
 
     <ScrollView
+        android:tag="skip_bottom_inset"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1">
@@ -22,6 +23,7 @@
     <!-- Vertical stack, "Agree" on top - Cancel/dismiss always last (house convention,
          AGENTS.md), "Не сейчас" being the dismiss action here. -->
     <LinearLayout
+        android:tag="bottom_bar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"

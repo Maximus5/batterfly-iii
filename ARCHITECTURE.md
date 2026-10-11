@@ -3245,7 +3245,18 @@ Single `:app` module, packages under
     the-way behavior, which otherwise left a focused field on a form
     (e.g. `RuleEditFragment`) hidden behind the keyboard. Both
     activities also declare `android:windowSoftInputMode="adjustResize"`
-    in the manifest, which this relies on for reliable IME inset
+    dispatch. Since v0.200 the root is padded only for the status bar,
+    cutouts/sides and (while the keyboard is up) the IME - *not* the
+    navigation bar, so content runs under the translucent nav bar like in
+    other apps. A `FragmentLifecycleCallbacks` (registered by
+    `useClassicSystemBars`, recursive) walks every fragment view and gives
+    each `ScrollView`/`NestedScrollView`/`RecyclerView` the nav-bar height as
+    bottom padding with `clipToPadding=false`, so the last row still scrolls
+    above the bar. XML tags override that: `skip_bottom_inset` (scroller
+    above a pinned bar), `bottom_bar` (pinned bar -> padded, e.g. the consent
+    buttons), `bottom_fab` (FAB -> bottom margin). New screens with a pinned
+    bottom element must use these tags. Status/nav bar icon colors are set
+    explicitly from the theme background brightness.
     dispatch.
 - `FfNotifyImporterApp` (`Application` subclass, declared in the
   manifest) - the one place startup wiring happens:
