@@ -1,24 +1,35 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Three actions (no "Create anyway" - showCreateAnyway=false, see MessagesFragment.
-     showDuplicateConfirmDialog) in one row instead of stacked - tighter than a vertical list of
-     three full-width rows, which left excess vertical gap between each. Order left-to-right:
-     Use Created, Open (one group - acting on the found transaction), then Cancel always last. -->
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+     showDuplicateConfirmDialog) in one row when they fit, wrapping onto a second row otherwise
+     (Flow, same as the rule editor's pattern buttons) - equal-weight cells used to break a long
+     translated label mid-word. Order left-to-right: Use Created, Open (one group - acting on the
+     found transaction), then Cancel always last. -->
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="horizontal"
     android:paddingTop="4dp"
     android:paddingBottom="4dp">
+
+    <androidx.constraintlayout.helper.widget.Flow
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        app:constraint_referenced_ids="useCreatedButton,openDuplicateButton,cancelDuplicateButton"
+        app:flow_horizontalStyle="spread_inside"
+        app:flow_wrapMode="chain"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
 
     <Button
         android:id="@+id/useCreatedButton"
         style="?attr/borderlessButtonStyle"
-        android:layout_width="0dp"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_weight="1"
         android:minHeight="40dp"
-        android:paddingStart="2dp"
-        android:paddingEnd="2dp"
+        android:minWidth="0dp"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
         android:textAllCaps="false"
         android:textSize="13sp"
         android:text="@string/create_duplicate_use_created" />
@@ -26,12 +37,12 @@
     <Button
         android:id="@+id/openDuplicateButton"
         style="?attr/borderlessButtonStyle"
-        android:layout_width="0dp"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_weight="1"
         android:minHeight="40dp"
-        android:paddingStart="2dp"
-        android:paddingEnd="2dp"
+        android:minWidth="0dp"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
         android:textAllCaps="false"
         android:textSize="13sp"
         android:text="@string/create_open_transaction" />
@@ -39,14 +50,14 @@
     <Button
         android:id="@+id/cancelDuplicateButton"
         style="?attr/borderlessButtonStyle"
-        android:layout_width="0dp"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_weight="1"
         android:minHeight="40dp"
-        android:paddingStart="2dp"
-        android:paddingEnd="2dp"
+        android:minWidth="0dp"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
         android:textAllCaps="false"
         android:textSize="13sp"
         android:text="@android:string/cancel" />
 
-</LinearLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>
