@@ -1021,6 +1021,23 @@ Single `:app` module, packages under
     `rules` still has no dependency on `network`, same direction as
     `network` not depending on `rules`; the caller (currently only
     `MessagesFragment`, see its entry below) is the one bridging both.
+- Android Auto Backup (distinct from the `backup` module's user-driven
+  export/restore below; AI-Review P1). `allowBackup` stays on, but
+  `res/xml/backup_rules.xml` (Android 11 and older, `fullBackupContent`) and
+  `res/xml/data_extraction_rules.xml` (Android 12+, cloud backup *and*
+  device transfer) are an **allowlist**: only `rules.db`, `monitored_apps`,
+  `notifications`, `retention` and `setup_checklist` are included, so any
+  storage added later is excluded until someone opts it in. Deliberately
+  left out: `message_history.db` and `created_transactions.db` (captured
+  bank-notification text and created-transaction records must not leave the
+  device through the user's cloud account), `firefly_connection` (server URL +
+  token - Keystore-encrypted, so unreadable on another device anyway - plus
+  the dedup/tag settings that share that file), `currencies.db` (a cache of
+  the user's Firefly instance, refetched) and `startup_migrations`.
+  `BackupRulesTest` checks the two XML files agree, the sensitive stores are
+  absent, and every `DB_NAME`/`PREFS_NAME`/`getSharedPreferences("...")` in
+  the sources is classified as included or excluded - adding a new store
+  fails it until a decision is made.
 - `backup` - export/import and full backup/restore, added directly in
   response to a real data-loss incident (see "Known bugs / gotchas"
   below) - the user asked for both in the same breath once it happened:

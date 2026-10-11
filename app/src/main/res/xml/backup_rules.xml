@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Auto Backup rules for Android 11 and older (android:fullBackupContent). An allowlist: anything
+     not listed here - including any storage added later - is NOT backed up. Deliberately left out:
+     message_history.db and created_transactions.db (captured bank notification text / transaction
+     records), firefly_connection (server URL + token; Keystore-encrypted, so useless on another
+     device anyway) and currencies.db (a cache of the user's Firefly instance). Keep this list in
+     sync with data_extraction_rules.xml (BackupRulesTest checks it). -->
+<full-backup-content>
+    <include domain="database" path="rules.db" />
+    <include domain="sharedpref" path="monitored_apps.xml" />
+    <include domain="sharedpref" path="notifications.xml" />
+    <include domain="sharedpref" path="retention.xml" />
+    <include domain="sharedpref" path="setup_checklist.xml" />
+</full-backup-content>

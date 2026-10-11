@@ -1319,3 +1319,8 @@ work.
   texts under the URL / token fields, and autofill of the default currency
   / single asset account after Test connection and Save. **Deferred**: a
   "now add a test message" prompt after the first successful setup.
+- **Not yet verified on a real device**: the Auto Backup allowlist
+  (`backup_rules.xml` / `data_extraction_rules.xml`) is checked by
+  `BackupRulesTest` and lint only. Confirm with a real cloud backup + restore
+  (or device-to-device transfer) that rules / monitored apps survive and the
+  message history, created-transaction log and Firefly connection do not.
