@@ -191,6 +191,7 @@ private fun ParseRule.toBackupJson(): JSONObject = JSONObject().apply {
     put("tagsTemplate", tagsTemplate)
     put("enabled", enabled)
     put("dateFormat", dateFormat)
+    if (accountApproximate) put("accountApproximate", true)
 }
 
 private fun JSONObject.toBackupRuleOrNull(): ParseRule? {
@@ -220,5 +221,6 @@ private fun JSONObject.toBackupRuleOrNull(): ParseRule? {
         tagsTemplate = optString("tagsTemplate", ""),
         enabled = optBoolean("enabled", true),
         dateFormat = optString("dateFormat", ""),
+        accountApproximate = optBoolean("accountApproximate", false),
     )
 }

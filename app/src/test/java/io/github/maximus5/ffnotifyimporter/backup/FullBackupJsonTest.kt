@@ -162,4 +162,16 @@ class FullBackupJsonTest {
 
         assertEquals(RetentionSettings(persistToDisk = false, days = 30), imported?.retention)
     }
+
+    @Test
+    fun `accountApproximate on a rule and the account-agnostic hash on a created row survive a restore`() {
+        val original = data().copy(
+            rules = data().rules.map { it.copy(accountApproximate = true) },
+            createdTransactions = data().createdTransactions.map { it.copy(hashWithoutAccounts = "ghi789") },
+        )
+        val imported = fullBackupFromJson(fullBackupToJson(original))!!
+
+        assertTrue(imported.rules.single().accountApproximate)
+        assertEquals("ghi789", imported.createdTransactions.single().hashWithoutAccounts)
+    }
 }

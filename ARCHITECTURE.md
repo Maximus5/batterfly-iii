@@ -3479,3 +3479,8 @@ JSON `accountApproximate`, default off; built-in rules never set it) makes `Rule
   message deliberately does not sweep: it would dismiss the *next* approximate notification.
 - Messages are never removed by any of this - only shade notifications - so everything stays
   reachable from the Messages list ("Check if created" / tap to create).
+
+A new `ParseRule` field has to be wired in four places, or it silently resets on save/restore (found
+the hard way with `accountApproximate`, which first shipped without the first two): `RulesDb`
+(column + additive migration, now v8), `backup.FullBackupJson` (its own rule (de)serialization),
+`backup.RulesJson`, and `ui.RuleEditFragment`.

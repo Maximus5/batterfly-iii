@@ -34,7 +34,8 @@ class RulesDb(context: Context) : SQLiteOpenHelper(context, DB_NAME, null, DB_VE
                 $COL_TAGS_TEMPLATE TEXT NOT NULL,
                 $COL_ENABLED INTEGER NOT NULL,
                 $COL_SORT_ORDER INTEGER NOT NULL,
-                $COL_DATE_FORMAT TEXT NOT NULL DEFAULT ''
+                $COL_DATE_FORMAT TEXT NOT NULL DEFAULT '',
+                $COL_ACCOUNT_APPROXIMATE INTEGER NOT NULL DEFAULT 0
             )
             """.trimIndent(),
         )
@@ -57,6 +58,9 @@ class RulesDb(context: Context) : SQLiteOpenHelper(context, DB_NAME, null, DB_VE
         }
         if (oldVersion < 7) {
             db.execSQL("ALTER TABLE $TABLE ADD COLUMN $COL_DATE_FORMAT TEXT NOT NULL DEFAULT ''")
+        }
+        if (oldVersion < 8) {
+            db.execSQL("ALTER TABLE $TABLE ADD COLUMN $COL_ACCOUNT_APPROXIMATE INTEGER NOT NULL DEFAULT 0")
         }
     }
 
@@ -184,6 +188,7 @@ class RulesDb(context: Context) : SQLiteOpenHelper(context, DB_NAME, null, DB_VE
         put(COL_ENABLED, if (enabled) 1 else 0)
         put(COL_SORT_ORDER, sortOrder)
         put(COL_DATE_FORMAT, dateFormat)
+        put(COL_ACCOUNT_APPROXIMATE, if (accountApproximate) 1 else 0)
     }
 
     private fun Cursor.toRule(): ParseRule {
@@ -203,6 +208,7 @@ class RulesDb(context: Context) : SQLiteOpenHelper(context, DB_NAME, null, DB_VE
             tagsTemplate = str(COL_TAGS_TEMPLATE),
             enabled = getInt(getColumnIndexOrThrow(COL_ENABLED)) != 0,
             dateFormat = str(COL_DATE_FORMAT),
+            accountApproximate = getInt(getColumnIndexOrThrow(COL_ACCOUNT_APPROXIMATE)) != 0,
         )
     }
 
@@ -217,7 +223,9 @@ class RulesDb(context: Context) : SQLiteOpenHelper(context, DB_NAME, null, DB_VE
         // existing row's stored value, if any, just sits there unused.
         // v7: added date_format (NOT NULL, default '' = use the notification's own arrival time,
         // same as every rule saved before this existed) - see ParseRule.dateFormat's KDoc
-        private const val DB_VERSION = 7
+        // v8: added account_approximate (INTEGER NOT NULL, default 0 = a normal rule) - see
+        // ParseRule.accountApproximate
+        private const val DB_VERSION = 8
         private const val TABLE = "rules"
         private const val COL_ID = "id"
         private const val COL_LABEL = "label"
@@ -236,6 +244,7 @@ class RulesDb(context: Context) : SQLiteOpenHelper(context, DB_NAME, null, DB_VE
         private const val COL_ENABLED = "enabled"
         private const val COL_SORT_ORDER = "sort_order"
         private const val COL_DATE_FORMAT = "date_format"
+        private const val COL_ACCOUNT_APPROXIMATE = "account_approximate"
 
         @Volatile
         private var instance: RulesDb? = null
