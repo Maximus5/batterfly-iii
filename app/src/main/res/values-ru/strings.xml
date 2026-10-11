@@ -49,7 +49,6 @@
     <string name="add_test_message_explanation">Добавляет сообщение в историю точно так же, как это сделало бы реальное уведомление — удобно для тестирования обработки правил без ожидания настоящего уведомления.</string>
     <string name="add_test_message_no_apps">Нет приложений для мониторинга. Сначала выберите хотя бы одно в разделе «Приложения для мониторинга».</string>
     <string name="add_test_message_app_label">Приложение</string>
-    <string name="add_test_message_datetime_label">Дата и время</string>
     <string name="add_test_message_title_label">Заголовок</string>
     <string name="add_test_message_text_label">Текст</string>
     <string name="add_test_message_add_button">Добавить</string>

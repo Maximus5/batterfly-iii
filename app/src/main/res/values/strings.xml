@@ -47,7 +47,6 @@
     <string name="add_test_message_explanation">Adds a message to history exactly like a real notification would - useful for testing rule processing without waiting for a real one.</string>
     <string name="add_test_message_no_apps">No monitored apps yet. Pick at least one in Monitored apps first.</string>
     <string name="add_test_message_app_label">App</string>
-    <string name="add_test_message_datetime_label">Date &amp; time</string>
     <string name="add_test_message_title_label">Title</string>
     <string name="add_test_message_text_label">Text</string>
     <string name="add_test_message_add_button">Add</string>

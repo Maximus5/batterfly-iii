@@ -2317,9 +2317,8 @@ Single `:app` module, packages under
     half of `selectedTimestampMillis` (picking a new date keeps the
     already-chosen time of day and vice versa) - `updateDateTimeFields`
     writes both fields' text after either one changes.
-    `AddTestMessageFragment`'s own combined `dateTimeButton` is
-    unrelated and unchanged - this redesign is scoped to this screen
-    only.
+    `AddTestMessageFragment` was later converted to the same two-field
+    date/time pair (`messageDateInput`/`messageTimeInput`).
     **Long date format once the field had room for it, the user's own
     follow-up**: `transactionDateInput` now shows `DateFormat.
     getLongDateFormat(context)` (locale-ordered/-translated, e.g.
@@ -2676,8 +2675,10 @@ Single `:app` module, packages under
       apps); after a successful add the screen closes via `leaveScreen()`
       (back to the Messages list when opened from the setup checklist),
       while a dropped duplicate keeps the form open.
-      `dateTimeButton` (defaults to "now" when the screen opens, chained
-      `DatePickerDialog`+`TimePickerDialog` to edit) lets the injected
+      Two tap-to-open fields, `messageDateInput`/`messageTimeInput` (same
+      look and behavior as the Create transaction screen; default "now"
+      when the screen opens, each separate picker dialog edits only its
+      half) let the injected
       message carry a chosen timestamp instead of always being "just
       now" - the user's own request, for reproducing a rule bug tied to
       a specific real notification's time. `MessageStore.add` gained an

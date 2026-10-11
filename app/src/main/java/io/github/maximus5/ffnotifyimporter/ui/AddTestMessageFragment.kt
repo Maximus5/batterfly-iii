@@ -19,7 +19,9 @@ import io.github.maximus5.ffnotifyimporter.posting.AutoCreateScheduler
 import io.github.maximus5.ffnotifyimporter.posting.ReviewNotificationScheduler
 import io.github.maximus5.ffnotifyimporter.prefs.MonitoredAppsPrefs
 import java.util.Calendar
+import java.text.SimpleDateFormat
 import java.util.Date
+import java.util.Locale
 
 /**
  * Debug tool: manually inject a message into [MessageStore], exactly like a real notification
@@ -32,7 +34,7 @@ class AddTestMessageFragment : Fragment() {
     private var appOptions: List<AppOption> = emptyList()
 
     /** Defaults to "now" at the moment the screen opens, same as a real captured notification
-     * would get - editable via [dateTimeButton] so a test message can reproduce a rule bug tied
+     * would get - editable via the date and time fields so a test message can reproduce a rule bug tied
      * to a specific real notification's timestamp instead of only ever being "just now". */
     private var selectedTimestampMillis: Long = System.currentTimeMillis()
 
@@ -72,43 +74,54 @@ class AddTestMessageFragment : Fragment() {
             appOptions,
         )
 
-        updateDateTimeButtonText()
-        binding.dateTimeButton.setOnClickListener { showDateTimePicker() }
+        updateDateTimeFields()
+        binding.messageDateInput.setOnClickListener { showDatePicker() }
+        binding.messageTimeInput.setOnClickListener { showTimePicker() }
     }
 
-    private fun updateDateTimeButtonText() {
+    /** Same long-date-plus-weekday and short-time display as `CreateTransactionFragment`. */
+    private fun updateDateTimeFields() {
         val binding = binding ?: return
         val context = requireContext()
         val date = Date(selectedTimestampMillis)
-        binding.dateTimeButton.text = "${DateFormat.getDateFormat(context).format(date)} ${DateFormat.getTimeFormat(context).format(date)}"
+        val longDate = DateFormat.getLongDateFormat(context).format(date)
+        val weekday = SimpleDateFormat("EEE", Locale.getDefault()).format(date)
+        binding.messageDateInput.setText("$longDate, $weekday")
+        binding.messageTimeInput.setText(DateFormat.getTimeFormat(context).format(date))
     }
 
-    /** Date picker, then time picker, chained - the standard two-step Android pattern for picking
-     * a single date-time with only platform dialogs, no extra library. */
-    private fun showDateTimePicker() {
+    /** Each field only changes its own half of [selectedTimestampMillis]. */
+    private fun showDatePicker() {
         val context = requireContext()
         val calendar = Calendar.getInstance().apply { timeInMillis = selectedTimestampMillis }
         DatePickerDialog(
             context,
             { _, year, month, dayOfMonth ->
                 calendar.set(year, month, dayOfMonth)
-                TimePickerDialog(
-                    context,
-                    { _, hourOfDay, minute ->
-                        calendar.set(Calendar.HOUR_OF_DAY, hourOfDay)
-                        calendar.set(Calendar.MINUTE, minute)
-                        calendar.set(Calendar.SECOND, 0)
-                        selectedTimestampMillis = calendar.timeInMillis
-                        updateDateTimeButtonText()
-                    },
-                    calendar.get(Calendar.HOUR_OF_DAY),
-                    calendar.get(Calendar.MINUTE),
-                    DateFormat.is24HourFormat(context),
-                ).show()
+                selectedTimestampMillis = calendar.timeInMillis
+                updateDateTimeFields()
             },
             calendar.get(Calendar.YEAR),
             calendar.get(Calendar.MONTH),
             calendar.get(Calendar.DAY_OF_MONTH),
+        ).show()
+    }
+
+    private fun showTimePicker() {
+        val context = requireContext()
+        val calendar = Calendar.getInstance().apply { timeInMillis = selectedTimestampMillis }
+        TimePickerDialog(
+            context,
+            { _, hourOfDay, minute ->
+                calendar.set(Calendar.HOUR_OF_DAY, hourOfDay)
+                calendar.set(Calendar.MINUTE, minute)
+                calendar.set(Calendar.SECOND, 0)
+                selectedTimestampMillis = calendar.timeInMillis
+                updateDateTimeFields()
+            },
+            calendar.get(Calendar.HOUR_OF_DAY),
+            calendar.get(Calendar.MINUTE),
+            DateFormat.is24HourFormat(context),
         ).show()
     }
 

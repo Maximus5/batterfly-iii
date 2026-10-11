@@ -47,7 +47,6 @@
     <string name="add_test_message_explanation">Fügt dem Verlauf eine Nachricht hinzu, genau wie eine echte Benachrichtigung - nützlich, um die Regelverarbeitung zu testen, ohne auf eine echte zu warten.</string>
     <string name="add_test_message_no_apps">Noch keine überwachten Apps. Wählen Sie zuerst mindestens eine unter „Überwachte Apps“ aus.</string>
     <string name="add_test_message_app_label">App</string>
-    <string name="add_test_message_datetime_label">Datum &amp; Uhrzeit</string>
     <string name="add_test_message_title_label">Titel</string>
     <string name="add_test_message_text_label">Text</string>
     <string name="add_test_message_add_button">Hinzufügen</string>
