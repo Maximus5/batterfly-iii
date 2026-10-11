@@ -346,13 +346,12 @@
     <string name="setup_step_test_message_sub">Die Einrichtung ausprobieren, ohne auf eine echte Bankbenachrichtigung zu warten</string>
     <string name="setup_hide">Diese Anleitung ausblenden</string>
     <string name="reliability_title">Überwachung am Laufen halten</string>
-    <string name="reliability_intro">Android kann Apps stoppen, die lange nicht geöffnet wurden. Dann würde Butterfly III Zahlungsbenachrichtigungen verpassen. Diese Einstellungen helfen, das zu verhindern.</string>
+    <string name="reliability_intro">Um keine Zahlungsbenachrichtigungen zu verpassen, empfehlen wir: Akku-Optimierung für diese App ausschalten, Android nicht ihre Berechtigungen entfernen lassen und nie „Beenden erzwingen“ verwenden. Auf Samsung-Geräten außerdem prüfen, dass die App nicht in „Ruhende Apps“ oder „Tief ruhende Apps“ steht - das kann die App nicht selbst prüfen.</string>
     <string name="reliability_battery_card_title">Akku-Optimierung ist aktiv</string>
     <string name="reliability_battery_card_body">Android schränkt diese App im Hintergrund ein, daher kann sie Benachrichtigungen verpassen. Stellen Sie Butterfly III auf „Nicht optimieren“ (oder „Uneingeschränkt“).</string>
     <string name="reliability_battery_button">Einstellungen der Akku-Optimierung öffnen</string>
     <string name="reliability_autorevoke_card_title">Berechtigungen können entzogen werden</string>
     <string name="reliability_autorevoke_card_body">Wenn Sie die App einige Monate nicht öffnen, kann Android ihre Berechtigungen entfernen und sie stoppen. Schalten Sie „Berechtigungen entfernen, wenn App nicht verwendet wird“ aus (der Name unterscheidet sich je nach Gerät).</string>
     <string name="reliability_autorevoke_button">Berechtigungen der App öffnen</string>
-    <string name="reliability_other_hint">Manche Geräte haben eigene Energiesparfunktionen, die diese App nicht prüfen kann, zum Beispiel „Ruhende Apps“ und „Tief ruhende Apps“ bei Samsung. Stellen Sie sicher, dass Butterfly III dort nicht aufgeführt ist. Verwenden Sie für die App niemals „Beenden erzwingen“.</string>
     <string name="reliability_app_info_button">App-Info öffnen…</string>
 </resources>

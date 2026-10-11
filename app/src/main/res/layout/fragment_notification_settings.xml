@@ -208,14 +208,6 @@
 
         </LinearLayout>
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="4dp"
-            android:text="@string/reliability_other_hint"
-            android:textColor="#888888"
-            android:textSize="13sp" />
-
         <Button
             android:id="@+id/appInfoButton"
             style="?attr/borderlessButtonStyle"

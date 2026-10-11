@@ -3446,4 +3446,4 @@ foreground service (see TODO.md). Two mitigations:
   screen (`ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS`, `ACTION_AUTO_REVOKE_PERMISSIONS`; both
   fall back to the app-info page). The direct "allow" dialog
   (`REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`) is deliberately not used - Play restricts it. Vendor
-  sleep lists cannot be read, so they only get a static hint and an app-info button.
+  sleep lists cannot be read, so they are only named in the one intro paragraph, which also holds the other recommendations; the warning cards sit below it.

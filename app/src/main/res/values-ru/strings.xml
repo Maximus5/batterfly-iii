@@ -348,13 +348,12 @@
     <string name="setup_step_test_message_sub">Проверьте настройку, не дожидаясь настоящего банковского уведомления</string>
     <string name="setup_hide">Скрыть подсказку</string>
     <string name="reliability_title">Чтобы мониторинг не останавливался</string>
-    <string name="reliability_intro">Android может остановить приложение, которое долго не открывали. Тогда Butterfly III пропустит уведомления о платежах. Эти настройки помогают этого избежать.</string>
+    <string name="reliability_intro">Чтобы не пропускать уведомления о платежах, рекомендуется: отключить для приложения оптимизацию батареи, не позволять Android удалять его разрешения и никогда не использовать «Остановить». На телефонах Samsung также проверьте, что приложения нет в списках «Спящие приложения» и «Приложения в глубоком сне» - приложение не может этого проверить.</string>
     <string name="reliability_battery_card_title">Включена оптимизация батареи</string>
     <string name="reliability_battery_card_body">Android ограничивает работу приложения в фоне, поэтому оно может пропускать уведомления. Выберите для Butterfly III «Не оптимизировать» (или «Без ограничений»).</string>
     <string name="reliability_battery_button">Открыть настройки оптимизации батареи</string>
     <string name="reliability_autorevoke_card_title">Разрешения могут быть отозваны</string>
     <string name="reliability_autorevoke_card_body">Если не открывать приложение несколько месяцев, Android может отозвать его разрешения и остановить его. Отключите «Удалять разрешения, если приложение не используется» (название на разных телефонах отличается).</string>
     <string name="reliability_autorevoke_button">Открыть настройки разрешений приложения</string>
-    <string name="reliability_other_hint">У некоторых телефонов есть собственные режимы экономии, которые приложение не может проверить, например «Спящие приложения» и «Приложения в глубоком сне» на Samsung. Убедитесь, что Butterfly III в этих списках нет. И никогда не используйте для него «Остановить».</string>
     <string name="reliability_app_info_button">Открыть сведения о приложении…</string>
 </resources>
