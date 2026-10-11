@@ -18,12 +18,11 @@ work. Finished work is documented in ARCHITECTURE.md, not here.
   - Optional: a butterfly-themed icon, if the coin stack no longer fits the name.
 
 - Documentation: README header screenshots (message list, shade
-  notification, rule editor), `docs/getting-started.md` (onboarding with
-  screenshots), `docs/rules.md` (rules, regex examples with synthetic text,
-  named groups, macros, order / first match wins, "Account is a guess"),
-  `docs/settings.md`. Screenshots in `docs/img/`: English UI, light theme,
-  synthetic data only (see AGENTS.md "Secrets"); needs the local test Firefly
-  to be set up first.
+  notification, rule editor), `docs/rules.md` (rules, regex examples with
+  synthetic text, named groups, macros, order / first match wins, "Account is
+  a guess"), `docs/settings.md`. (`docs/getting-started.md` is done.)
+  Screenshots in `docs/img/`: English UI, light theme, synthetic data only
+  (see AGENTS.md "Secrets"), cropped to the app area and 540 px wide.
 
 - An intermittent real-device bug, under observation: a bank "Transaction to
   review" notification stayed in the shade after the Wallet notification for

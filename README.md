@@ -19,6 +19,8 @@ Other ways to install it are listed on the same documentation site.
 
 Butterfly III is not made by, or affiliated with, the Firefly III project.
 
+Ready? Follow [Getting started](docs/getting-started.md), with screenshots.
+
 ## How it works
 
 1. A payment notification arrives on your phone, for example from your bank's app.
