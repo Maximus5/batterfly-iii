@@ -32,10 +32,23 @@
         android:textColor="?attr/colorPrimary"
         android:textSize="14sp" />
 
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginTop="24dp"
+        android:layout_marginBottom="16dp"
+        android:background="#E0E0E0" />
+
+    <com.google.android.material.switchmaterial.SwitchMaterial
+        android:id="@+id/aboutDiagnosticSwitch"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="4dp"
+        android:text="@string/about_diagnostic_switch" />
+
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="28dp"
         android:text="@string/about_diagnostic_hint"
         android:textColor="#888888"
         android:textSize="13sp" />

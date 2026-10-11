@@ -40,9 +40,11 @@ class AutoCreateFlowInstrumentedTest {
     private val savedAutoCreate = prefs.isAutoCreateEnabled()
     private val savedCleartext = prefs.isAllowCleartext()
     private val savedBuiltIn = prefs.isBuiltInRulesEnabled()
+    private val savedDiagnostic = DiagnosticLog.isEnabled(context)
 
     @Before
     fun setUp() {
+        DiagnosticLog.setEnabled(context, true)
         prefs.setBaseUrl("http://localhost:$PORT")
         prefs.setToken("<token>")
         prefs.setAllowCleartext(true)
@@ -59,6 +61,7 @@ class AutoCreateFlowInstrumentedTest {
 
     @After
     fun tearDown() {
+        DiagnosticLog.setEnabled(context, savedDiagnostic)
         addedRuleIds.forEach { rulesDb.delete(it) }
         if (addedCurrency) CurrenciesDb.getInstance(context).delete("EUR")
         MessageStore.shared.snapshot().filter { it.packageName.startsWith("test.") }.forEach { MessageStore.shared.remove(it) }

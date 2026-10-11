@@ -3526,6 +3526,10 @@ half dropped) of what the automatic paths decided: the matched rule label and is
 review notification was posted / suppressed (already created, already in the shade) / superseded, the
 shade sweep's view (flags, hash prefixes and time offsets of the review notifications it saw), and
 auto-create outcomes. About -> "Copy diagnostic log" puts it on the clipboard (with the version) for a
-bug report; "Clear log" deletes it. It deliberately holds no amounts, descriptions, counterparties or
-account names - rule labels, flags, counts, the first 6 characters of dedup hashes and second offsets
-only. Logging never throws.
+bug report; "Clear log" deletes it. **Off by default**: About has a "Write diagnostic log" switch
+(prefs file `diagnostic_log`, classified as not backed up in `BackupRulesTest`); nothing is written
+until it is on, and turning it off deletes the log. It deliberately holds no amounts, descriptions,
+counterparties or account names - rule labels, flags, counts, Firefly transaction numbers, second
+offsets and the first 6 characters of dedup hashes (enough to compare two; a hash prefix of amount +
+currency could in principle be brute-forced back to the amount, which is why it is opt-in and the log
+leaves the device only when the user copies it). Logging never throws.

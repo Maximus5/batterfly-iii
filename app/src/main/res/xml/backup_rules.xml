@@ -3,7 +3,7 @@
      not listed here - including any storage added later - is NOT backed up. Deliberately left out:
      message_history.db and created_transactions.db (captured bank notification text / transaction
      records), firefly_connection (server URL + token; Keystore-encrypted, so useless on another
-     device anyway) and currencies.db (a cache of the user's Firefly instance). Keep this list in
+     device anyway) and currencies.db (a cache of the user's Firefly instance), and diagnostic_log (the optional on-device diagnostic log's switch). Keep this list in
      sync with data_extraction_rules.xml (BackupRulesTest checks it). -->
 <full-backup-content>
     <include domain="database" path="rules.db" />

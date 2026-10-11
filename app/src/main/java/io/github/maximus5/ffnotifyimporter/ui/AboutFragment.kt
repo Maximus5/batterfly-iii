@@ -46,6 +46,8 @@ class AboutFragment : Fragment() {
         }
 
         val context = requireContext()
+        binding.aboutDiagnosticSwitch.isChecked = DiagnosticLog.isEnabled(context)
+        binding.aboutDiagnosticSwitch.setOnCheckedChangeListener { _, isChecked -> DiagnosticLog.setEnabled(context, isChecked) }
         binding.aboutCopyLog.setOnClickListener {
             val log = DiagnosticLog.read(context)
             if (log.isBlank()) {
