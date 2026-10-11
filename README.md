@@ -27,7 +27,7 @@ Other ways to install it are listed on the same documentation site.
 
 Butterfly III is not made by, or affiliated with, the Firefly III project.
 
-Ready? Follow [Getting started](docs/getting-started.md), with screenshots.
+Ready? Follow [Getting started](docs/getting-started.md), with screenshots. Every settings screen is described in [Settings](docs/settings.md).
 
 ## How it works
 

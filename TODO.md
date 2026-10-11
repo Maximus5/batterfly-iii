@@ -17,11 +17,6 @@ work. Finished work is documented in ARCHITECTURE.md, not here.
     in README if it comes from a third-party set.
   - Optional: a butterfly-themed icon, if the coin stack no longer fits the name.
 
-- Documentation: `docs/settings.md` (a short tour of the settings screens).
-  (README header, `docs/getting-started.md` and `docs/rules.md` are done.)
-  Screenshots in `docs/img/`: English UI, light theme, synthetic data only
-  (see AGENTS.md "Secrets"), cropped to the app area and 540 px wide.
-
 - An intermittent real-device bug, under observation: a bank "Transaction to
   review" notification stayed in the shade after the Wallet notification for
   the same payment had created its transaction, and the Wallet message got

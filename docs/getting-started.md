@@ -109,6 +109,10 @@ the new transaction, and you can find it in Firefly III.
 
 <img src="img/11-create-transaction.png" width="270" alt="The Create transaction screen">
 
+While you type, the category, tag and account fields suggest what already
+exists in Firefly III (your own accounts only, not shops). A short pause after
+typing brings up the list; tap a suggestion to use it.
+
 If you leave this screen after changing something, the app asks whether to
 keep editing or discard your changes.
 
@@ -118,5 +122,6 @@ keep editing or discard your changes.
   transaction for each. Tap one to review and create it.
 - Rules decide how a notification becomes a transaction. The built-in ones
   work for common formats. You can write your own in **Settings → Rules**.
+- Every settings screen is described in [Settings](settings.md).
 - To use the app while your server is out of reach, see
   [Using the app without a connection](offline.md).
