@@ -2471,6 +2471,20 @@ Single `:app` module, packages under
     picker, no id-staleness tracking needed on pick, since Firefly's
     create-transaction endpoint only ever takes a category *name*, no
     id (confirmed via `FireflyJson.buildTransactionRequestBody`).
+    **Suggestions while typing (v0.232)**: the category field is a
+    `MaterialAutoCompleteTextView` and the tags field a
+    `TagsAutoCompleteTextView` (comma-aware, built on the same Material
+    base so it keeps the outlined look - the framework's
+    `MultiAutoCompleteTextView` loses it): typing "Clo" shows a
+    non-modal list of matching categories next to the field (the end
+    icon still opens the full modal picker); for tags the list is for
+    the tag after the last comma, and picking one inserts "tag, ".
+    `loadSuggestions` fills both from Firefly in the background
+    (`listCategories`, shared cache with the picker, and the new
+    `listTags()` - `GET /v1/tags`, paginated like categories, name under
+    `attributes.tag`, `parseTagList`; checked against Firefly's
+    `TagTransformer`/route source) and stays silent on failure - the
+    fields work as plain text without it.
     `PickedAccount(id, name)` + `pick?.takeIf { it.name == currentText }
     ?.id` at build time (not a live `TextWatcher`) is the exact same
     stale-id-after-manual-edit handling `RuleEditFragment.buildDraft`

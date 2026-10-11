@@ -103,6 +103,30 @@ class FireflyApiClient(baseUrl: String, private val token: String, private val a
         }
     }
 
+    /** Every tag name (`GET /v1/tags`, paginated the same way as [listCategories]) - read-only, so
+     * it goes through [withNetworkRetry] like the other lists. Feeds the tags field's suggestions. */
+    suspend fun listTags(): Result<List<String>> = withContext(Dispatchers.IO) {
+        try {
+            val tags = mutableListOf<String>()
+            var page = 1
+            var totalPagesSeen: Int
+            do {
+                val body = withNetworkRetry {
+                    val connection = openConnection("/api/v1/tags?page=$page", "GET")
+                    val code = connection.responseCode
+                    if (code !in 200..299) return@withContext Result.Failure(errorMessage(connection, code))
+                    connection.inputStream.bufferedReader().use { it.readText() }
+                }
+                tags += parseTagList(body)
+                totalPagesSeen = totalPages(body)
+                page++
+            } while (page <= totalPagesSeen)
+            Result.Success(tags)
+        } catch (e: IOException) {
+            Result.Failure(e.message ?: e.javaClass.simpleName)
+        }
+    }
+
     /**
      * Every currency Firefly knows about (`GET /v1/currencies`, `ShowController@index`, confirmed
      * against `routes/api.php`'s current source) - the endpoint itself has no server-side "enabled

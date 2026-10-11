@@ -53,6 +53,23 @@ fun parseCategoryList(body: String): List<FireflyCategory> = try {
     emptyList()
 }
 
+/** `GET /v1/tags` (`Tag\ShowController@index` -> `TagTransformer`, confirmed against Firefly's
+ * current source, not assumed): the same `{"data": [{"id": ..., "attributes": {"tag": "...", ...}}],
+ * "meta": {"pagination": ...}}` shape as the category list, with the name under `tag`. Only the
+ * names are needed - they feed the tags field's suggestions on the create/edit screen. */
+fun parseTagList(body: String): List<String> = try {
+    val data = JSONObject(body).optJSONArray("data")
+    if (data == null) {
+        emptyList()
+    } else {
+        (0 until data.length()).mapNotNull { i ->
+            data.optJSONObject(i)?.optJSONObject("attributes")?.optString("tag")?.takeIf { it.isNotBlank() }
+        }
+    }
+} catch (e: JSONException) {
+    emptyList()
+}
+
 /** `GET /v1/currencies`'s body is the same `{"id": ..., "attributes": {"code": ..., "enabled":
  * ..., ...}}` shape as [parseAccountList]/[parseCategoryList] - confirmed against
  * `CurrencyTransformer`'s current source for the `code`/`enabled` field names, not assumed.

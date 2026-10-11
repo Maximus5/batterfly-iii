@@ -246,10 +246,15 @@
             app:endIconDrawable="@drawable/ic_dropdown"
             app:endIconContentDescription="@string/create_tx_pick_category">
 
-            <com.google.android.material.textfield.TextInputEditText
+            <!-- Suggestions drop down while typing (filtered by what is typed); the end icon above
+                 still opens the full picker. -->
+            <com.google.android.material.textfield.MaterialAutoCompleteTextView
                 android:id="@+id/categoryInput"
+                style="@style/Widget.Material3.AutoCompleteTextView.OutlinedBox"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content" />
+                android:layout_height="wrap_content"
+                android:completionThreshold="1"
+                android:inputType="text" />
 
         </com.google.android.material.textfield.TextInputLayout>
 
@@ -260,10 +265,14 @@
             android:hint="@string/create_tx_field_tags"
             app:expandedHintEnabled="false">
 
-            <com.google.android.material.textfield.TextInputEditText
+            <!-- Comma-separated: suggestions are for the tag currently being typed. -->
+            <io.github.maximus5.ffnotifyimporter.ui.TagsAutoCompleteTextView
                 android:id="@+id/tagsInput"
+                style="@style/Widget.Material3.AutoCompleteTextView.OutlinedBox"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content" />
+                android:layout_height="wrap_content"
+                android:completionThreshold="1"
+                android:inputType="text" />
 
         </com.google.android.material.textfield.TextInputLayout>
 

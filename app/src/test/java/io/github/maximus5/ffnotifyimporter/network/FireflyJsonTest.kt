@@ -114,6 +114,25 @@ class FireflyJsonTest {
     }
 
     @Test
+    fun `parseTagList reads the tag name from a real-shaped response`() {
+        val body = """
+            {"data": [
+                {"type": "tags", "id": "1", "attributes": {"tag": "travel", "date": null, "description": null}},
+                {"type": "tags", "id": "2", "attributes": {"tag": "shared", "date": null, "description": null}},
+                {"type": "tags", "id": "3", "attributes": {"tag": "", "date": null}},
+                {"type": "tags", "id": "4", "attributes": {}}
+            ], "meta": {"pagination": {"total_pages": 1}}}
+        """.trimIndent()
+
+        assertEquals(listOf("travel", "shared"), parseTagList(body))
+    }
+
+    @Test
+    fun `parseTagList returns an empty list for a body that is not JSON`() {
+        assertEquals(emptyList<String>(), parseTagList("<html>"))
+    }
+
+    @Test
     fun `parseCategoryList skips an entry missing id or name rather than failing the whole list`() {
         val body = """
             {"data": [

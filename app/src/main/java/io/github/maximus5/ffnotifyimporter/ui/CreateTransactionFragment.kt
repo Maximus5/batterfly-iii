@@ -12,6 +12,7 @@ import android.text.style.StyleSpan
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ArrayAdapter
 import android.widget.EditText
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
@@ -251,9 +252,33 @@ class CreateTransactionFragment : Fragment() {
 
         saveMenu?.enabled = true
         baseline = formSnapshot()
+        loadSuggestions(context)
 
         if (DraftIssue.LOCAL_AMOUNT_MISSING in draft.issues) {
             viewLifecycleOwner.lifecycleScope.launch { resolveApproxConversion(draft) }
+        }
+    }
+
+    /** Best-effort, silent (no toast on failure - the fields work as plain text without it): fills
+     * the category and tags fields' suggestion lists from Firefly, so typing "Clo" offers matching
+     * categories in a small non-modal list under the field (the end icon's full picker is
+     * separate). Reuses the category cache the picker also fills. */
+    private fun loadSuggestions(context: Context) {
+        val prefs = FireflyPrefs(context)
+        if (!prefs.isConfigured()) return
+        viewLifecycleOwner.lifecycleScope.launch {
+            val client = prefs.apiClient()
+            val categoryList = categories ?: (client.listCategories() as? FireflyApiClient.Result.Success)?.value?.also { categories = it }
+            val tagList = (client.listTags() as? FireflyApiClient.Result.Success)?.value
+            val binding = binding ?: return@launch
+            if (categoryList != null) {
+                binding.categoryInput.setAdapter(
+                    ArrayAdapter(context, android.R.layout.simple_dropdown_item_1line, categoryList.map { it.name }),
+                )
+            }
+            if (tagList != null) {
+                binding.tagsInput.setAdapter(ArrayAdapter(context, android.R.layout.simple_dropdown_item_1line, tagList))
+            }
         }
     }
 
@@ -279,6 +304,7 @@ class CreateTransactionFragment : Fragment() {
                     updateKindText()
                     saveMenu?.enabled = true
                     baseline = formSnapshot()
+                    loadSuggestions(context)
                 }
                 is LinkedTransactionCheck.Gone -> {
                     Toast.makeText(context, getString(R.string.open_transaction_gone_message, transactionId), Toast.LENGTH_LONG).show()
