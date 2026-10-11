@@ -358,4 +358,9 @@
     <string name="rule_field_account_approximate">Konto ist eine Annahme</string>
     <string name="rule_field_account_approximate_hint">Einschalten, wenn die Benachrichtigung nicht sagt, welches Konto oder welche Karte verwendet wurde, und das Konto oben nur geraten ist. Die App legt die Buchung dann nie selbst an, sondern bittet Sie um Prüfung. Außerdem erkennt sie dieselbe Zahlung aus einer App, die das Konto kennt (zum Beispiel Ihrem Wallet), und entfernt ihre eigene Erinnerung. Duplikate werden nur anhand von Betrag und Zeit gefunden.</string>
     <string name="notification_rule_line">Regel: %1$s</string>
+    <string name="about_diagnostic_hint">Kurze technische Notizen dazu, was die App bei den letzten Nachrichten entschieden hat. Sie enthalten keine Beträge oder Beschreibungen. Kopieren Sie sie, wenn Sie ein Problem melden.</string>
+    <string name="about_diagnostic_copy">Diagnoseprotokoll kopieren</string>
+    <string name="about_diagnostic_clear">Protokoll löschen</string>
+    <string name="about_diagnostic_copied">Diagnoseprotokoll kopiert</string>
+    <string name="about_diagnostic_empty">Das Diagnoseprotokoll ist leer</string>
 </resources>

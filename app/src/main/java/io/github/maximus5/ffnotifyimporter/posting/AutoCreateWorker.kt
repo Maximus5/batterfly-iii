@@ -72,13 +72,22 @@ class AutoCreateWorker(context: Context, params: WorkerParameters) : CoroutineWo
         if (!prefs.isAutoCreateEnabled() || !prefs.isConfigured()) return Result.success()
 
         val message = capturedMessageFrom(inputData)
-        val draft = matchRule(applicationContext, message) ?: return Result.success()
+        val draft = matchRule(applicationContext, message)
+        if (draft == null) {
+            DiagnosticLog.log(applicationContext, "auto-create: no rule matched")
+            return Result.success()
+        }
 
         val resolved = resolveAmountQuietly(draft, prefs)
         // Can't auto-post without a resolved amount - same "flag it, don't guess" precedent as
         // everywhere else LOCAL_AMOUNT_MISSING shows up, not a failure worth retrying or notifying
         // about (the message is still sitting in the Messages list for the user to handle by hand).
-        val amount = resolved.amount ?: return Result.success()
+        val amount = resolved.amount
+        if (amount == null) {
+            DiagnosticLog.log(applicationContext, "auto-create '${resolved.ruleLabel.orEmpty()}': skipped, no resolved amount")
+            return Result.success()
+        }
+        DiagnosticLog.log(applicationContext, "auto-create '${resolved.ruleLabel.orEmpty()}': matched, issues=${resolved.issues}")
 
         // Fixed a real bug, the user's own catch: a rule can leave the account side(s) its own
         // kind requires blank (most notably rules.BuiltInRules's generic fallback rules, which
@@ -89,6 +98,7 @@ class AutoCreateWorker(context: Context, params: WorkerParameters) : CoroutineWo
         // notification posting.ReviewNotificationWorker shows when auto-create is off entirely,
         // since a human has to pick the account by hand regardless.
         if (DraftIssue.ACCOUNT_SELECTION_REQUIRED in resolved.issues || DraftIssue.ACCOUNT_APPROXIMATE in resolved.issues) {
+            DiagnosticLog.log(applicationContext, "auto-create: stops at a review notification")
             ReviewNotifications.notifyMatch(applicationContext, message, resolved)
             return Result.success()
         }
@@ -96,6 +106,7 @@ class AutoCreateWorker(context: Context, params: WorkerParameters) : CoroutineWo
         return when (val result = checkForDuplicate(applicationContext, resolved)) {
             is DuplicateCheckResult.None -> post(resolved, amount, message, prefs)
             is DuplicateCheckResult.SearchFailed -> {
+                DiagnosticLog.log(applicationContext, "auto-create: duplicate check failed (attempt ${runAttemptCount + 1}): ${result.message.take(80)}")
                 // Safe to retry - nothing has been written yet, this is only a read (unlike
                 // post()'s own createTransaction call, which never retries, see this class's own
                 // KDoc). A dedup check that couldn't be verified is no longer "assume no
@@ -109,6 +120,7 @@ class AutoCreateWorker(context: Context, params: WorkerParameters) : CoroutineWo
                 }
             }
             is DuplicateCheckResult.Found -> {
+                DiagnosticLog.log(applicationContext, "auto-create: skipped as a duplicate of #${result.id}")
                 if (NotificationPrefs(applicationContext).isNotifySkippedDuplicatesEnabled()) {
                     AutoCreateNotifications.notifySkippedDuplicate(
                         applicationContext, prefs.getBaseUrl(), message,
@@ -119,6 +131,7 @@ class AutoCreateWorker(context: Context, params: WorkerParameters) : CoroutineWo
                 Result.success()
             }
             is DuplicateCheckResult.FoundMultiple -> {
+                DiagnosticLog.log(applicationContext, "auto-create: skipped as a duplicate of #${result.mostRecentId} (${result.count} matches)")
                 if (NotificationPrefs(applicationContext).isNotifySkippedDuplicatesEnabled()) {
                     AutoCreateNotifications.notifySkippedDuplicate(
                         applicationContext, prefs.getBaseUrl(), message,
@@ -161,6 +174,7 @@ class AutoCreateWorker(context: Context, params: WorkerParameters) : CoroutineWo
                 )
                 RetentionController.purgeCreatedTransactions(createdDb, RetentionPrefs(applicationContext).getRetentionDays())
                 MessageStore.shared.setTransactionId(message, result.value, draft.ruleLabel)
+                DiagnosticLog.log(applicationContext, "auto-create '${draft.ruleLabel.orEmpty()}': created #${result.value}, approx=${draft.accountApproximate}")
                 // A precise source just created this payment: the bank message that only guessed the
                 // account (still waiting for review in the shade) is redundant now.
                 if (!draft.accountApproximate) ReviewNotifications.supersedeApproximate(applicationContext, draft)
@@ -172,6 +186,7 @@ class AutoCreateWorker(context: Context, params: WorkerParameters) : CoroutineWo
                 Result.success()
             }
             is FireflyApiClient.Result.Failure -> {
+                DiagnosticLog.log(applicationContext, "auto-create: create failed")
                 // Never retried - see this class's own KDoc. A lost response after Firefly
                 // already applied the write would retry into a genuine second transaction, the
                 // exact thing this app's dedup machinery exists to prevent in the first place.

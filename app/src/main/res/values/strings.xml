@@ -358,4 +358,9 @@
     <string name="rule_field_account_approximate">Account is a guess</string>
     <string name="rule_field_account_approximate_hint">Turn this on when the notification does not say which account or card was used, so the account above is only a guess. The app then never creates the transaction by itself: it asks you to review it. It also recognises the same payment reported by another app that knows the account (for example your wallet), and drops its own reminder. Duplicates are found by amount and time only.</string>
     <string name="notification_rule_line">Rule: %1$s</string>
+    <string name="about_diagnostic_hint">Short technical notes about what the app decided for recent messages. They contain no amounts or descriptions. Copy them if you report a problem.</string>
+    <string name="about_diagnostic_copy">Copy diagnostic log</string>
+    <string name="about_diagnostic_clear">Clear log</string>
+    <string name="about_diagnostic_copied">Diagnostic log copied</string>
+    <string name="about_diagnostic_empty">The diagnostic log is empty</string>
 </resources>

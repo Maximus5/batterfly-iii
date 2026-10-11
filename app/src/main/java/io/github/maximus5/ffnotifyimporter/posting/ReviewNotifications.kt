@@ -89,7 +89,11 @@ object ReviewNotifications {
         val currencyCode = draft.currencyCode
         val description = draft.description
         val notificationPrefs = NotificationPrefs(context)
-        if (!notificationPrefs.isNotificationsEnabled()) return
+        val who = "review '${draft.ruleLabel.orEmpty()}' approx=${draft.accountApproximate}"
+        if (!notificationPrefs.isNotificationsEnabled()) {
+            DiagnosticLog.log(context, "$who: not posted, notifications are off in the app")
+            return
+        }
         ensureChannel(context)
         val fireflyPrefs = FireflyPrefs(context)
         // An account-approximate draft whose payment this app already created (typically from the
@@ -99,6 +103,7 @@ object ReviewNotifications {
                 transactionDedupHashIgnoringAccounts(draft), draft.date.toEpochMilli(), fireflyPrefs.getDedupWindowMinutes(),
             ) != null
         ) {
+            DiagnosticLog.log(context, "$who: not posted, the payment is already in the created log")
             return
         }
         val shadeEntry = shadeEntryFor(draft)
@@ -106,7 +111,11 @@ object ReviewNotifications {
             val active = activeEntries(context, ownId = notificationId(message)).map { it.second }
             // Same payment already waiting in the shade (e.g. the bank app and its wallet both
             // notified): don't add a second one. The message still lands in the in-app list as usual.
-            if (isDuplicateInShade(active, shadeEntry, fireflyPrefs.isDedupIncludeDescription(), fireflyPrefs.getDedupWindowMinutes())) return
+            if (isDuplicateInShade(active, shadeEntry, fireflyPrefs.isDedupIncludeDescription(), fireflyPrefs.getDedupWindowMinutes())) {
+                DiagnosticLog.log(context, "$who: not posted, same payment already in the shade (${describe(shadeEntry, shadeEntry)}; shade: ${active.joinToString { describe(it, shadeEntry) }})")
+                return
+            }
+            DiagnosticLog.log(context, "$who: posting (${describe(shadeEntry, shadeEntry)}; shade: ${active.joinToString { describe(it, shadeEntry) }})")
             // A precise notification (the wallet one) replaces the approximate bank one for the same payment.
             cancelSupersededApproximate(context, draft, ownId = notificationId(message))
         }
@@ -214,9 +223,19 @@ object ReviewNotifications {
     private fun cancelSupersededApproximate(context: Context, draft: TransactionDraft, ownId: Int?) {
         val candidate = shadeEntryFor(draft) ?: return
         val active = activeEntries(context, ownId ?: Int.MIN_VALUE)
-        val index = supersededApproximateIndex(active.map { it.second }, candidate, FireflyPrefs(context).getDedupWindowMinutes()) ?: return
+        val index = supersededApproximateIndex(active.map { it.second }, candidate, FireflyPrefs(context).getDedupWindowMinutes())
+        DiagnosticLog.log(
+            context,
+            "sweep for '${draft.ruleLabel.orEmpty()}' (${describe(candidate, candidate)}): shade has ${active.size} review notification(s) " +
+                "[${active.joinToString { describe(it.second, candidate) }}] -> " + (if (index == null) "nothing to dismiss" else "dismissed #$index"),
+        )
+        if (index == null) return
         NotificationManagerCompat.from(context).cancel(active[index].first)
     }
+
+    /** One shade entry as a log fragment, relative to [reference]: flags, hash prefix, time offset. */
+    private fun describe(entry: ShadeEntry, reference: ShadeEntry): String =
+        "approx=${entry.approximate} noAcct=${DiagnosticLog.short(entry.hashWithoutAccounts)} dt=${(entry.dateMillis - reference.dateMillis) / 1000}s"
 
     private fun ensureChannel(context: Context) {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager

@@ -32,4 +32,30 @@
         android:textColor="?attr/colorPrimary"
         android:textSize="14sp" />
 
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="28dp"
+        android:text="@string/about_diagnostic_hint"
+        android:textColor="#888888"
+        android:textSize="13sp" />
+
+    <Button
+        android:id="@+id/aboutCopyLog"
+        style="?attr/borderlessButtonStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:minWidth="0dp"
+        android:paddingStart="0dp"
+        android:text="@string/about_diagnostic_copy" />
+
+    <Button
+        android:id="@+id/aboutClearLog"
+        style="?attr/borderlessButtonStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:minWidth="0dp"
+        android:paddingStart="0dp"
+        android:text="@string/about_diagnostic_clear" />
+
 </LinearLayout>

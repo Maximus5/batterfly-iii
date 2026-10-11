@@ -3518,3 +3518,14 @@ review notification is dismissed and "Transaction created" is shown. It talks to
 The test swaps in its own connection settings and rules and restores them afterwards, but it does
 use the device's real app data - run it on a test device only. Each run uses a different amount,
 because the dedup log of an earlier run would (correctly) suppress the bank notification.
+
+## Diagnostic log
+
+`posting/DiagnosticLog.kt` keeps a small text file (`filesDir/diagnostic.log`, capped at 48 KB, older
+half dropped) of what the automatic paths decided: the matched rule label and issues, whether a
+review notification was posted / suppressed (already created, already in the shade) / superseded, the
+shade sweep's view (flags, hash prefixes and time offsets of the review notifications it saw), and
+auto-create outcomes. About -> "Copy diagnostic log" puts it on the clipboard (with the version) for a
+bug report; "Clear log" deletes it. It deliberately holds no amounts, descriptions, counterparties or
+account names - rule labels, flags, counts, the first 6 characters of dedup hashes and second offsets
+only. Logging never throws.
