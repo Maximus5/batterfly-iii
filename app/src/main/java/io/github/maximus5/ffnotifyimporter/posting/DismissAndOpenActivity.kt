@@ -14,7 +14,11 @@ import androidx.core.content.IntentCompat
  * the notification to say - so every tap goes through here: cancel the notification, then start
  * the real target ([EXTRA_TARGET]) and finish. The editor is deliberately not put on top of a
  * freshly launched [MainActivity]: the user tapped to verify one transaction, and Back should return
- * to wherever they were (the app's own screens only if it was already open there), not flash the list. An activity (not a receiver/service) so the platform's notification-trampoline
+ * to wherever they were, not flash the list. For the same reason the manifest gives this activity an
+ * empty `taskAffinity`: with the app's default affinity it joined the app's existing task (Back on
+ * the root screen only moves that task to the background since Android 12), which brought that task -
+ * and its list - to the front for a moment before the editor opened. Now the editor opens in a task
+ * of its own. An activity (not a receiver/service) so the platform's notification-trampoline
  * restriction doesn't apply.
  */
 class DismissAndOpenActivity : Activity() {

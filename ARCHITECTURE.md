@@ -1399,7 +1399,10 @@ Single `:app` module, packages under
     an invisible (`Theme.NoDisplay`) activity that cancels the
     notification id, then starts the real target (the editor alone - no `MainActivity` is
     launched under it since v0.224, so Back returns to where the user was
-    and the list does not flash - or the web `ACTION_VIEW`) and finishes. An activity,
+    and the list does not flash - or the web `ACTION_VIEW`). The
+    trampoline has `taskAffinity=""` (v0.227): otherwise it joined the app's
+    existing task (a root-screen Back only backgrounds the task since
+    Android 12), whose list came to the front before the editor started and finishes. An activity,
     not a receiver/service, so the notification-trampoline restriction
     doesn't apply. The review notifications are unchanged (they stay
     until a transaction is actually linked). **Tap on a review
