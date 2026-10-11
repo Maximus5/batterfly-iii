@@ -1028,6 +1028,13 @@ Single `:app` module, packages under
     `rules` still has no dependency on `network`, same direction as
     `network` not depending on `rules`; the caller (currently only
     `MessagesFragment`, see its entry below) is the one bridging both.
+- Per-app language (system "App language" page, Android 13+):
+  `res/xml/locales_config.xml` lists `en` and `ru`, referenced by
+  `android:localeConfig` on `<application>`. Without it the app is absent
+  from that page and just follows the system language. No in-app picker and
+  no `AppCompatDelegate` (Android 12 and older keep following the system
+  language). `LocalesConfigTest` fails when the list and the `values-*`
+  folders differ - add a language to both together.
 - Android Auto Backup (distinct from the `backup` module's user-driven
   export/restore below; AI-Review P1). `allowBackup` stays on, but
   `res/xml/backup_rules.xml` (Android 11 and older, `fullBackupContent`) and
