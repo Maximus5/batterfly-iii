@@ -3332,7 +3332,7 @@ connection exists (see TODO.md).
 
 ## Launcher icon
 
-Adaptive icon (`mipmap-anydpi-v26/ic_launcher*.xml`): solid green background
+Adaptive icon (`mipmap-anydpi-v26/ic_launcher*.xml`): solid white background
 (`ic_launcher_background`), foreground = the coin-stack artwork
 `drawable-nodpi/ic_launcher_art.png` (512x512, transparent background) wrapped
 in a 13% `<inset>` (`ic_launcher_foreground.xml`) so the artwork stays inside
