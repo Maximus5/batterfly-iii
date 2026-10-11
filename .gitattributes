@@ -1,0 +1,10 @@
+# Text files are stored with LF in the repository and checked out with LF on every
+# platform, so the result does not depend on a machine's core.autocrlf setting.
+* text=auto eol=lf
+
+# Windows batch files must keep CRLF (cmd.exe can misread labels in LF batch files).
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+*.jar binary
+*.png binary
