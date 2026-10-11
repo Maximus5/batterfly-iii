@@ -27,6 +27,13 @@ enum class DraftIssue {
      * shows the same review notification `posting.ReviewNotificationWorker` would (auto-create
      * off) immediately instead of ever attempting to post. */
     ACCOUNT_SELECTION_REQUIRED,
+
+    /** The rule is marked [ParseRule.accountApproximate]: its account is a guess, not what the
+     * notification said. Auto-create stops at a review notification for such a draft (a human
+     * picks the account), and every duplicate check for it compares amount/currency/date only,
+     * never accounts or description - so the same payment reported by a source that *does* know
+     * the account (a wallet app) is recognised as the same one. */
+    ACCOUNT_APPROXIMATE,
 }
 
 /** What a [ParseRule] detected in a notification - "what we matched", now postable via

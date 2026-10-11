@@ -54,6 +54,7 @@ private fun ParseRule.toJson(): JSONObject = JSONObject().apply {
     put("tagsTemplate", tagsTemplate)
     put("enabled", enabled)
     put("dateFormat", dateFormat)
+    if (accountApproximate) put("accountApproximate", true)
 }
 
 private fun JSONObject.toRuleOrNull(): ParseRule? {
@@ -83,5 +84,6 @@ private fun JSONObject.toRuleOrNull(): ParseRule? {
         tagsTemplate = optString("tagsTemplate", ""),
         enabled = optBoolean("enabled", true),
         dateFormat = optString("dateFormat", ""),
+        accountApproximate = optBoolean("accountApproximate", false),
     )
 }

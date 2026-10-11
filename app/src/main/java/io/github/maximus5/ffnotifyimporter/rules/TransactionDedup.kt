@@ -70,6 +70,27 @@ fun transactionDedupHash(draft: TransactionDraft, includeDescription: Boolean): 
     return digest.joinToString("") { "%02x".format(it) }
 }
 
+/** True for a draft whose rule is marked [ParseRule.accountApproximate] - its duplicate checks
+ * must ignore accounts (and description), see [transactionDedupHashIgnoringAccounts]. */
+val TransactionDraft.accountApproximate: Boolean get() = DraftIssue.ACCOUNT_APPROXIMATE in issues
+
+/**
+ * The account-agnostic dedup key: amount and currency only - no account side, no description. Used
+ * for a draft from an [ParseRule.accountApproximate] rule (a bank notification that doesn't say
+ * which account was charged, so the rule's own account is a guess), and stored for every created
+ * transaction so such a draft can be matched against one created by a source that did know the
+ * account. Deliberately without the counterparty too: like [transactionDedupHash], it relies on
+ * the dedup window to keep two different payments of the same amount apart, and a bank and a
+ * wallet rarely spell a merchant the same way. Always the same value regardless of the
+ * description setting, since a description is exactly what two such sources disagree on.
+ */
+fun transactionDedupHashIgnoringAccounts(draft: TransactionDraft): String {
+    val amount = requireNotNull(draft.amount) { "transactionDedupHashIgnoringAccounts needs a resolved amount" }
+    val parts = listOf("any-account", amount.setScale(2, RoundingMode.HALF_UP).toPlainString(), draft.currencyCode)
+    val digest = MessageDigest.getInstance("SHA-256").digest(parts.joinToString("|").toByteArray(Charsets.UTF_8))
+    return digest.joinToString("") { "%02x".format(it) }
+}
+
 /** One Firefly transaction split as returned by `network.FireflyApiClient.
  * searchNearbyTransactions`, stripped down to plain values so this file (like the rest of
  * `rules`) stays free of a `network` dependency - the caller (`ui.MessagesFragment`) maps
@@ -152,6 +173,11 @@ fun remoteCandidateMatches(
         if (candidate.currencyCode != draft.currencyCode) return false
         if (candidate.amount.setScale(2, RoundingMode.HALF_UP) != amount.setScale(2, RoundingMode.HALF_UP)) return false
     }
+
+    // An account-approximate draft: amount/currency (and the date window) above are all that
+    // identifies the payment; the transaction type has to agree too, since without the account
+    // nothing else tells a withdrawal from a same-amount deposit.
+    if (draft.accountApproximate) return candidate.kind == draft.kind
 
     val candidateAsDraft = draft.copy(
         amount = amount,

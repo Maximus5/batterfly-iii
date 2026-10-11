@@ -55,7 +55,7 @@ object BackupManager {
         val createdTransactionsDb = CreatedTransactionsDb.getInstance(context)
         createdTransactionsDb.clearAll()
         data.createdTransactions.forEach {
-            createdTransactionsDb.recordCreated(it.hashWithDescription, it.hashWithoutDescription, it.dateMillis, it.fireflyTransactionId)
+            createdTransactionsDb.recordCreated(it.hashWithDescription, it.hashWithoutDescription, it.dateMillis, it.fireflyTransactionId, it.hashWithoutAccounts)
         }
 
         // Last, once both stores hold the restored data: trims everything to the restored window,

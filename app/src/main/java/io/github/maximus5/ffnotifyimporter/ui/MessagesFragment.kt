@@ -563,6 +563,7 @@ class MessagesFragment : Fragment() {
                     DraftIssue.LOCAL_AMOUNT_MISSING -> getString(R.string.test_match_issue_local_amount_missing)
                     DraftIssue.DATE_UNPARSABLE -> getString(R.string.test_match_issue_date_unparsable)
                     DraftIssue.ACCOUNT_SELECTION_REQUIRED -> getString(R.string.test_match_issue_account_selection_required)
+                    DraftIssue.ACCOUNT_APPROXIMATE -> getString(R.string.test_match_issue_account_approximate)
                 },
             )
         }

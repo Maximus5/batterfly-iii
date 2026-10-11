@@ -132,6 +132,7 @@ class RuleEngine(
         val missingSource = rule.kind != RuleKind.DEPOSIT && sourceName == null
         val missingDestination = rule.kind != RuleKind.WITHDRAWAL && destinationName == null
         if (missingSource || missingDestination) issues += DraftIssue.ACCOUNT_SELECTION_REQUIRED
+        if (rule.accountApproximate) issues += DraftIssue.ACCOUNT_APPROXIMATE
         if (sourceName == null && destinationName == null && defaultSourceAccount.isNotBlank()) {
             if (rule.kind == RuleKind.DEPOSIT) destinationName = defaultSourceAccount else sourceName = defaultSourceAccount
         }

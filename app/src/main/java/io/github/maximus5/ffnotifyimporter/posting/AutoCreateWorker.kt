@@ -15,7 +15,9 @@ import io.github.maximus5.ffnotifyimporter.prefs.RetentionPrefs
 import io.github.maximus5.ffnotifyimporter.rules.CreatedTransactionsDb
 import io.github.maximus5.ffnotifyimporter.rules.DraftIssue
 import io.github.maximus5.ffnotifyimporter.rules.TransactionDraft
+import io.github.maximus5.ffnotifyimporter.rules.accountApproximate
 import io.github.maximus5.ffnotifyimporter.rules.transactionDedupHash
+import io.github.maximus5.ffnotifyimporter.rules.transactionDedupHashIgnoringAccounts
 import java.math.BigDecimal
 
 /**
@@ -86,7 +88,7 @@ class AutoCreateWorker(context: Context, params: WorkerParameters) : CoroutineWo
         // looked like silence for a long stretch. No point trying at all - same review
         // notification posting.ReviewNotificationWorker shows when auto-create is off entirely,
         // since a human has to pick the account by hand regardless.
-        if (DraftIssue.ACCOUNT_SELECTION_REQUIRED in resolved.issues) {
+        if (DraftIssue.ACCOUNT_SELECTION_REQUIRED in resolved.issues || DraftIssue.ACCOUNT_APPROXIMATE in resolved.issues) {
             ReviewNotifications.notifyMatch(applicationContext, message, resolved)
             return Result.success()
         }
@@ -151,11 +153,15 @@ class AutoCreateWorker(context: Context, params: WorkerParameters) : CoroutineWo
                 createdDb.recordCreated(
                     hashWithDescription = transactionDedupHash(draft, true),
                     hashWithoutDescription = transactionDedupHash(draft, false),
+                    hashWithoutAccounts = transactionDedupHashIgnoringAccounts(draft),
                     transactionDateMillis = draft.date.toEpochMilli(),
                     fireflyTransactionId = result.value,
                 )
                 RetentionController.purgeCreatedTransactions(createdDb, RetentionPrefs(applicationContext).getRetentionDays())
                 MessageStore.shared.setTransactionId(message, result.value)
+                // A precise source just created this payment: the bank message that only guessed the
+                // account (still waiting for review in the shade) is redundant now.
+                if (!draft.accountApproximate) ReviewNotifications.supersedeApproximate(applicationContext, draft)
                 AutoCreateNotifications.notifySuccess(
                     applicationContext, prefs.getBaseUrl(), message,
                     amount, draft.currencyCode, draft.description, result.value,

@@ -4,6 +4,7 @@ import io.github.maximus5.ffnotifyimporter.rules.ParseRule
 import io.github.maximus5.ffnotifyimporter.rules.RuleKind
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -104,5 +105,15 @@ class RulesJsonTest {
     @Test
     fun `an empty rule list round-trips to an empty list, not null`() {
         assertTrue(rulesFromJson(rulesToJson(emptyList()))?.isEmpty() == true)
+    }
+
+    @Test
+    fun `accountApproximate round-trips and defaults to false when absent`() {
+        val rule = ParseRule(id = "", label = "A", kind = RuleKind.WITHDRAWAL, homeCurrency = "EUR", pattern = "a", accountApproximate = true)
+        val roundTripped = rulesFromJson(rulesToJson(listOf(rule, rule.copy(accountApproximate = false))))!!
+
+        assertTrue(roundTripped[0].accountApproximate)
+        assertFalse(roundTripped[1].accountApproximate)
+        assertFalse(rulesFromJson("""{"rules": [{"kind": "WITHDRAWAL", "pattern": "a"}]}""")!!.single().accountApproximate)
     }
 }

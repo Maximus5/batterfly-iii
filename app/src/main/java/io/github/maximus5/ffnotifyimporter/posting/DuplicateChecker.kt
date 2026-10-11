@@ -10,7 +10,9 @@ import io.github.maximus5.ffnotifyimporter.rules.RemoteTransactionCandidate
 import io.github.maximus5.ffnotifyimporter.rules.RuleKind
 import io.github.maximus5.ffnotifyimporter.rules.TransactionDraft
 import io.github.maximus5.ffnotifyimporter.rules.remoteCandidateMatches
+import io.github.maximus5.ffnotifyimporter.rules.accountApproximate
 import io.github.maximus5.ffnotifyimporter.rules.transactionDedupHash
+import io.github.maximus5.ffnotifyimporter.rules.transactionDedupHashIgnoringAccounts
 
 /**
  * Shared duplicate-check pipeline - extracted out of `ui.MessagesFragment` (where it originally
@@ -121,9 +123,13 @@ suspend fun findDuplicate(
     allowUnscoped: Boolean = false,
 ): DuplicateCheckResult {
     val windowMinutes = prefs.getDedupWindowMinutes()
-    val hash = transactionDedupHash(draft, includeDescription)
-    val localFoundId = CreatedTransactionsDb.getInstance(context)
-        .findWithinWindow(hash, includeDescription, draft.date.toEpochMilli(), windowMinutes)
+    val approximate = draft.accountApproximate
+    val localLog = CreatedTransactionsDb.getInstance(context)
+    val localFoundId = if (approximate) {
+        localLog.findWithoutAccountsWithinWindow(transactionDedupHashIgnoringAccounts(draft), draft.date.toEpochMilli(), windowMinutes)
+    } else {
+        localLog.findWithinWindow(transactionDedupHash(draft, includeDescription), includeDescription, draft.date.toEpochMilli(), windowMinutes)
+    }
     if (localFoundId != null) {
         when (val verify = verifyLinkedTransaction(prefs, localFoundId)) {
             is LinkedTransactionCheck.Found -> return DuplicateCheckResult.Found(localFoundId, verify.candidate)
@@ -143,11 +149,13 @@ suspend fun findDuplicate(
         foreignCurrencyCode = draft.foreignCurrencyCode,
         centerDate = draft.date,
         windowMinutes = windowMinutes,
-        sourceName = draft.sourceName,
-        destinationName = draft.destinationName,
+        // An account-approximate draft: the account it carries is a guess, so search by amount and
+        // date alone (unscoped) and compare without accounts or description.
+        sourceName = if (approximate) null else draft.sourceName,
+        destinationName = if (approximate) null else draft.destinationName,
         description = draft.description,
-        includeDescription = includeDescription,
-        allowUnscoped = allowUnscoped,
+        includeDescription = includeDescription && !approximate,
+        allowUnscoped = allowUnscoped || approximate,
     ) ?: return DuplicateCheckResult.None()
 
     val client = prefs.apiClient()

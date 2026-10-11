@@ -11,7 +11,10 @@ import io.github.maximus5.ffnotifyimporter.R
 import io.github.maximus5.ffnotifyimporter.data.CapturedMessage
 import io.github.maximus5.ffnotifyimporter.prefs.FireflyPrefs
 import io.github.maximus5.ffnotifyimporter.prefs.NotificationPrefs
+import io.github.maximus5.ffnotifyimporter.rules.CreatedTransactionsDb
 import io.github.maximus5.ffnotifyimporter.rules.TransactionDraft
+import io.github.maximus5.ffnotifyimporter.rules.accountApproximate
+import io.github.maximus5.ffnotifyimporter.rules.transactionDedupHashIgnoringAccounts
 import io.github.maximus5.ffnotifyimporter.ui.CreateTransactionActivity
 import io.github.maximus5.ffnotifyimporter.ui.MainActivity
 
@@ -71,6 +74,8 @@ object ReviewNotifications {
     private const val CHANNEL_ID = "review_match"
     private const val EXTRA_HASH_WITH_DESCRIPTION = "shade_hash_with_description"
     private const val EXTRA_HASH_WITHOUT_DESCRIPTION = "shade_hash_without_description"
+    private const val EXTRA_HASH_WITHOUT_ACCOUNTS = "shade_hash_without_accounts"
+    private const val EXTRA_APPROXIMATE = "shade_approximate"
     private const val EXTRA_DATE_MILLIS = "shade_date_millis"
 
     @Synchronized
@@ -86,13 +91,24 @@ object ReviewNotifications {
         val notificationPrefs = NotificationPrefs(context)
         if (!notificationPrefs.isNotificationsEnabled()) return
         ensureChannel(context)
+        val fireflyPrefs = FireflyPrefs(context)
+        // An account-approximate draft whose payment this app already created (typically from the
+        // wallet notification that arrived first): nothing left to review, the message stays in the list.
+        if (draft.accountApproximate && fireflyPrefs.isDedupEnabled() &&
+            CreatedTransactionsDb.getInstance(context).findWithoutAccountsWithinWindow(
+                transactionDedupHashIgnoringAccounts(draft), draft.date.toEpochMilli(), fireflyPrefs.getDedupWindowMinutes(),
+            ) != null
+        ) {
+            return
+        }
         val shadeEntry = shadeEntryFor(draft)
         if (shadeEntry != null) {
-            val fireflyPrefs = FireflyPrefs(context)
-            val active = activeEntries(context, ownId = notificationId(message))
+            val active = activeEntries(context, ownId = notificationId(message)).map { it.second }
             // Same payment already waiting in the shade (e.g. the bank app and its wallet both
             // notified): don't add a second one. The message still lands in the in-app list as usual.
             if (isDuplicateInShade(active, shadeEntry, fireflyPrefs.isDedupIncludeDescription(), fireflyPrefs.getDedupWindowMinutes())) return
+            // A precise notification (the wallet one) replaces the approximate bank one for the same payment.
+            cancelSupersededApproximate(context, draft, ownId = notificationId(message))
         }
         val text = if (notificationPrefs.isShowFinancialInfoEnabled()) {
             context.getString(R.string.review_match_text, message.appLabel, amount.toPlainString(), currencyCode, description)
@@ -112,6 +128,8 @@ object ReviewNotifications {
                 Bundle().apply {
                     putString(EXTRA_HASH_WITH_DESCRIPTION, shadeEntry.hashWithDescription)
                     putString(EXTRA_HASH_WITHOUT_DESCRIPTION, shadeEntry.hashWithoutDescription)
+                    putString(EXTRA_HASH_WITHOUT_ACCOUNTS, shadeEntry.hashWithoutAccounts)
+                    putBoolean(EXTRA_APPROXIMATE, shadeEntry.approximate)
                     putLong(EXTRA_DATE_MILLIS, shadeEntry.dateMillis)
                 },
             )
@@ -167,7 +185,7 @@ object ReviewNotifications {
      * itself is the "map of active notifications" - a swiped or cancelled notification is simply
      * not returned any more, so there is no separate hash table to keep in sync or to lose when the
      * process dies. */
-    private fun activeEntries(context: Context, ownId: Int): List<ShadeEntry> {
+    private fun activeEntries(context: Context, ownId: Int): List<Pair<Int, ShadeEntry>> {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         return manager.activeNotifications
             .filter { it.id != ownId && it.notification.channelId == CHANNEL_ID }
@@ -175,8 +193,29 @@ object ReviewNotifications {
                 val extras = active.notification.extras
                 val withDescription = extras.getString(EXTRA_HASH_WITH_DESCRIPTION) ?: return@mapNotNull null
                 val withoutDescription = extras.getString(EXTRA_HASH_WITHOUT_DESCRIPTION) ?: return@mapNotNull null
-                ShadeEntry(withDescription, withoutDescription, extras.getLong(EXTRA_DATE_MILLIS))
+                active.id to ShadeEntry(
+                    withDescription,
+                    withoutDescription,
+                    extras.getLong(EXTRA_DATE_MILLIS),
+                    extras.getString(EXTRA_HASH_WITHOUT_ACCOUNTS).orEmpty(),
+                    extras.getBoolean(EXTRA_APPROXIMATE, false),
+                )
             }
+    }
+
+    /** A transaction was just created from a *precise* draft (auto-create, or a manual create from a
+     * message whose rule does not say "account approximate"): dismisses the one review notification
+     * still in the shade for the same payment from an account-approximate rule (the bank message
+     * that never said which account), if there is one. See [supersededApproximateIndex]. */
+    fun supersedeApproximate(context: Context, draft: TransactionDraft) {
+        cancelSupersededApproximate(context, draft, ownId = null)
+    }
+
+    private fun cancelSupersededApproximate(context: Context, draft: TransactionDraft, ownId: Int?) {
+        val candidate = shadeEntryFor(draft) ?: return
+        val active = activeEntries(context, ownId ?: Int.MIN_VALUE)
+        val index = supersededApproximateIndex(active.map { it.second }, candidate, FireflyPrefs(context).getDedupWindowMinutes()) ?: return
+        NotificationManagerCompat.from(context).cancel(active[index].first)
     }
 
     private fun ensureChannel(context: Context) {

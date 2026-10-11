@@ -3,6 +3,7 @@ package io.github.maximus5.ffnotifyimporter.rules
 import io.github.maximus5.ffnotifyimporter.data.CapturedMessage
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.math.BigDecimal
@@ -25,6 +26,7 @@ class RuleEngineTest {
         tagsTemplate: String = "",
         enabled: Boolean = true,
         dateFormat: String = "",
+        accountApproximate: Boolean = false,
     ) = ParseRule(
         id = id,
         label = label,
@@ -40,6 +42,7 @@ class RuleEngineTest {
         tagsTemplate = tagsTemplate,
         enabled = enabled,
         dateFormat = dateFormat,
+        accountApproximate = accountApproximate,
     )
 
     private fun message(
@@ -415,5 +418,18 @@ class RuleEngineTest {
             .match(message(text = "100.50 EUR at Shop1234")) as ParseOutcome.Matched
 
         assertTrue(DraftIssue.ACCOUNT_SELECTION_REQUIRED in outcome.draft.issues)
+    }
+
+    @Test
+    fun `a rule marked account approximate yields the approximate issue, others do not`() {
+        val text = "You spent 12,50 EUR at Shop1234"
+        val plain = RuleEngine(listOf(rule(pattern = """(?<amount>\d+,\d+) (?<currency>[A-Z]{3})""")))
+            .match(message(text = text)) as ParseOutcome.Matched
+        val approximate = RuleEngine(listOf(rule(pattern = """(?<amount>\d+,\d+) (?<currency>[A-Z]{3})""", accountApproximate = true)))
+            .match(message(text = text)) as ParseOutcome.Matched
+
+        assertFalse(DraftIssue.ACCOUNT_APPROXIMATE in plain.draft.issues)
+        assertTrue(DraftIssue.ACCOUNT_APPROXIMATE in approximate.draft.issues)
+        assertEquals("Bank Account A", approximate.draft.sourceName)
     }
 }

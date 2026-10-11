@@ -82,6 +82,7 @@ fun fullBackupToJson(data: FullBackupData): String {
                     JSONObject()
                         .put("hashWithDescription", record.hashWithDescription)
                         .put("hashWithoutDescription", record.hashWithoutDescription)
+                        .put("hashWithoutAccounts", record.hashWithoutAccounts)
                         .put("dateMillis", record.dateMillis)
                         .put("fireflyTransactionId", record.fireflyTransactionId),
                 )
@@ -145,10 +146,11 @@ fun fullBackupFromJson(json: String): FullBackupData? {
                 ?: entry.optString("hash").takeIf { it.isNotBlank() }
                 ?: return@mapNotNull null
             val hashWithoutDescription = entry.optString("hashWithoutDescription").takeIf { it.isNotBlank() }
+            val hashWithoutAccounts = entry.optString("hashWithoutAccounts").takeIf { it.isNotBlank() }
             val fireflyTransactionId = entry.optString("fireflyTransactionId").takeIf { it.isNotBlank() } ?: return@mapNotNull null
             val dateMillis = entry.optLong("dateMillis", -1L)
             if (dateMillis < 0) return@mapNotNull null
-            CreatedTransactionRecord(hashWithDescription, hashWithoutDescription, dateMillis, fireflyTransactionId)
+            CreatedTransactionRecord(hashWithDescription, hashWithoutDescription, dateMillis, fireflyTransactionId, hashWithoutAccounts)
         }
     }.orEmpty()
 

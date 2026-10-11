@@ -354,4 +354,7 @@
     <string name="reliability_autorevoke_card_body">If you do not open the app for a long time, Android can remove its permissions and stop it. Turn off \"Remove permissions if app isn\'t used\" (the name differs between phones).</string>
     <string name="reliability_autorevoke_button">Open app permission settings</string>
     <string name="reliability_app_info_button">Open app info…</string>
+    <string name="test_match_issue_account_approximate">⚠ The account in this rule is a guess - automatic creation is skipped and duplicates are checked without comparing accounts.</string>
+    <string name="rule_field_account_approximate">Account is a guess</string>
+    <string name="rule_field_account_approximate_hint">Turn this on when the notification does not say which account or card was used, so the account above is only a guess. The app then never creates the transaction by itself: it asks you to review it. It also recognises the same payment reported by another app that knows the account (for example your wallet), and drops its own reminder. Duplicates are found by amount and time only.</string>
 </resources>

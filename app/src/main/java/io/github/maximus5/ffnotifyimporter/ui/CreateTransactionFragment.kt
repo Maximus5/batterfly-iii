@@ -47,6 +47,7 @@ import io.github.maximus5.ffnotifyimporter.rules.RuleKind
 import io.github.maximus5.ffnotifyimporter.rules.TransactionDraft
 import io.github.maximus5.ffnotifyimporter.rules.applyApproxConversion
 import io.github.maximus5.ffnotifyimporter.rules.transactionDedupHash
+import io.github.maximus5.ffnotifyimporter.rules.transactionDedupHashIgnoringAccounts
 import kotlinx.coroutines.launch
 import java.math.BigDecimal
 import java.math.RoundingMode
@@ -91,6 +92,10 @@ class CreateTransactionFragment : Fragment() {
     private lateinit var message: CapturedMessage
     private lateinit var kind: RuleKind
     private var isEditMode = false
+    /** The message that opened this create screen came from an account-approximate rule, so the
+     * transaction saved here must not dismiss *other* waiting approximate notifications (see
+     * [ReviewNotifications.supersedeApproximate]) - this one is the very kind it would sweep. */
+    private var createdFromApproximateRule = false
     private var selectedTimestampMillis: Long = 0L
 
     private data class PickedAccount(val id: String, val name: String)
@@ -167,6 +172,7 @@ class CreateTransactionFragment : Fragment() {
             return
         }
         val draft = matched.draft
+        createdFromApproximateRule = DraftIssue.ACCOUNT_APPROXIMATE in draft.issues
 
         // Create mode only - edit mode has no "which rule matched" concept at all, the fields
         // come from Firefly's own live data instead of a fresh RuleEngine.match (see this
@@ -743,11 +749,13 @@ class CreateTransactionFragment : Fragment() {
         createdDb.recordCreated(
             hashWithDescription = transactionDedupHash(draft, true),
             hashWithoutDescription = transactionDedupHash(draft, false),
+            hashWithoutAccounts = transactionDedupHashIgnoringAccounts(draft),
             transactionDateMillis = draft.date.toEpochMilli(),
             fireflyTransactionId = transactionId,
         )
         RetentionController.purgeCreatedTransactions(createdDb, RetentionPrefs(context).getRetentionDays())
         MessageStore.shared.setTransactionId(message, transactionId)
+        if (!isEditMode && !createdFromApproximateRule) ReviewNotifications.supersedeApproximate(context, draft)
         ReviewNotifications.cancel(context, message)
         Toast.makeText(context, getString(R.string.create_success_message, transactionId), Toast.LENGTH_LONG).show()
         requireActivity().finish()

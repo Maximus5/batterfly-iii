@@ -3447,3 +3447,35 @@ foreground service (see TODO.md). Two mitigations:
   fall back to the app-info page). The direct "allow" dialog
   (`REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`) is deliberately not used - Play restricts it. Vendor
   sleep lists cannot be read, so they are only named in the one intro paragraph, which also holds the other recommendations; the warning cards sit below it.
+
+## Rules whose account is a guess ("Account is a guess")
+
+Real case: a bank's push does not say which account/card was charged, so its rule names a fixed
+account - and picked the wrong one, while the wallet app's notification for the same payment named
+the right one. The two drafts hashed differently (`transactionDedupHash` includes the account), so
+the payment was created twice. Per-rule switch `ParseRule.accountApproximate` (rules editor, rules
+JSON `accountApproximate`, default off; built-in rules never set it) makes `RuleEngine` add
+`DraftIssue.ACCOUNT_APPROXIMATE` to the draft. Effects:
+
+- **Never auto-created.** `AutoCreateWorker` stops at the review notification for it, like
+  `ACCOUNT_SELECTION_REQUIRED`: a human confirms the account.
+- **Account-agnostic duplicate checks.** `transactionDedupHashIgnoringAccounts` = amount + currency
+  only (no account, no description, no counterparty: a bank and a wallet rarely spell a merchant
+  alike; the date window separates different payments, as everywhere). `CreatedTransactionsDb`
+  (v3, column `hash_without_accounts`, NULL for older rows and in older backups) stores it for every
+  created transaction; `findDuplicate` uses it for the local log, and for the remote search it goes
+  unscoped (`allowUnscoped`) and `remoteCandidateMatches` compares amount/currency/window and
+  transaction type only.
+- **Shade.** `ReviewNotifications.notifyMatch` posts nothing for an approximate draft whose payment
+  is already in the created log (local lookup only - no network in this path, so a transaction
+  deleted in Firefly within the window still hides it; the message stays in the list). Review
+  notifications carry `shade_hash_without_accounts` / `shade_approximate` extras. A precise
+  notification never gets suppressed by an approximate one; it supersedes it:
+  `supersededApproximateIndex` picks the one closest approximate notification (one-to-one, so two
+  real same-amount payments are not both swept by a single precise one). It runs when a precise
+  review notification is posted, after `AutoCreateWorker` created a precise draft, and after a
+  manual create from a message whose rule is not approximate (`CreateTransactionFragment.
+  createdFromApproximateRule`; edit mode never sweeps). A manual create from an approximate
+  message deliberately does not sweep: it would dismiss the *next* approximate notification.
+- Messages are never removed by any of this - only shade notifications - so everything stays
+  reachable from the Messages list ("Check if created" / tap to create).

@@ -61,4 +61,8 @@ data class ParseRule(
     val tagsTemplate: String = "", // renders then splits on ',' (trimmed, blanks dropped)
     val enabled: Boolean = true,
     val dateFormat: String = "",
+    /** The account in this rule is a guess (e.g. a bank notification that never says which
+     * card/account was used, so the rule names a fixed one). Such a rule never auto-creates and
+     * its duplicate checks ignore accounts - see [DraftIssue.ACCOUNT_APPROXIMATE]. */
+    val accountApproximate: Boolean = false,
 )

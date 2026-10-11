@@ -354,4 +354,7 @@
     <string name="reliability_autorevoke_card_body">Wenn Sie die App lange nicht öffnen, kann Android ihre Berechtigungen entfernen und sie stoppen. Schalten Sie „Berechtigungen entfernen, wenn App nicht verwendet wird“ aus (der Name unterscheidet sich je nach Gerät).</string>
     <string name="reliability_autorevoke_button">Berechtigungen der App öffnen</string>
     <string name="reliability_app_info_button">App-Info öffnen…</string>
+    <string name="test_match_issue_account_approximate">⚠ Das Konto in dieser Regel ist eine Annahme - automatisches Anlegen wird übersprungen, Duplikate werden ohne Kontovergleich gesucht.</string>
+    <string name="rule_field_account_approximate">Konto ist eine Annahme</string>
+    <string name="rule_field_account_approximate_hint">Einschalten, wenn die Benachrichtigung nicht sagt, welches Konto oder welche Karte verwendet wurde, und das Konto oben nur geraten ist. Die App legt die Buchung dann nie selbst an, sondern bittet Sie um Prüfung. Außerdem erkennt sie dieselbe Zahlung aus einer App, die das Konto kennt (zum Beispiel Ihrem Wallet), und entfernt ihre eigene Erinnerung. Duplikate werden nur anhand von Betrag und Zeit gefunden.</string>
 </resources>

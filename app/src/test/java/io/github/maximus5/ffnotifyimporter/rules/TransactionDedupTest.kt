@@ -334,4 +334,30 @@ class TransactionDedupTest {
 
         assertFalse(remoteCandidateMatches(d, c, true, 5))
     }
+
+    private fun approximate(d: TransactionDraft = draft()) = d.copy(issues = setOf(DraftIssue.ACCOUNT_APPROXIMATE))
+
+    @Test
+    fun `the account-agnostic hash ignores accounts and description but not amount or currency`() {
+        val base = transactionDedupHashIgnoringAccounts(draft())
+
+        assertEquals(base, transactionDedupHashIgnoringAccounts(draft(sourceName = "Bank Account B", description = "Other")))
+        assertNotEquals(base, transactionDedupHashIgnoringAccounts(draft(amount = BigDecimal("12.51"))))
+        assertNotEquals(base, transactionDedupHashIgnoringAccounts(draft(currencyCode = "USD")))
+    }
+
+    @Test
+    fun `an approximate draft matches a candidate on another account and description`() {
+        val other = candidate(sourceName = "Bank Account B", description = "SHOP1234 CITY")
+
+        assertFalse(remoteCandidateMatches(draft(), other, true, 5))
+        assertTrue(remoteCandidateMatches(approximate(), other, true, 5))
+    }
+
+    @Test
+    fun `an approximate draft still needs the same amount, window and kind`() {
+        assertFalse(remoteCandidateMatches(approximate(), candidate(amount = BigDecimal("12.51")), true, 5))
+        assertFalse(remoteCandidateMatches(approximate(), candidate(date = Instant.ofEpochMilli(1000 + 6 * 60_000L)), true, 5))
+        assertFalse(remoteCandidateMatches(approximate(), candidate(kind = RuleKind.DEPOSIT), true, 5))
+    }
 }

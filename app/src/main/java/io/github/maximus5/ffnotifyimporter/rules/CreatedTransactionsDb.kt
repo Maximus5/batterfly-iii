@@ -14,6 +14,8 @@ data class CreatedTransactionRecord(
     val hashWithoutDescription: String?,
     val dateMillis: Long,
     val fireflyTransactionId: String,
+    /** [transactionDedupHashIgnoringAccounts]; null for a row written before it existed. */
+    val hashWithoutAccounts: String? = null,
 )
 
 /**
@@ -38,6 +40,7 @@ class CreatedTransactionsDb(context: Context) : SQLiteOpenHelper(context, DB_NAM
             CREATE TABLE $TABLE (
                 $COL_HASH_WITH_DESCRIPTION TEXT NOT NULL,
                 $COL_HASH_WITHOUT_DESCRIPTION TEXT,
+                $COL_HASH_WITHOUT_ACCOUNTS TEXT,
                 $COL_DATE_MILLIS INTEGER NOT NULL,
                 $COL_FIREFLY_TRANSACTION_ID TEXT NOT NULL
             )
@@ -45,6 +48,7 @@ class CreatedTransactionsDb(context: Context) : SQLiteOpenHelper(context, DB_NAM
         )
         db.execSQL("CREATE INDEX idx_${TABLE}_hash_with_description ON $TABLE ($COL_HASH_WITH_DESCRIPTION)")
         db.execSQL("CREATE INDEX idx_${TABLE}_hash_without_description ON $TABLE ($COL_HASH_WITHOUT_DESCRIPTION)")
+        db.execSQL("CREATE INDEX idx_${TABLE}_hash_without_accounts ON $TABLE ($COL_HASH_WITHOUT_ACCOUNTS)")
     }
 
     // Additive only, per RulesDb's hard-learned rule (see ARCHITECTURE.md's Known bugs/gotchas) -
@@ -63,12 +67,25 @@ class CreatedTransactionsDb(context: Context) : SQLiteOpenHelper(context, DB_NAM
             db.execSQL("CREATE INDEX IF NOT EXISTS idx_${TABLE}_hash_with_description ON $TABLE ($COL_HASH_WITH_DESCRIPTION)")
             db.execSQL("CREATE INDEX IF NOT EXISTS idx_${TABLE}_hash_without_description ON $TABLE ($COL_HASH_WITHOUT_DESCRIPTION)")
         }
+        // v2->v3: account-agnostic hash (see transactionDedupHashIgnoringAccounts). Old rows keep NULL
+        // = "unknown" - their account/amount inputs are gone, so it cannot be recomputed.
+        if (oldVersion < 3) {
+            db.execSQL("ALTER TABLE $TABLE ADD COLUMN $COL_HASH_WITHOUT_ACCOUNTS TEXT")
+            db.execSQL("CREATE INDEX IF NOT EXISTS idx_${TABLE}_hash_without_accounts ON $TABLE ($COL_HASH_WITHOUT_ACCOUNTS)")
+        }
     }
 
-    fun recordCreated(hashWithDescription: String, hashWithoutDescription: String?, transactionDateMillis: Long, fireflyTransactionId: String) {
+    fun recordCreated(
+        hashWithDescription: String,
+        hashWithoutDescription: String?,
+        transactionDateMillis: Long,
+        fireflyTransactionId: String,
+        hashWithoutAccounts: String? = null,
+    ) {
         val values = ContentValues().apply {
             put(COL_HASH_WITH_DESCRIPTION, hashWithDescription)
             put(COL_HASH_WITHOUT_DESCRIPTION, hashWithoutDescription)
+            put(COL_HASH_WITHOUT_ACCOUNTS, hashWithoutAccounts)
             put(COL_DATE_MILLIS, transactionDateMillis)
             put(COL_FIREFLY_TRANSACTION_ID, fireflyTransactionId)
         }
@@ -101,6 +118,24 @@ class CreatedTransactionsDb(context: Context) : SQLiteOpenHelper(context, DB_NAM
         }
     }
 
+    /** Same lookup as [findWithinWindow], against the account-agnostic hash
+     * ([transactionDedupHashIgnoringAccounts]) - for a draft from an `accountApproximate` rule. Rows
+     * written before that column existed have NULL there and never match. */
+    fun findWithoutAccountsWithinWindow(hash: String, transactionDateMillis: Long, windowMinutes: Int): String? {
+        val windowMillis = windowMinutes * 60_000L
+        readableDatabase.query(
+            TABLE,
+            arrayOf(COL_FIREFLY_TRANSACTION_ID),
+            "$COL_HASH_WITHOUT_ACCOUNTS = ? AND $COL_DATE_MILLIS BETWEEN ? AND ?",
+            arrayOf(hash, (transactionDateMillis - windowMillis).toString(), (transactionDateMillis + windowMillis).toString()),
+            null,
+            null,
+            "$COL_DATE_MILLIS DESC",
+        ).use { cursor ->
+            return if (cursor.moveToFirst()) cursor.getString(cursor.getColumnIndexOrThrow(COL_FIREFLY_TRANSACTION_ID)) else null
+        }
+    }
+
     /** Every row, for full-backup export (`backup.BackupManager.collect`) - no real need for
      * ordering here, the table is just a flat log, not something displayed in sequence. */
     fun loadAll(): List<CreatedTransactionRecord> {
@@ -108,6 +143,7 @@ class CreatedTransactionsDb(context: Context) : SQLiteOpenHelper(context, DB_NAM
         readableDatabase.query(TABLE, null, null, null, null, null, null).use { cursor ->
             val hashWithIdx = cursor.getColumnIndexOrThrow(COL_HASH_WITH_DESCRIPTION)
             val hashWithoutIdx = cursor.getColumnIndexOrThrow(COL_HASH_WITHOUT_DESCRIPTION)
+            val hashNoAccountsIdx = cursor.getColumnIndexOrThrow(COL_HASH_WITHOUT_ACCOUNTS)
             val dateIdx = cursor.getColumnIndexOrThrow(COL_DATE_MILLIS)
             val idIdx = cursor.getColumnIndexOrThrow(COL_FIREFLY_TRANSACTION_ID)
             while (cursor.moveToNext()) {
@@ -117,6 +153,7 @@ class CreatedTransactionsDb(context: Context) : SQLiteOpenHelper(context, DB_NAM
                         hashWithoutDescription = if (cursor.isNull(hashWithoutIdx)) null else cursor.getString(hashWithoutIdx),
                         dateMillis = cursor.getLong(dateIdx),
                         fireflyTransactionId = cursor.getString(idIdx),
+                        hashWithoutAccounts = if (cursor.isNull(hashNoAccountsIdx)) null else cursor.getString(hashNoAccountsIdx),
                     ),
                 )
             }
@@ -139,7 +176,7 @@ class CreatedTransactionsDb(context: Context) : SQLiteOpenHelper(context, DB_NAM
 
     companion object {
         private const val DB_NAME = "created_transactions.db"
-        private const val DB_VERSION = 2
+        private const val DB_VERSION = 3
         private const val TABLE = "created_transactions"
         // Physical name stays "hash", not "hash_with_description" - this is the pre-existing
         // column from DB_VERSION 1, and renaming it would need SQLite's RENAME COLUMN (3.25+,
@@ -147,6 +184,7 @@ class CreatedTransactionsDb(context: Context) : SQLiteOpenHelper(context, DB_NAM
         // accurate one; see onUpgrade's KDoc.
         private const val COL_HASH_WITH_DESCRIPTION = "hash"
         private const val COL_HASH_WITHOUT_DESCRIPTION = "hash_without_description"
+        private const val COL_HASH_WITHOUT_ACCOUNTS = "hash_without_accounts"
         private const val COL_DATE_MILLIS = "date_millis"
         private const val COL_FIREFLY_TRANSACTION_ID = "firefly_transaction_id"
 
