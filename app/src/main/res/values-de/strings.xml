@@ -218,6 +218,7 @@
 
     <string name="settings_currencies_title">Währungen</string>
     <string name="settings_currencies_subtitle">Tabelle Code↔Symbol, z. B. EUR↔€ - dient zum Lesen von Bankbenachrichtigungen</string>
+    <string name="currencies_purpose">Ordnet ein in einer Benachrichtigung gefundenes Währungssymbol (z. B. €) dem Währungscode (EUR) in Firefly III zu.</string>
     <string name="currency_add">Währung hinzufügen</string>
     <string name="currency_edit_title">Währung bearbeiten</string>
     <string name="currency_field_code">Code (z. B. EUR)</string>

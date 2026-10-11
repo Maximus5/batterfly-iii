@@ -218,6 +218,7 @@
 
     <string name="settings_currencies_title">Currencies</string>
     <string name="settings_currencies_subtitle">Code↔symbol table, e.g. EUR↔€ - used to read bank notifications</string>
+    <string name="currencies_purpose">Matches a currency symbol found in a notification (e.g. €) to its code (EUR) in Firefly III.</string>
     <string name="currency_add">Add currency</string>
     <string name="currency_edit_title">Edit currency</string>
     <string name="currency_field_code">Code (e.g. EUR)</string>

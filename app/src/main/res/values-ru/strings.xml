@@ -220,6 +220,7 @@
 
     <string name="settings_currencies_title">Валюты</string>
     <string name="settings_currencies_subtitle">Таблица код↔символ, напр. EUR↔€ — для чтения банковских уведомлений</string>
+    <string name="currencies_purpose">Сопоставляет символ валюты из уведомления (например €) с её кодом (EUR) в Firefly III.</string>
     <string name="currency_add">Добавить валюту</string>
     <string name="currency_edit_title">Редактировать валюту</string>
     <string name="currency_field_code">Код (напр. EUR)</string>
