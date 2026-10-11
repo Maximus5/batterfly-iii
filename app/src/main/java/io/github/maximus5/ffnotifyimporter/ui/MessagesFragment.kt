@@ -734,7 +734,7 @@ class MessagesFragment : Fragment() {
         AlertDialog.Builder(requireContext())
             .setTitle(R.string.delete_notification_confirm_title)
             .setMessage(fullMessage)
-            .setNegativeButton(R.string.messages_action_delete) { _, _ -> MessageStore.shared.remove(message) }
+            .setNegativeButton(R.string.messages_action_delete) { _, _ -> deleteMessage(message) }
             .setPositiveButton(android.R.string.cancel, null)
             .show()
     }
@@ -954,6 +954,14 @@ class MessagesFragment : Fragment() {
         dialog.show()
     }
 
+    /** Removes [message] from the list *and* drops its notification from our own shade - a
+     * review/auto-create notification for a message that no longer exists in the app would point
+     * at nothing (the user's own report: deleted a wrong message, its notification stayed). */
+    private fun deleteMessage(message: CapturedMessage) {
+        MessageStore.shared.remove(message)
+        ReviewNotifications.cancel(requireContext().applicationContext, message)
+    }
+
     /** Title carries the count ("Delete 3 notification(s)?") - the user's own request, same
      * reasoning as [confirmDeleteSingle]'s own preview: knowing *how many* before confirming,
      * not just that "some" are about to go. */
@@ -964,7 +972,7 @@ class MessagesFragment : Fragment() {
             .setTitle(getString(R.string.delete_notifications_confirm_title, toDelete.size))
             .setMessage(R.string.delete_notification_confirm_message)
             .setNegativeButton(R.string.messages_action_delete) { _, _ ->
-                toDelete.forEach { MessageStore.shared.remove(it) }
+                toDelete.forEach { deleteMessage(it) }
                 clearSelectionAndExit()
             }
             .setPositiveButton(android.R.string.cancel, null)

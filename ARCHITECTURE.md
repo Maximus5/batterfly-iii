@@ -1546,7 +1546,9 @@ Single `:app` module, packages under
       actually links a transaction to a message (`CreateTransactionFragment.
       onSaveSuccess` for a create or edit, `MessagesFragment`'s "Use
       Created"/"Use anyway" button handlers for a dedup hit) - a no-op
-      when there's nothing to cancel (a plain in-app tap with no review
+      Created"/"Use anyway" button handlers for a dedup hit, and
+      `MessagesFragment.deleteMessage` - deleting a message from the list,
+      single or multi-select, also drops its notification, v0.209) - a no-op
       notification behind it, or one already dismissed). Both `notifyMatch`
       and `cancel` compute the notification id via a private
       `notificationId(message)` that always zeroes `CapturedMessage.
