@@ -273,7 +273,10 @@ class MessagesFragment : Fragment() {
                     // The editor is up: this screen was only the host of the check, so leave it - Back
                     // from the editor then goes back to wherever the user was, not to the list. A dialog
                     // (duplicate found, error) keeps the screen and reveals the list behind it.
-                    if (screenStarted) activity?.finish() else (activity as? MainActivity)?.endReviewCheck()
+                    val host = activity as? MainActivity
+                    // If the app was already on screen when the notification was tapped, keep this
+                    // screen under the editor so Back/Save return to it; the list is revealed again.
+                    if (screenStarted && host?.openedWhileVisible != true) activity?.finish() else host?.endReviewCheck()
                 }
             }
         }

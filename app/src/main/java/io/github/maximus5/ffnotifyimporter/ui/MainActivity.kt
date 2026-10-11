@@ -8,6 +8,7 @@ import android.view.Menu
 import android.view.MenuItem
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
+import io.github.maximus5.ffnotifyimporter.AppVisibility
 import io.github.maximus5.ffnotifyimporter.R
 import io.github.maximus5.ffnotifyimporter.data.CapturedMessage
 import io.github.maximus5.ffnotifyimporter.databinding.ActivityMainBinding
@@ -16,6 +17,13 @@ import io.github.maximus5.ffnotifyimporter.databinding.ActivityMainBinding
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
+    /** Set when a review notification's tap opened this activity: was the app already on screen? If
+     * so, the editor opened by that tap goes on top of this screen and Back/Save return here;
+     * otherwise (the app was in the background) this screen only hosts the check and closes once
+     * the editor is up, so Back leaves the app. See `MessagesFragment.showTestMatch`. */
+    var openedWhileVisible = false
+        private set
+
     private var onSelectionCopy: (() -> Unit)? = null
     private var onSelectionDelete: (() -> Unit)? = null
     private var onSelectionCancel: (() -> Unit)? = null
@@ -38,7 +46,10 @@ class MainActivity : AppCompatActivity() {
         setSupportActionBar(binding.toolbar)
         onBackPressedDispatcher.addCallback(this, backPressedCallback)
         // Before the first frame, so the list never shows up for a review notification's tap.
-        if (hasPendingCheck(intent)) beginReviewCheck()
+        if (hasPendingCheck(intent)) {
+            openedWhileVisible = AppVisibility.isVisible
+            beginReviewCheck()
+        }
 
         // Gates the very first screen the user sees on notification-listener access, not just
         // a banner buried in Settings -> Monitored apps - the user's own call: the app does
@@ -101,7 +112,10 @@ class MainActivity : AppCompatActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        if (hasPendingCheck(intent)) beginReviewCheck()
+        if (hasPendingCheck(intent)) {
+            openedWhileVisible = AppVisibility.isVisible
+            beginReviewCheck()
+        }
         (supportFragmentManager.findFragmentById(R.id.fragmentContainer) as? MessagesFragment)?.consumePendingMessageCheck()
     }
 

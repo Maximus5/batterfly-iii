@@ -13,6 +13,7 @@ class FfNotifyImporterApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        AppVisibility.register(this)
         RetentionController.applyOnStartup(
             settings = RetentionPrefs(this).get(),
             store = MessageStore.shared,

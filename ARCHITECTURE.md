@@ -1415,7 +1415,15 @@ Single `:app` module, packages under
     by opening the editor, `MessagesFragment.showTestMatch(...,
     fromNotification = true)` finishes `MainActivity`, so Back from the
     editor leaves the app instead of landing on the list; when it ends in
-    a dialog, the list is revealed behind it and stays.
+    a dialog, the list is revealed behind it and stays. **That finishing
+    only happens if the app was in the background at the tap (v0.231)**:
+    if the user was already on the app's screen, the same tap used to drop
+    Back/Save to the launcher (the task held only the editor). Now
+    `MainActivity.openedWhileVisible` (from `AppVisibility`, an
+    `ActivityLifecycleCallbacks` counter of started activities - at the
+    moment the recreated `MainActivity.onCreate` runs the previous instance
+    is only paused, so a non-zero count means "was on screen") keeps this
+    screen under the editor, and Back/Save return to it.
     **Fixed a real "can't tell what happened without opening Firefly"
     gap, caught directly on-device**: two notifications from the same
     app (Google Wallet), worded differently enough that `posting.
