@@ -74,7 +74,14 @@ private fun View.applyNavigationBarInsetsToContent() {
         TAG_SKIP -> return
         TAG_BAR -> { padBottomForNavigationBar(clip = false); return }
     }
-    if (this is ScrollView || this is NestedScrollView || this is RecyclerView) {
+    if (this is ScrollView || this is NestedScrollView) {
+        // Pad the scrolled content, not the scroller: a ScrollView whose content is only a bit
+        // shorter than its viewport (the Settings list) reports "cannot scroll" when the padding
+        // sits on the ScrollView itself, so the last row stayed under the navigation bar.
+        (this as ViewGroup).getChildAt(0)?.padBottomForNavigationBar(clip = false) ?: padBottomForNavigationBar(clip = true)
+        return
+    }
+    if (this is RecyclerView) {
         padBottomForNavigationBar(clip = true)
         return
     }

@@ -3319,7 +3319,11 @@ Single `:app` module, packages under
     `useClassicSystemBars`, recursive) walks every fragment view and gives
     each `ScrollView`/`NestedScrollView`/`RecyclerView` the nav-bar height as
     bottom padding with `clipToPadding=false`, so the last row still scrolls
-    above the bar. XML tags override that: `skip_bottom_inset` (scroller
+    above the bar. (For a `ScrollView`/`NestedScrollView` the padding goes on
+    its single child, not on the scroller, since v0.229: with the padding on
+    the `ScrollView` itself, content only slightly shorter than the viewport -
+    the Settings list on a 2340 px phone - did not scroll at all and "About"
+    stayed under the bar.) XML tags override that: `skip_bottom_inset` (scroller
     above a pinned bar), `bottom_bar` (pinned bar -> padded, e.g. the consent
     buttons). Floating action buttons are not used (the Currencies and
     Rules "add" actions live in the toolbar). New screens with a pinned
