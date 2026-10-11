@@ -75,10 +75,11 @@ object ReviewNotifications {
 
     @Synchronized
     fun notifyMatch(
-        context: Context,
+        baseContext: Context,
         message: CapturedMessage,
         draft: TransactionDraft,
     ) {
+        val context = baseContext.withAppLocale()
         val amount = draft.amount ?: return
         val currencyCode = draft.currencyCode
         val description = draft.description

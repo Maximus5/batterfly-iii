@@ -47,7 +47,7 @@ object AutoCreateNotifications {
     private const val CHANNEL_ID = "auto_create"
 
     fun notifySuccess(
-        context: Context,
+        baseContext: Context,
         baseUrl: String,
         message: CapturedMessage,
         amount: BigDecimal,
@@ -55,6 +55,7 @@ object AutoCreateNotifications {
         description: String,
         transactionId: String,
     ) {
+        val context = baseContext.withAppLocale()
         val text = if (NotificationPrefs(context).isShowFinancialInfoEnabled()) {
             context.getString(R.string.auto_create_success_text, message.appLabel, amount.toPlainString(), currencyCode, description, transactionId)
         } else {
@@ -81,7 +82,7 @@ object AutoCreateNotifications {
      * in the notification (without having to open Firefly and compare by hand) is what makes a
      * case like that diagnosable at a glance. */
     fun notifySkippedDuplicate(
-        context: Context,
+        baseContext: Context,
         baseUrl: String,
         message: CapturedMessage,
         amount: BigDecimal,
@@ -89,6 +90,7 @@ object AutoCreateNotifications {
         description: String,
         existingTransactionId: String,
     ) {
+        val context = baseContext.withAppLocale()
         val text = if (NotificationPrefs(context).isShowFinancialInfoEnabled()) {
             context.getString(R.string.auto_create_skipped_text, message.appLabel, amount.toPlainString(), currencyCode, description, existingTransactionId)
         } else {
@@ -109,7 +111,8 @@ object AutoCreateNotifications {
      * error string) - nothing here needs `NotificationPrefs.isShowFinancialInfoEnabled()`'s
      * generic-text branch the other two outcomes use. Still gated by `isNotificationsEnabled()`
      * (inside `show`) same as them. */
-    fun notifyFailed(context: Context, message: CapturedMessage, reason: String) {
+    fun notifyFailed(baseContext: Context, message: CapturedMessage, reason: String) {
+        val context = baseContext.withAppLocale()
         show(
             context,
             id = message.hashCode(),

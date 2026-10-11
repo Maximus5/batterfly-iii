@@ -3417,3 +3417,15 @@ The status-bar small icon of the app's notifications (`AutoCreateNotifications`,
 coin-stack silhouette (the system masks small icons to one colour, so the
 launcher art's clover is omitted); `ic_notification_sync` remains only as the
 action-button icon.
+
+## Language of background notifications
+
+The app language is Android's per-app language (13+, `locales_config.xml`); there is no in-app
+picker. Screens follow it automatically, but the workers that post notifications
+(`AutoCreateNotifications`, `ReviewNotifications`) run on the plain application context, which on
+a real Samsung device stayed on the system language - the "Transaction created" notification
+came out in English with the app set to German. `posting/AppLocaleContext.kt`
+(`Context.withAppLocale()`) reads the app locales from `LocaleManager` and wraps the context in
+them; every public notify function starts with it. Any new background code that builds
+user-visible strings must do the same. A notification's text is fixed when it is posted, so a
+later language change doesn't relabel notifications already in the shade.
