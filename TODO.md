@@ -5,6 +5,18 @@ identified but deliberately not done now (out of scope, needs a
 decision, etc.); remove the entry in the same commit that finishes the
 work.
 
+- Release/Play listing prep for the "Butterfly III" rename and new icon (not done yet):
+  - Store description + subtitle that say what the app does (the name alone
+    doesn't), with a "unofficial, not affiliated with the Firefly III project"
+    note; same note in README.
+  - Check the name "Butterfly III" isn't already taken on Google Play/GitHub.
+  - Play listing icon: separate 512x512 PNG on an opaque background (the
+    in-app launcher art is transparent, which Play can render black); no
+    pre-rounded corners or shadow.
+  - Confirm the rights/licence of the coin-stack icon artwork and record it
+    in README if it comes from a third-party set.
+  - Optional: a butterfly-themed icon, if the coin stack no longer fits the name.
+
 - Rule engine (`parser`/`rules`, `RulesDb`, the Rules settings screen,
   and the Messages screen's "test match" tap) is built end to end and
   reachable in the app - see ARCHITECTURE.md. Not yet verified on a
