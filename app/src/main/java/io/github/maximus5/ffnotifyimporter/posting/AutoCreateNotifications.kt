@@ -5,10 +5,12 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import io.github.maximus5.ffnotifyimporter.R
 import io.github.maximus5.ffnotifyimporter.data.CapturedMessage
+import io.github.maximus5.ffnotifyimporter.network.transactionUrl
 import io.github.maximus5.ffnotifyimporter.prefs.NotificationPrefs
 import io.github.maximus5.ffnotifyimporter.ui.CreateTransactionActivity
 import io.github.maximus5.ffnotifyimporter.ui.MainActivity
@@ -23,7 +25,8 @@ import java.math.BigDecimal
  * skipped-duplicate or a failure is worth more attention than a silent badge).
  *
  * For [notifySuccess]/[notifySkippedDuplicate] both the whole-notification tap and the "Open
- * transaction" action open the app's own editor for that transaction ([editorIntent]); a failure
+ * transaction" action open the app's own editor for that transaction ([editorIntent]), plus a second
+ * "Open in Firefly III" action for the web page ([webIntent]); a failure
  * only opens the app ([MainActivity]). Their text includes the parsed amount/currency/
  * description by default - another real catch: without them, there was no way to tell from the
  * notification alone *why* two notifications were treated as different payments (or the same
@@ -45,6 +48,7 @@ object AutoCreateNotifications {
 
     fun notifySuccess(
         context: Context,
+        baseUrl: String,
         message: CapturedMessage,
         amount: BigDecimal,
         currencyCode: String,
@@ -63,6 +67,7 @@ object AutoCreateNotifications {
             text = text,
             pendingIntent = editorIntent(context, message, transactionId),
             action = editorIntent(context, message, transactionId),
+            webAction = webIntent(context, baseUrl, transactionId),
         )
     }
 
@@ -77,6 +82,7 @@ object AutoCreateNotifications {
      * case like that diagnosable at a glance. */
     fun notifySkippedDuplicate(
         context: Context,
+        baseUrl: String,
         message: CapturedMessage,
         amount: BigDecimal,
         currencyCode: String,
@@ -95,6 +101,7 @@ object AutoCreateNotifications {
             text = text,
             pendingIntent = editorIntent(context, message, existingTransactionId),
             action = editorIntent(context, message, existingTransactionId),
+            webAction = webIntent(context, baseUrl, existingTransactionId),
         )
     }
 
@@ -125,6 +132,13 @@ object AutoCreateNotifications {
         return PendingIntent.getActivities(context, message.hashCode(), arrayOf(main, editor), PendingIntent.FLAG_IMMUTABLE)
     }
 
+    /** Firefly III's own web page for [transactionId] - a second, optional action next to the in-app
+     * editor one. */
+    private fun webIntent(context: Context, baseUrl: String, transactionId: String): PendingIntent {
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(transactionUrl(baseUrl, transactionId)))
+        return PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_IMMUTABLE)
+    }
+
     private fun mainActivityIntent(context: Context): PendingIntent {
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -138,7 +152,15 @@ object AutoCreateNotifications {
      * as [action]). Does nothing at all when `NotificationPrefs.isNotificationsEnabled()` is off -
      * the user's own request, a dedicated "Notifications" settings screen - checked here rather
      * than at each of the three call sites above, so none of them can forget it. */
-    private fun show(context: Context, id: Int, title: String, text: String, pendingIntent: PendingIntent, action: PendingIntent?) {
+    private fun show(
+        context: Context,
+        id: Int,
+        title: String,
+        text: String,
+        pendingIntent: PendingIntent,
+        action: PendingIntent?,
+        webAction: PendingIntent? = null,
+    ) {
         if (!NotificationPrefs(context).isNotificationsEnabled()) return
         ensureChannel(context)
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
@@ -150,6 +172,9 @@ object AutoCreateNotifications {
             .setContentIntent(pendingIntent)
         if (action != null) {
             builder.addAction(R.drawable.ic_notification_sync, context.getString(R.string.create_open_transaction), action)
+        }
+        if (webAction != null) {
+            builder.addAction(R.drawable.ic_notification_sync, context.getString(R.string.open_in_firefly), webAction)
         }
         try {
             NotificationManagerCompat.from(context).notify(id, builder.build())

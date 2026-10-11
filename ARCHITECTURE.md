@@ -1388,6 +1388,10 @@ Single `:app` module, packages under
     used to open the app's message list (body) and Firefly's web page
     (button), which is not where "open the created transaction"
     should land. The failure notification still just opens the app.
+    **Second action "Open in Firefly III" (v0.208)**: the same two
+    notifications also carry an `ACTION_VIEW` button for Firefly III's own
+    web page (`network.transactionUrl`), next to the in-app editor
+    button (`webIntent`).
     **Fixed a real "can't tell what happened without opening Firefly"
     gap, caught directly on-device**: two notifications from the same
     app (Google Wallet), worded differently enough that `posting.

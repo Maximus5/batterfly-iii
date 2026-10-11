@@ -187,6 +187,7 @@
     <string name="create_already_created_linked">Привязано к транзакции Firefly III №%1$s.</string>
     <string name="create_success_message">Транзакция Firefly III №%1$s.</string>
     <string name="create_open_transaction">Открыть транзакцию</string>
+    <string name="open_in_firefly">Открыть в Firefly III</string>
     <string name="create_again">Создать заново</string>
     <string name="create_failed_title">Не удалось создать</string>
 

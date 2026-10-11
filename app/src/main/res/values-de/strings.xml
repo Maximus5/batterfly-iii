@@ -185,6 +185,7 @@
     <string name="create_already_created_linked">Mit Firefly-III-Buchung #%1$s verknüpft.</string>
     <string name="create_success_message">Firefly-III-Buchung #%1$s.</string>
     <string name="create_open_transaction">Buchung öffnen</string>
+    <string name="open_in_firefly">In Firefly III öffnen</string>
     <string name="create_again">Erneut anlegen</string>
     <string name="create_failed_title">Anlegen fehlgeschlagen</string>
 

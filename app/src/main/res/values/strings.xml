@@ -185,6 +185,7 @@
     <string name="create_already_created_linked">Linked to Firefly III transaction #%1$s.</string>
     <string name="create_success_message">Firefly III transaction #%1$s.</string>
     <string name="create_open_transaction">Open transaction</string>
+    <string name="open_in_firefly">Open in Firefly III</string>
     <string name="create_again">Create again</string>
     <string name="create_failed_title">Create failed</string>
 
