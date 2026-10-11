@@ -1,15 +1,71 @@
-# FF-Notify-Importer
+# Butterfly III
 
-Android app that listens to bank notifications and creates the matching
-transactions in your own Firefly III instance.
+*An unofficial Android companion for [Firefly III](https://www.firefly-iii.org/).*
 
-See `ARCHITECTURE.md` for how it works.
+Butterfly III reads the payment notifications on your phone and adds them to
+Firefly III for you. It works with Google Wallet and your bank's apps.
+
+**Before you start:** you need your own working Firefly III server.
+New to Firefly III? Read
+[what it is](https://docs.firefly-iii.org/explanation/firefly-iii/about/introduction/).
+Want to set one up? Follow
+[the Docker installation guide](https://docs.firefly-iii.org/how-to/firefly-iii/installation/docker/).
+Other ways to install it are listed on the same documentation site.
+
+Butterfly III is not made by, or affiliated with, the Firefly III project.
+
+## How it works
+
+1. A payment notification arrives on your phone, for example from your bank's app.
+2. Butterfly III finds the amount, the currency and the shop name in the text.
+   It uses a *rule* for this. Common notification formats work out of the box.
+   You can also write your own rules.
+3. Butterfly III creates the transaction in Firefly III.
+   Or it sends you a notification, so you can check the details first.
+   You choose which one.
+
+## What it can do
+
+- Reads notifications only from the apps you pick.
+- Comes with rules for common formats. You can add your own.
+- Creates transactions on its own, or lets you review each one first.
+- Spots duplicates. For example, when your bank app and your wallet app both
+  report the same payment, you get one transaction, not two.
+- Handles payments in a foreign currency.
+- Backs up and restores your settings and rules.
+
+## What you need on your phone
+
+- Android 8.0 or newer.
+- Permission to read notifications. Android asks you for this, and the app
+  explains why it is needed.
+- The address of your Firefly III server and a personal access token.
+  You create the token in Firefly III, in your profile.
+
+The app is available in English, Russian and German.
+
+## Privacy
+
+Butterfly III reads and understands your notifications on your phone.
+It has no server of its own.
+
+The only thing that leaves your phone is the finished transaction, and it goes
+to your own Firefly III server. The address of your server and your access token
+stay on your phone.
+
+One more case: for a payment in a foreign currency, the app can ask a public
+exchange-rate service for a rate. It sends only the two currency codes and the
+date. It never sends your notification text or any amounts.
 
 ## License
 
+Butterfly III is free software, released under the
+[GNU General Public License, version 3 or later](LICENSE).
+
 Copyright (C) 2026 Maximus5
 
-This program is free software: you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, either version 3 of the License, or (at your option) any later
-version. See `LICENSE` for the full text.
+## Questions and problems
+
+Please open an issue on
+[GitHub](https://github.com/Maximus5/butterfly-iii/issues).
+Do not post real bank details, card numbers or access tokens there.
