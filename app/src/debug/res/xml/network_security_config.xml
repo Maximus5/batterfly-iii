@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Debug builds only (this file overrides src/main's of the same name): also trust certificates
+     the developer installed on the device, so a local test Firefly III behind a self-made CA works
+     over https. Release builds keep the system-only default from src/main. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>
