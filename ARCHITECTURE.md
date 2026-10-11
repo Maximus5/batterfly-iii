@@ -2633,7 +2633,12 @@ Single `:app` module, packages under
       app, analyzes only the monitored ones, extracts amount/currency/
       date/description on-device, never sends raw notification text
       off-device, sends only the recognized transaction to the user's
-      own configured Firefly instance) shown *before* the system grant
+      screen, not left to that screen's own generic permission wording.
+      The text opens with a bold paragraph (`notification_access_consent_intro`,
+      styled via `<b>` and `getText`) that explains which permission the
+      app needs and how it is granted on the system page (switch for the
+      app name + confirmation) - explanatory, not pushy; the disclosure
+      body follows it.
       screen, not left to that screen's own generic permission wording.
       Declining (`consentNotNowButton`) just pops back to the same
       banner via `parentFragmentManager.popBackStack()` - `AppsFragment`

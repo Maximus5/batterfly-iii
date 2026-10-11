@@ -9,6 +9,7 @@
     <string name="notification_access_grant">Open settings</string>
 
     <string name="notification_access_consent_title">Notifications Access</string>
+    <string name="notification_access_consent_intro"><b>For its work the app needs access to notifications. It is granted on the system settings page that the button below opens: access is given by turning on the switch for “Notification Importer for Firefly III” there and confirming the system prompt.</b></string>
     <string name="notification_access_consent_body">To automatically track your bank transactions, the app needs access to Android\'s incoming notifications.\n\nThe app receives notifications from all installed apps, but only analyzes the content of notifications from apps you\'ve selected.\n\nFrom matching notifications, it extracts transaction details: amount, currency, date, and description.\n\nRecognition happens entirely on your device. Raw notification text is never sent to the developer or any third-party analytics service. By default, notification texts are kept in memory only; saving them on this device is a separate opt-in in Message history settings.\n\nRecognized transaction details are sent to the Firefly III server you specify, using your own API token.\n\nYou can change the list of apps or revoke notification access at any time.</string>
     <string name="notification_access_consent_agree">Agree, continue</string>
     <string name="notification_access_consent_not_now">Not now</string>

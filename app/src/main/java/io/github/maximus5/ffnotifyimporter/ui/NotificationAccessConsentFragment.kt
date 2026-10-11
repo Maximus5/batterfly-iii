@@ -3,6 +3,7 @@ package io.github.maximus5.ffnotifyimporter.ui
 import android.content.Intent
 import android.os.Bundle
 import android.provider.Settings
+import android.text.SpannableStringBuilder
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -49,7 +50,10 @@ class NotificationAccessConsentFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         val binding = binding ?: return
 
-        binding.consentBodyText.text = getString(R.string.notification_access_consent_body)
+        binding.consentBodyText.text = SpannableStringBuilder()
+            .append(getText(R.string.notification_access_consent_intro))
+            .append("\n\n")
+            .append(getString(R.string.notification_access_consent_body))
         binding.consentAgreeButton.setOnClickListener {
             startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
         }
