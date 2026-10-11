@@ -122,7 +122,7 @@
     <string name="rule_field_home_currency">Валюта счёта</string>
     <string name="rule_field_date_format">Формат даты для макроса date</string>
     <string name="rule_field_pattern">Регулярное выражение</string>
-    <string name="rule_pattern_groups_hint">Именованные группы: (?&lt;amount&gt;…) обязательна; также currency, foreignAmount, foreignCurrency, date</string>
+    <string name="rule_pattern_groups_hint">Именованные группы: (?&lt;amount&gt;…) обязательна; также поддерживаются counterparty, currency, date, foreignAmount, foreignCurrency</string>
     <string name="rule_pick_existing_pattern">Выбрать существующее…</string>
     <string name="rule_pick_message">Выбрать сообщение…</string>
     <string name="rule_no_captured_messages">Для этого приложения пока нет пойманных сообщений.</string>
@@ -130,7 +130,7 @@
     <string name="rule_test_title">Результаты проверки</string>
     <string name="rule_test_no_matches">Совпадений не найдено (просмотрено сообщений: %1$d).</string>
     <string name="rule_test_matches_found">Найдено совпадений: %1$d (просмотрено: %2$d).</string>
-    <string name="rule_available_macros">Макросы для полей ниже: %1$s</string>
+    <string name="rule_available_macros">В полях ниже можно использовать следующие макросы:\n%1$s</string>
     <string name="rule_escape_hint">Чтобы вставить {word} буквально, а не как макрос, напишите {{word}}.</string>
     <string name="rule_insert_macro">Вставить макрос</string>
     <string name="rule_pick_currency">Выбрать валюту</string>

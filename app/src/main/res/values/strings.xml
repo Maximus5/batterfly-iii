@@ -120,7 +120,7 @@
     <string name="rule_field_home_currency">Account currency</string>
     <string name="rule_field_date_format">Date format for the date macro</string>
     <string name="rule_field_pattern">Regular expression</string>
-    <string name="rule_pattern_groups_hint">Named groups: (?&lt;amount&gt;…) is required; also currency, foreignAmount, foreignCurrency, date</string>
+    <string name="rule_pattern_groups_hint">Named groups: (?&lt;amount&gt;…) is required; also supported: counterparty, currency, date, foreignAmount, foreignCurrency</string>
     <string name="rule_pick_existing_pattern">Pick existing…</string>
     <string name="rule_pick_message">Pick message…</string>
     <string name="rule_no_captured_messages">No captured messages for this app yet.</string>
@@ -128,7 +128,7 @@
     <string name="rule_test_title">Test results</string>
     <string name="rule_test_no_matches">No matches in %1$d captured message(s).</string>
     <string name="rule_test_matches_found">%1$d match(es) found (scanned %2$d).</string>
-    <string name="rule_available_macros">Macros for the fields below: %1$s</string>
+    <string name="rule_available_macros">These macros can be used in the fields below:\n%1$s</string>
     <string name="rule_escape_hint">For a literal {word} that isn\'t a macro, write {{word}}.</string>
     <string name="rule_insert_macro">Insert macro</string>
     <string name="rule_pick_currency">Pick currency</string>

@@ -336,7 +336,7 @@ class RuleEditFragment : Fragment() {
         val binding = binding ?: return
         val pattern = binding.patternInput.text?.toString().orEmpty()
         val groups = runCatching { namedGroupNames(pattern) }.getOrDefault(emptyList())
-        val macros = (groups + FIXED_MACROS).joinToString(" ") { "{$it}" }
+        val macros = (groups + FIXED_MACROS).distinct().sortedBy { it.lowercase() }.joinToString(" ") { "{$it}" }
         binding.availableMacrosText.text =
             getString(R.string.rule_available_macros, macros) + "\n" + getString(R.string.rule_escape_hint)
     }

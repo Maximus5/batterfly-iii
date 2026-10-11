@@ -120,7 +120,7 @@
     <string name="rule_field_home_currency">Kontowährung</string>
     <string name="rule_field_date_format">Datumsformat für das Makro date</string>
     <string name="rule_field_pattern">Regulärer Ausdruck</string>
-    <string name="rule_pattern_groups_hint">Benannte Gruppen: (?&lt;amount&gt;…) ist erforderlich; außerdem currency, foreignAmount, foreignCurrency, date</string>
+    <string name="rule_pattern_groups_hint">Benannte Gruppen: (?&lt;amount&gt;…) ist erforderlich; außerdem werden unterstützt: counterparty, currency, date, foreignAmount, foreignCurrency</string>
     <string name="rule_pick_existing_pattern">Vorhandenes wählen…</string>
     <string name="rule_pick_message">Nachricht wählen…</string>
     <string name="rule_no_captured_messages">Für diese App wurden noch keine Nachrichten erfasst.</string>
@@ -128,7 +128,7 @@
     <string name="rule_test_title">Testergebnisse</string>
     <string name="rule_test_no_matches">Keine Treffer in %1$d erfassten Nachricht(en).</string>
     <string name="rule_test_matches_found">%1$d Treffer gefunden (%2$d durchsucht).</string>
-    <string name="rule_available_macros">Makros für die Felder unten: %1$s</string>
+    <string name="rule_available_macros">In den Feldern unten können diese Makros verwendet werden:\n%1$s</string>
     <string name="rule_escape_hint">Um ein {word} wörtlich und nicht als Makro einzufügen, schreiben Sie {{word}}.</string>
     <string name="rule_insert_macro">Makro einfügen</string>
     <string name="rule_pick_currency">Währung wählen</string>
