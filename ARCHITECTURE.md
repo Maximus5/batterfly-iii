@@ -2716,6 +2716,12 @@ Single `:app` module, packages under
       genuinely new result) - lets rule processing be tested without
       waiting for a real bank notification. Reached from
       `MessageHistoryFragment` now (see above), not its own row.
+      A "Delay adding by 10 seconds" checkbox (v0.225) leaves the
+      screen at once and injects the message 10 s later from a main-looper
+      `Handler` on the application context, so the tester can background
+      the app or open another one first and watch what a real
+      notification does with the app not in front (e.g. the notification
+      tap back stack). An untouched date/time becomes "now" at injection.
       "Add" is a toolbar button (`addSaveMenu`, disabled with no monitored
       apps); after a successful add the screen closes via `leaveScreen()`
       (back to the Messages list when opened from the setup checklist),

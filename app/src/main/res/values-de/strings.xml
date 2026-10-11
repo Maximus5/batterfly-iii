@@ -52,6 +52,8 @@
     <string name="add_test_message_add_button">Hinzufügen</string>
     <string name="add_test_message_empty_error">Titel und Text dürfen nicht beide leer sein.</string>
     <string name="add_test_message_added">Hinzugefügt</string>
+    <string name="add_test_message_delay">Hinzufügen um 10 Sekunden verzögern</string>
+    <string name="add_test_message_delayed_toast">Die Nachricht wird in 10 Sekunden hinzugefügt</string>
     <string name="add_test_message_duplicate">Als Duplikat verworfen (gleiche App/gleicher Titel/gleicher Text innerhalb des Duplikat-Zeitfensters).</string>
 
     <string name="action_delete">Löschen</string>

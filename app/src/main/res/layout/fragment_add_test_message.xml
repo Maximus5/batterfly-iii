@@ -116,6 +116,12 @@
 
         </com.google.android.material.textfield.TextInputLayout>
 
+        <CheckBox
+            android:id="@+id/delayCheckbox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/add_test_message_delay" />
+
     </LinearLayout>
 
 </ScrollView>

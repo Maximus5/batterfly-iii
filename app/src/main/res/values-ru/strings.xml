@@ -54,6 +54,8 @@
     <string name="add_test_message_add_button">Добавить</string>
     <string name="add_test_message_empty_error">Заголовок и текст не могут быть пустыми одновременно.</string>
     <string name="add_test_message_added">Добавлено</string>
+    <string name="add_test_message_delay">Отложить добавление на 10 секунд</string>
+    <string name="add_test_message_delayed_toast">Через 10 секунд сообщение добавится</string>
     <string name="add_test_message_duplicate">Отброшено как дубликат (то же приложение/заголовок/текст в пределах окна дедупликации).</string>
 
     <string name="action_delete">Удалить</string>
