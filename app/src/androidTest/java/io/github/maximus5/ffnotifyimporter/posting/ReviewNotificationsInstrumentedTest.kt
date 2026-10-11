@@ -21,7 +21,7 @@ import org.junit.runner.RunWith
  * On a real device: the shade bookkeeping of "account is a guess" notifications -
  * `ReviewNotifications` against the real `NotificationManager.activeNotifications`, which is what
  * the JVM unit tests (`ShadeDedupTest`) cannot cover. Needs POST_NOTIFICATIONS granted
- * (`adb shell pm grant io.github.maximus5.ffnotifyimporter android.permission.POST_NOTIFICATIONS`).
+ * (`adb shell pm grant io.github.maximus5.butterflyiii android.permission.POST_NOTIFICATIONS`).
  */
 @RunWith(AndroidJUnit4::class)
 class ReviewNotificationsInstrumentedTest {

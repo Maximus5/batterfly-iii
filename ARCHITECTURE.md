@@ -111,7 +111,7 @@ code alone:
   A rule only ever picks from the *monitored* apps list (not every
   installed app) in the UI - it can't match anything else anyway.
 
-Package: `io.github.maximus5.ffnotifyimporter`.
+Application id: `io.github.maximus5.butterflyiii`; Kotlin package: `io.github.maximus5.ffnotifyimporter`.
 
 ## Module layout
 
@@ -3509,9 +3509,13 @@ every locale; the Play listing uses a descriptive subtitle instead). Backup and
 rules export default file names are derived from it (`ExportFileName.kt`:
 lowercase, non-alphanumerics collapsed to `-`, e.g.
 `butterfly-iii-backup-2026-01-01.json`), so renaming the app renames them too.
-The application id / package (`io.github.maximus5.ffnotifyimporter`) is
-deliberately unchanged - it's the app's identity for updates and not shown to
-the user. The consent screen's intro paragraph hardcodes the name per locale.
+The **application id** is `io.github.maximus5.butterflyiii` (changed from
+the working-title `io.github.maximus5.ffnotifyimporter` in v0.238, before
+the first Play upload - it is permanent once published and is visible in the
+store URL). The Kotlin **package** (`namespace`, `io.github.maximus5.
+ffnotifyimporter`) is deliberately unchanged: it is not visible to users and
+does not affect Play. A build with the new id installs as a different app next
+to the old one (no data is carried over; use Backup & restore). The consent screen's intro paragraph hardcodes the name per locale.
 
 The status-bar small icon of the app's notifications (`AutoCreateNotifications`,
 `ReviewNotifications`) is `drawable/ic_notification_app.xml`, a flat

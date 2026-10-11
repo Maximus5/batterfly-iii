@@ -8,11 +8,11 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "io.github.maximus5.ffnotifyimporter"
+        applicationId = "io.github.maximus5.butterflyiii"
         minSdk = 26
         targetSdk = 36
-        versionCode = 237
-        versionName = "0.237"
+        versionCode = 238
+        versionName = "0.238"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
