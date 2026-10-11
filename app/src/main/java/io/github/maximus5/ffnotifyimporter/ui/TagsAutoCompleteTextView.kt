@@ -51,6 +51,9 @@ class TagsAutoCompleteTextView @JvmOverloads constructor(
 
     override fun enoughToFilter(): Boolean = currentToken().length >= threshold
 
+    /** The length that counts is the tag being typed, not the whole field. */
+    override fun queryLength(): Int = currentToken().trim().length
+
     /** Filters by the tag at the cursor as it is when typing pauses, not as it was at the keystroke. */
     override fun filterNow(text: CharSequence?, keyCode: Int) {
         suggestionAdapter?.excluded = otherTags()

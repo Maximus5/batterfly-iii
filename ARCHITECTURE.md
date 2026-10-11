@@ -2495,14 +2495,27 @@ Single `:app` module, packages under
     tag and "tags for all transactions"). Matching is
     `suggestionMatches` (the entry or any word of it starts with what is
     typed, case-insensitive, unit-tested); `TagsAutoCompleteTextView`
-    leaves out tags already in the field. **Since v0.234** the list
-    appears only after typing has paused for 300 ms
-    (`SuggestAutoCompleteTextView`, the base of both field kinds), so a
-    one-letter query does not flash a long list while the user is still
-    typing. Gotcha: calling `dismissDropDown()` to clear the old list
-    before the delay also makes `AutoCompleteTextView` ignore the next
-    filtering result, so the list never came back - the old list is left
-    as is until the new one is ready.
+    leaves out tags already in the field. **Calmer list
+    (v0.234/0.235)**, in `SuggestAutoCompleteTextView` (the base of both
+    field kinds): it appears only after typing has paused for 500 ms, and
+    a list longer than 3 rows only from 2 typed characters on (so one
+    letter does not drop a long list), at most 6 rows (the rest
+    scrolls). **The list opens above or below the field - the side with
+    more room - and keeps that side while the field has focus**,
+    shrinking to fit: the framework's own drop-down picks the side from
+    the *current* list height (`PopupWindow.tryFitVertical`: fits below,
+    else above), so it jumped between sides as the matches changed;
+    therefore the view draws its own `PopupWindow` (`showDropDown`/
+    `dismissDropDown`/`isPopupShowing` overridden). Gotchas found
+    on-device: (1) `dismissDropDown()` also makes `AutoCompleteTextView`
+    ignore the next filtering result, so it must not clear the old list
+    before the delay; (2) `ArrayAdapter.clear()` + `addAll()` notify
+    twice, the first time empty - closing the list on an empty
+    notification killed it before the real result (use
+    `onFilterComplete(0)` instead), and unregistering a `DataSetObserver`
+    from inside its own notification crashes (`IndexOutOfBounds` in
+    `DataSetObservable`); (3) rows must be measured with the row's own
+    `layout_height`, `View.measure` ignores it.
     `PickedAccount(id, name)` + `pick?.takeIf { it.name == currentText }
     ?.id` at build time (not a live `TextWatcher`) is the exact same
     stale-id-after-manual-edit handling `RuleEditFragment.buildDraft`

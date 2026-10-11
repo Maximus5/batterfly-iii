@@ -39,6 +39,9 @@ class SuggestionAdapter(context: Context, private val all: List<String>) :
 
         @Suppress("UNCHECKED_CAST")
         override fun publishResults(constraint: CharSequence?, results: FilterResults) {
+            // One notification for the whole swap - clear() + addAll() would notify twice, the first
+            // time with an empty list.
+            setNotifyOnChange(false)
             clear()
             addAll(results.values as List<String>)
             if (results.count > 0) notifyDataSetChanged() else notifyDataSetInvalidated()
