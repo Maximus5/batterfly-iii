@@ -270,3 +270,13 @@ class FireflyUrlTest {
         assertFalse(query.contains("foreign_currency_is"))
     }
 }
+
+class ServerChangeTest {
+    @Test
+    fun `isServerChange ignores trailing slash and case, and a first-time save`() {
+        assertFalse(isServerChange("", "https://firefly.example.com"))
+        assertFalse(isServerChange("https://firefly.example.com", "https://FIREFLY.example.com/"))
+        assertTrue(isServerChange("https://firefly.example.com", "https://other.example.com"))
+        assertTrue(isServerChange("https://firefly.example.com", "http://firefly.example.com"))
+    }
+}

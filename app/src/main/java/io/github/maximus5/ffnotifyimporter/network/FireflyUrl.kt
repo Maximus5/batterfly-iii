@@ -152,3 +152,9 @@ fun searchUrl(baseUrl: String, query: String): String =
  * [id] is `POST /v1/transactions`'s returned `data.id` - the transaction *group* id, which is
  * exactly what `{transactionGroup}` expects. */
 fun transactionUrl(baseUrl: String, id: String): String = "${normalizeBaseUrl(baseUrl)}/transactions/show/$id"
+
+/** True when [newUrl] points somewhere other than the already-saved [savedUrl] (ignoring a trailing
+ * slash and letter case) - false when nothing was saved yet, since there's no old server whose
+ * token could be carried over to a new one. */
+fun isServerChange(savedUrl: String, newUrl: String): Boolean =
+    savedUrl.isNotBlank() && !normalizeBaseUrl(savedUrl).equals(normalizeBaseUrl(newUrl), ignoreCase = true)

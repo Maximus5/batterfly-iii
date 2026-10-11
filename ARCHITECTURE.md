@@ -977,6 +977,16 @@ Single `:app` module, packages under
     is migrated to on once (`FireflyPrefs.migrateAllowCleartext`). Every
     call site builds its client through `FireflyPrefs.apiClient()` so none
     can forget the flag.
+  - Server change clears the token (AI-Review): the saved token belongs to
+    the saved server, so it must never reach a different one (least of all
+    an `http://` one). `isServerChange(saved, new)` (`FireflyUrl.kt`, ignores
+    trailing slash/case, false on first-time setup) drives two guards in
+    `FireflyConnectionFragment`: Save with a changed URL and no freshly typed
+    token asks "saved token will be cleared, continue?" - Continue saves the
+    URL, calls `FireflyPrefs.clearToken()` and leaves the token field flagged
+    as required; Cancel restores the previously saved URL. Typing a new token
+    skips the dialog (it replaces the old one anyway). "Test connection" with
+    a changed URL never falls back to the saved token - it asks for one.
   - `ExchangeRateClient`/`ExchangeRateUrl` - same split as
     `FireflyApiClient`/`FireflyUrl` (real call vs. plain-Kotlin
     unit-testable URL-building/response-parsing, `ExchangeRateUrlTest`),

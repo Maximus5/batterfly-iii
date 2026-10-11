@@ -20,6 +20,7 @@ class FireflyPrefs(context: Context) {
 
     fun getToken(): String = decryptedString(KEY_TOKEN)
     fun setToken(token: String) = putEncrypted(KEY_TOKEN, token)
+    fun clearToken() = prefs.edit().remove(KEY_TOKEN).apply()
 
     fun isConfigured(): Boolean = getBaseUrl().isNotBlank() && getToken().isNotBlank()
 

@@ -239,6 +239,10 @@
     <string name="firefly_test_connection_failure">Connection failed: %1$s</string>
     <string name="firefly_url_required">Server URL can\'t be empty.</string>
     <string name="firefly_token_required">Personal access token can\'t be empty.</string>
+    <string name="firefly_server_change_title">Server changed</string>
+    <string name="firefly_server_change_message">The saved access token will be cleared because the server address changed. Continue?</string>
+    <string name="firefly_server_change_continue">Continue</string>
+    <string name="firefly_test_token_needed_for_new_server">The server address changed - enter the access token for the new server to test it.</string>
     <string name="firefly_field_url_help">The address you open your Firefly III at in a browser, without /api.</string>
     <string name="firefly_field_token_help">To get a token, open Firefly III, tap the profile icon at the top right → Remote access and tokens, and create a new personal access token. Firefly shows it only once, so copy it here right away.</string>
     <string name="firefly_autofilled_currency">Default account currency set to %1$s (Firefly\'s primary currency).</string>

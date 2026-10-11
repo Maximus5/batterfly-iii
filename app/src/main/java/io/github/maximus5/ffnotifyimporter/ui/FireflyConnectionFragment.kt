@@ -16,6 +16,7 @@ import io.github.maximus5.ffnotifyimporter.R
 import io.github.maximus5.ffnotifyimporter.databinding.FragmentFireflyConnectionBinding
 import io.github.maximus5.ffnotifyimporter.network.FireflyApiClient
 import io.github.maximus5.ffnotifyimporter.network.isCleartextUrl
+import io.github.maximus5.ffnotifyimporter.network.isServerChange
 import io.github.maximus5.ffnotifyimporter.posting.DefaultsAutofill
 import io.github.maximus5.ffnotifyimporter.posting.autofillDefaults
 import io.github.maximus5.ffnotifyimporter.prefs.FireflyPrefs
@@ -155,7 +156,12 @@ class FireflyConnectionFragment : Fragment() {
         val binding = binding ?: return
         val url = binding.urlInput.text?.toString().orEmpty().trim()
         val typedToken = binding.tokenInput.text?.toString().orEmpty().trim()
-        val token = typedToken.ifBlank { prefs.getToken() }
+        // The saved token belongs to the saved server - never send it to a different one.
+        val token = typedToken.ifBlank { if (isServerChange(prefs.getBaseUrl(), url)) "" else prefs.getToken() }
+        if (url.isNotBlank() && token.isBlank() && prefs.getToken().isNotBlank()) {
+            binding.testConnectionResult.text = getString(R.string.firefly_test_token_needed_for_new_server)
+            return
+        }
         if (url.isBlank() || token.isBlank()) {
             binding.testConnectionResult.text = getString(R.string.firefly_test_connection_failure, "URL/token")
             return
@@ -211,6 +217,38 @@ class FireflyConnectionFragment : Fragment() {
             return
         }
 
+        val savedUrl = prefs.getBaseUrl()
+        if (isServerChange(savedUrl, url) && typedToken.isBlank() && prefs.getToken().isNotBlank()) {
+            confirmServerChange(savedUrl, url)
+            return
+        }
+
+        commit(url, typedToken)
+    }
+
+    /** Cancel rightmost (house convention): Continue in the negative slot, Cancel in the positive
+     * one. Cancel restores the previously saved URL, so nothing about the connection changes. */
+    private fun confirmServerChange(savedUrl: String, newUrl: String) {
+        AlertDialog.Builder(requireContext())
+            .setTitle(R.string.firefly_server_change_title)
+            .setMessage(R.string.firefly_server_change_message)
+            .setNegativeButton(R.string.firefly_server_change_continue) { _, _ ->
+                val binding = binding ?: return@setNegativeButton
+                prefs.setBaseUrl(newUrl)
+                prefs.setAllowCleartext(binding.allowCleartextSwitch.isChecked)
+                prefs.clearToken()
+                updateTokenHint()
+                binding.tokenInput.error = getString(R.string.firefly_token_required)
+                initialSnapshot = buildSnapshot()
+            }
+            .setPositiveButton(android.R.string.cancel) { _, _ ->
+                binding?.urlInput?.setText(savedUrl)
+            }
+            .show()
+    }
+
+    private fun commit(url: String, typedToken: String) {
+        val binding = binding ?: return
         prefs.setBaseUrl(url)
         prefs.setAllowCleartext(binding.allowCleartextSwitch.isChecked)
         if (typedToken.isNotBlank()) {

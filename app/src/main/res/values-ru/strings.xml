@@ -241,6 +241,10 @@
     <string name="firefly_test_connection_failure">Ошибка подключения: %1$s</string>
     <string name="firefly_url_required">URL сервера не может быть пустым.</string>
     <string name="firefly_token_required">Personal access token не может быть пустым.</string>
+    <string name="firefly_server_change_title">Сервер изменён</string>
+    <string name="firefly_server_change_message">При смене сервера сохранённый токен будет очищен. Продолжить?</string>
+    <string name="firefly_server_change_continue">Продолжить</string>
+    <string name="firefly_test_token_needed_for_new_server">Адрес сервера изменён - введите токен для нового сервера, чтобы проверить подключение.</string>
     <string name="firefly_field_url_help">Адрес, по которому вы открываете Firefly III в браузере, без /api.</string>
     <string name="firefly_field_token_help">Чтобы получить токен, откройте Firefly III, нажмите на иконку профиля справа вверху → Remote access and tokens и создайте новый personal access token. Firefly показывает его только один раз, поэтому сразу скопируйте его сюда.</string>
     <string name="firefly_autofilled_currency">Валюта счёта по умолчанию: %1$s (основная валюта Firefly).</string>
