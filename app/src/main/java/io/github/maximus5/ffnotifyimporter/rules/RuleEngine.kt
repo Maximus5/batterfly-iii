@@ -76,7 +76,9 @@ class RuleEngine(
         var foreignCurrency = groups[Groups.FOREIGN_CURRENCY]?.let { normalizeCurrency(it, currencySymbols) }
         var localAmount: BigDecimal? = amount
         val issues = mutableSetOf<DraftIssue>()
-        val homeCurrency = rule.homeCurrency.ifBlank { defaultAccountCurrency }
+        // Nothing configured anywhere: the notification's own currency is the only one known, so
+        // it is the transaction's currency, not a foreign one.
+        val homeCurrency = rule.homeCurrency.ifBlank { defaultAccountCurrency }.ifBlank { currency.orEmpty() }
 
         if (currency != null && !currency.equals(homeCurrency, ignoreCase = true) && foreignAmount == null) {
             // Only a non-home-currency amount is known: keep it as foreign, the home-currency

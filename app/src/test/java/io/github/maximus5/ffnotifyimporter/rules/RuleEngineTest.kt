@@ -2,6 +2,7 @@ package io.github.maximus5.ffnotifyimporter.rules
 
 import io.github.maximus5.ffnotifyimporter.data.CapturedMessage
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.math.BigDecimal
@@ -195,6 +196,28 @@ class RuleEngineTest {
 
         assertEquals(BigDecimal("12.50"), outcome.draft.amount)
         assertTrue(outcome.draft.issues.isEmpty())
+    }
+
+    @Test
+    fun `with no home currency anywhere the captured currency is the transaction currency, not foreign`() {
+        val r = rule(homeCurrency = "", pattern = """spent (?<amount>[\d,]+) (?<currency>[A-Z]{3})""")
+        val outcome = RuleEngine(listOf(r))
+            .match(message(text = "You spent 13,34 EUR at Shop1234")) as ParseOutcome.Matched
+
+        assertEquals(BigDecimal("13.34"), outcome.draft.amount)
+        assertEquals("EUR", outcome.draft.currencyCode)
+        assertNull(outcome.draft.foreignAmount)
+        assertNull(outcome.draft.foreignCurrencyCode)
+        assertTrue(outcome.draft.issues.isEmpty())
+    }
+
+    @Test
+    fun `with no home currency and no captured currency the currency stays blank`() {
+        val r = rule(homeCurrency = "", pattern = """spent (?<amount>[\d,]+)""")
+        val outcome = RuleEngine(listOf(r)).match(message()) as ParseOutcome.Matched
+
+        assertEquals("", outcome.draft.currencyCode)
+        assertNull(outcome.draft.foreignAmount)
     }
 
     @Test

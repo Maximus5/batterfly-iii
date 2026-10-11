@@ -537,6 +537,12 @@ Single `:app` module, packages under
     lean on the fallback, not something forgotten. Every real caller
     that constructs a `RuleEngine` also now passes `FireflyPrefs.
     getDefaultAccountCurrency()` alongside `getAllTransactionsTags()`.
+    **If that is blank too** (no rule currency, no default), the
+    captured currency itself is used as the home currency: the amount
+    and currency become the transaction's own, and nothing goes to
+    foreign. Before v0.179 a blank home currency never equalled the
+    captured "EUR", so the whole amount was pushed into
+    `foreignAmount` with `LOCAL_AMOUNT_MISSING` (real bug, user's catch).
   - `BuiltInRules` (`BuiltInRulesTest`) - two hardcoded `ParseRule`
     constants, `CURRENCY_BEFORE_AMOUNT`/`CURRENCY_AFTER_AMOUNT`
     ("Default: Currency before amount"/"Default: Currency after
