@@ -1085,6 +1085,10 @@ Single `:app` module, packages under
     different instance was never really its job - and `RulesDb.add`
     always assigns a fresh row id on restore regardless of what's in
     the file, so `id` still has nothing to round-trip for either way.
+    The backup file is plain, unencrypted JSON and the message history in
+    it holds full notification texts (amounts, card digits, merchants), so
+    the `backup_explanation` text on `BackupFragment` says so explicitly
+    (AI-Review) - the user chooses where the file goes.
     **Fixed a real data-loss bug, caught directly by the user testing a
     just-made backup**: an earlier version of this file dropped
     `messages`' `fireflyTransactionId` on the "Firefly-instance-specific
