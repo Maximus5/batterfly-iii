@@ -28,7 +28,7 @@ class DismissAndOpenActivity : Activity() {
         if (target != null) {
             if (intent.getBooleanExtra(EXTRA_OVER_MAIN, false)) {
                 val main = Intent(this, MainActivity::class.java).apply {
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NO_ANIMATION
                 }
                 startActivities(arrayOf(main, target))
             } else {

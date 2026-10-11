@@ -38,6 +38,11 @@ class MessageHistoryFragment : Fragment() {
 
         binding.persistSwitch.isChecked = retentionPrefs.isPersistToDisk()
         radioIdFor(retentionPrefs.getRetentionDays())?.let { binding.retentionOptions.check(it) }
+        // Setting the initial state must not animate: a Material radio button / switch otherwise plays
+        // its "just got checked" transition on open, which looks like the option being tapped.
+        binding.persistSwitch.jumpDrawablesToCurrentState()
+        listOf(binding.retention1, binding.retention3, binding.retention5, binding.retention7, binding.retention30)
+            .forEach { it.jumpDrawablesToCurrentState() }
 
         binding.persistSwitch.setOnCheckedChangeListener { _, checked ->
             retentionPrefs.setPersistToDisk(checked)
