@@ -1048,7 +1048,10 @@ Single `:app` module, packages under
   from that page and just follows the system language. No in-app picker and
   no `AppCompatDelegate` (Android 12 and older keep following the system
   language). `LocalesConfigTest` fails when the list and the `values-*`
-  folders differ - add a language to both together.
+  folders differ - add a language to both together. Shipped: en, ru, de
+  (German uses the formal "Sie"; Firefly III's own German terms -
+  "Buchung" for a transaction, Ausgabe/Einnahme/Umbuchung for the
+  three kinds).
 - Android Auto Backup (distinct from the `backup` module's user-driven
   export/restore below; AI-Review P1). `allowBackup` stays on, but
   `res/xml/backup_rules.xml` (Android 11 and older, `fullBackupContent`) and
