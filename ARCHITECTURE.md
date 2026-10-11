@@ -1818,7 +1818,6 @@ Single `:app` module, packages under
       the draft is built (see the "Default Source account" paragraph
       under `CreateTransactionFragment`), (b) if that is blank
       too, searches unscoped (`dedupSearchQuery(allowUnscoped = true)`) and
-      too, searches unscoped (`dedupSearchQuery(allowUnscoped = true)`) and
       treats an unknown account side as a wildcard
       (`remoteCandidateMatches(ignoreUnknownAccounts = true)`), and (c)
       never offers an empty search - with no query the dialog says so and
