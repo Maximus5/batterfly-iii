@@ -980,13 +980,16 @@ Single `:app` module, packages under
   - Server change clears the token (AI-Review): the saved token belongs to
     the saved server, so it must never reach a different one (least of all
     an `http://` one). `isServerChange(saved, new)` (`FireflyUrl.kt`, ignores
-    trailing slash/case, false on first-time setup) drives two guards in
-    `FireflyConnectionFragment`: Save with a changed URL and no freshly typed
-    token asks "saved token will be cleared, continue?" - Continue saves the
-    URL, calls `FireflyPrefs.clearToken()` and leaves the token field flagged
-    as required; Cancel restores the previously saved URL. Typing a new token
-    skips the dialog (it replaces the old one anyway). "Test connection" with
-    a changed URL never falls back to the saved token - it asks for one.
+    trailing slash/case, false on first-time setup) drives the guard in
+    `FireflyConnectionFragment` via `confirmServerChangeIfNeeded()`: when the
+    URL field loses focus - and again at the top of Test connection and Save,
+    because tapping a button does not take focus from the field - a changed
+    URL with no freshly typed token and a saved token asks "saved token will
+    be cleared, continue?" (not cancelable by tapping outside). Continue
+    persists the new URL and calls `FireflyPrefs.clearToken()` immediately, so
+    saved URL and token never disagree, and flags the token field as required;
+    Cancel restores the previously saved URL. Typing a new token skips the
+    dialog (it replaces the old one anyway).
   - `ExchangeRateClient`/`ExchangeRateUrl` - same split as
     `FireflyApiClient`/`FireflyUrl` (real call vs. plain-Kotlin
     unit-testable URL-building/response-parsing, `ExchangeRateUrlTest`),

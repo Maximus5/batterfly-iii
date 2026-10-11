@@ -93,6 +93,8 @@ class FireflyConnectionFragment : Fragment() {
             override fun afterTextChanged(s: Editable?) = updateCleartextWarning(s?.toString().orEmpty())
         })
 
+        binding.urlInput.setOnFocusChangeListener { _, hasFocus -> if (!hasFocus) confirmServerChangeIfNeeded() }
+
         binding.protectScreenshotsSwitch.setOnCheckedChangeListener { _, isChecked -> setSecure(isChecked) }
 
         binding.testConnectionButton.setOnClickListener { testConnection() }
@@ -156,12 +158,8 @@ class FireflyConnectionFragment : Fragment() {
         val binding = binding ?: return
         val url = binding.urlInput.text?.toString().orEmpty().trim()
         val typedToken = binding.tokenInput.text?.toString().orEmpty().trim()
-        // The saved token belongs to the saved server - never send it to a different one.
-        val token = typedToken.ifBlank { if (isServerChange(prefs.getBaseUrl(), url)) "" else prefs.getToken() }
-        if (url.isNotBlank() && token.isBlank() && prefs.getToken().isNotBlank()) {
-            binding.testConnectionResult.text = getString(R.string.firefly_test_token_needed_for_new_server)
-            return
-        }
+        if (confirmServerChangeIfNeeded()) return
+        val token = typedToken.ifBlank { prefs.getToken() }
         if (url.isBlank() || token.isBlank()) {
             binding.testConnectionResult.text = getString(R.string.firefly_test_connection_failure, "URL/token")
             return
@@ -217,35 +215,53 @@ class FireflyConnectionFragment : Fragment() {
             return
         }
 
-        val savedUrl = prefs.getBaseUrl()
-        if (isServerChange(savedUrl, url) && typedToken.isBlank() && prefs.getToken().isNotBlank()) {
-            confirmServerChange(savedUrl, url)
-            return
-        }
-
+        if (confirmServerChangeIfNeeded()) return
         commit(url, typedToken)
     }
 
-    /** Cancel rightmost (house convention): Continue in the negative slot, Cancel in the positive
-     * one. Cancel restores the previously saved URL, so nothing about the connection changes. */
-    private fun confirmServerChange(savedUrl: String, newUrl: String) {
+    private var serverChangeDialogShowing = false
+
+    /**
+     * The saved token belongs to the saved server, so a URL pointing elsewhere (least of all to
+     * `http://`) must never get it. Runs when the URL field loses focus - and again at the top of
+     * [testConnection]/[save], because tapping a button doesn't take focus away from the field, so
+     * focus loss alone can be bypassed. Returns true when the dialog is (still) up and the caller
+     * must stop. A freshly typed token skips it: it replaces the old one anyway. Continue persists
+     * the new URL and clears the token at once, so the saved URL and token never disagree; Cancel
+     * restores the saved URL. Not cancelable by tapping outside - the URL can't stay changed
+     * without a decision. Cancel is rightmost (house convention): Continue is the negative button.
+     */
+    private fun confirmServerChangeIfNeeded(): Boolean {
+        if (serverChangeDialogShowing) return true
+        val binding = binding ?: return false
+        val url = binding.urlInput.text?.toString().orEmpty().trim()
+        val typedToken = binding.tokenInput.text?.toString().orEmpty().trim()
+        val savedUrl = prefs.getBaseUrl()
+        if (url.isBlank() || typedToken.isNotBlank() || prefs.getToken().isBlank() || !isServerChange(savedUrl, url)) {
+            return false
+        }
+        serverChangeDialogShowing = true
         AlertDialog.Builder(requireContext())
             .setTitle(R.string.firefly_server_change_title)
             .setMessage(R.string.firefly_server_change_message)
+            .setCancelable(false)
             .setNegativeButton(R.string.firefly_server_change_continue) { _, _ ->
+                serverChangeDialogShowing = false
                 val binding = binding ?: return@setNegativeButton
-                prefs.setBaseUrl(newUrl)
-                prefs.setAllowCleartext(binding.allowCleartextSwitch.isChecked)
+                prefs.setBaseUrl(url)
                 prefs.clearToken()
                 updateTokenHint()
                 binding.tokenInput.error = getString(R.string.firefly_token_required)
-                initialSnapshot = buildSnapshot()
+                initialSnapshot = initialSnapshot?.let { buildSnapshot()?.copy(third = it.third) }
             }
             .setPositiveButton(android.R.string.cancel) { _, _ ->
+                serverChangeDialogShowing = false
                 binding?.urlInput?.setText(savedUrl)
             }
             .show()
+        return true
     }
+
 
     private fun commit(url: String, typedToken: String) {
         val binding = binding ?: return
