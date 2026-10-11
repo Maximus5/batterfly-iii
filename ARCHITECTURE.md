@@ -990,6 +990,7 @@ Single `:app` module, packages under
     saved URL and token never disagree, and flags the token field as required;
     Cancel restores the previously saved URL. Typing a new token skips the
     dialog (it replaces the old one anyway).
+Test connection and Save share one `validateInputs()`, same order in both:    the barrier first, then URL-blank / `http://`-without-opt-in / token-missing    errors, all shown at once on the fields' own `TextInputLayout` sublines    (never `EditText.error` - its tooltip covers the helper text and adds a red    icon inside the field). The `http://` warning and its switch sit directly    under the URL field, above the help text.
   - `ExchangeRateClient`/`ExchangeRateUrl` - same split as
     `FireflyApiClient`/`FireflyUrl` (real call vs. plain-Kotlin
     unit-testable URL-building/response-parsing, `ExchangeRateUrlTest`),

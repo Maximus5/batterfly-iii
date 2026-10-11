@@ -11,6 +11,7 @@
         android:padding="16dp">
 
         <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/urlLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="4dp"
@@ -25,14 +26,6 @@
                 android:inputType="textUri" />
 
         </com.google.android.material.textfield.TextInputLayout>
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="12dp"
-            android:text="@string/firefly_field_url_help"
-            android:textColor="?attr/colorOnSurfaceVariant"
-            android:textSize="13sp" />
 
         <TextView
             android:id="@+id/cleartextWarning"
@@ -51,6 +44,14 @@
             android:layout_marginBottom="12dp"
             android:text="@string/firefly_allow_cleartext_switch"
             android:visibility="gone" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            android:text="@string/firefly_field_url_help"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textSize="13sp" />
 
         <com.google.android.material.textfield.TextInputLayout
             android:id="@+id/tokenLayout"

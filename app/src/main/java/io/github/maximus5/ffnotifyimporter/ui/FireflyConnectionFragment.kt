@@ -90,8 +90,20 @@ class FireflyConnectionFragment : Fragment() {
         binding.urlInput.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
-            override fun afterTextChanged(s: Editable?) = updateCleartextWarning(s?.toString().orEmpty())
+            override fun afterTextChanged(s: Editable?) {
+                updateCleartextWarning(s?.toString().orEmpty())
+                binding.urlLayout.error = null
+            }
         })
+
+        binding.tokenInput.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
+            override fun afterTextChanged(s: Editable?) {
+                binding.tokenLayout.error = null
+            }
+        })
+        binding.allowCleartextSwitch.setOnCheckedChangeListener { _, _ -> binding.urlLayout.error = null }
 
         binding.urlInput.setOnFocusChangeListener { _, hasFocus -> if (!hasFocus) confirmServerChangeIfNeeded() }
 
@@ -158,14 +170,9 @@ class FireflyConnectionFragment : Fragment() {
         val binding = binding ?: return
         val url = binding.urlInput.text?.toString().orEmpty().trim()
         val typedToken = binding.tokenInput.text?.toString().orEmpty().trim()
-        if (confirmServerChangeIfNeeded()) return
-        val token = typedToken.ifBlank { prefs.getToken() }
-        if (url.isBlank() || token.isBlank()) {
-            binding.testConnectionResult.text = getString(R.string.firefly_test_connection_failure, "URL/token")
-            return
-        }
-
         binding.testConnectionResult.text = null
+        if (!validateInputs()) return
+        val token = typedToken.ifBlank { prefs.getToken() }
         val allowCleartext = binding.allowCleartextSwitch.isChecked
         viewLifecycleOwner.lifecycleScope.launch {
             val client = FireflyApiClient(url, token, allowCleartext)
@@ -201,22 +208,29 @@ class FireflyConnectionFragment : Fragment() {
         val url = binding.urlInput.text?.toString().orEmpty().trim()
         val typedToken = binding.tokenInput.text?.toString().orEmpty().trim()
 
-        if (url.isBlank()) {
-            binding.urlInput.error = getString(R.string.firefly_url_required)
-            return
-        }
-        if (typedToken.isBlank() && prefs.getToken().isBlank()) {
-            binding.tokenInput.error = getString(R.string.firefly_token_required)
-            return
-        }
-
-        if (isCleartextUrl(url) && !binding.allowCleartextSwitch.isChecked) {
-            binding.urlInput.error = getString(R.string.firefly_cleartext_required)
-            return
-        }
-
-        if (confirmServerChangeIfNeeded()) return
+        if (!validateInputs()) return
         commit(url, typedToken)
+    }
+
+    /**
+     * The one check both Test connection and Save run, in the same order: the server-change
+     * barrier first (it may clear the saved token), then every field error at once - always on the
+     * field's own `TextInputLayout` subline, never `EditText.error` (that pops a tooltip over the
+     * helper text and puts a red icon inside the field). Returns true only when nothing is wrong.
+     */
+    private fun validateInputs(): Boolean {
+        val binding = binding ?: return false
+        if (confirmServerChangeIfNeeded()) return false
+        val url = binding.urlInput.text?.toString().orEmpty().trim()
+        val typedToken = binding.tokenInput.text?.toString().orEmpty().trim()
+        binding.urlLayout.error = when {
+            url.isBlank() -> getString(R.string.firefly_url_required)
+            isCleartextUrl(url) && !binding.allowCleartextSwitch.isChecked -> getString(R.string.firefly_cleartext_required)
+            else -> null
+        }
+        binding.tokenLayout.error =
+            if (typedToken.isBlank() && prefs.getToken().isBlank()) getString(R.string.firefly_token_required) else null
+        return binding.urlLayout.error == null && binding.tokenLayout.error == null
     }
 
     private var serverChangeDialogShowing = false
@@ -251,8 +265,8 @@ class FireflyConnectionFragment : Fragment() {
                 prefs.setBaseUrl(url)
                 prefs.clearToken()
                 updateTokenHint()
-                binding.tokenInput.error = getString(R.string.firefly_token_required)
                 initialSnapshot = initialSnapshot?.let { buildSnapshot()?.copy(third = it.third) }
+                validateInputs()
             }
             .setPositiveButton(android.R.string.cancel) { _, _ ->
                 serverChangeDialogShowing = false

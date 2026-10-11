@@ -9,6 +9,7 @@ import android.widget.EditText
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
+import androidx.core.widget.doAfterTextChanged
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import io.github.maximus5.ffnotifyimporter.R
@@ -120,6 +121,8 @@ class TransactionCreationFragment : Fragment() {
 
         binding.defaultAccountCurrencyLayout.setEndIconOnClickListener { showCurrencyPicker(binding.defaultAccountCurrencyInput) }
         binding.defaultSourceAccountLayout.setEndIconOnClickListener { showAccountPicker(binding.defaultSourceAccountInput) }
+
+        binding.dedupWindowInput.doAfterTextChanged { binding.dedupWindowLayout.error = null }
 
         binding.autoCreateSwitch.setOnCheckedChangeListener { _, isChecked -> if (isChecked) requestNotificationPermissionIfNeeded() }
 
@@ -264,7 +267,7 @@ class TransactionCreationFragment : Fragment() {
         val dedupWindow = binding.dedupWindowInput.text?.toString()?.trim()?.toIntOrNull()
 
         if (dedupWindow == null || dedupWindow <= 0) {
-            binding.dedupWindowInput.error = getString(R.string.firefly_dedup_window_invalid)
+            binding.dedupWindowLayout.error = getString(R.string.firefly_dedup_window_invalid)
             return
         }
 
