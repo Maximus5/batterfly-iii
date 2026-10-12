@@ -99,7 +99,7 @@ How a notification becomes a transaction. See [Rules](rules.md).
 
 ## Message history
 
-<img src="img/10-message-list.png" width="270" alt="The message list">
+<img src="img/message-list.png" width="270" alt="The message list with six captured payments">
 
 The list on the main screen holds the notifications the app has captured, newest
 first. Each message shows the number of its transaction once one is created.
