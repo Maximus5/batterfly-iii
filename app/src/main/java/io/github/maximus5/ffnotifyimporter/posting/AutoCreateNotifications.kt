@@ -60,7 +60,7 @@ object AutoCreateNotifications {
         val text = if (NotificationPrefs(context).isShowFinancialInfoEnabled()) {
             withRuleLine(context, context.getString(R.string.auto_create_success_text, message.appLabel, amount.toPlainString(), currencyCode, description, transactionId), ruleLabel)
         } else {
-            context.getString(R.string.auto_create_success_text_generic, message.appLabel)
+            withRuleLine(context, context.getString(R.string.auto_create_success_text_generic, message.appLabel), ruleLabel)
         }
         show(
             context,
@@ -96,7 +96,7 @@ object AutoCreateNotifications {
         val text = if (NotificationPrefs(context).isShowFinancialInfoEnabled()) {
             withRuleLine(context, context.getString(R.string.auto_create_skipped_text, message.appLabel, amount.toPlainString(), currencyCode, description, existingTransactionId), ruleLabel)
         } else {
-            context.getString(R.string.auto_create_skipped_text_generic, message.appLabel)
+            withRuleLine(context, context.getString(R.string.auto_create_skipped_text_generic, message.appLabel), ruleLabel)
         }
         show(
             context,
@@ -110,9 +110,10 @@ object AutoCreateNotifications {
     }
 
     /**
-     * Appends a "Rule: <label>" line to a notification body - only called from the branch that
-     * already shows financial details (`isShowFinancialInfoEnabled`), since a rule label can name
-     * the account or bank the user keeps private on a lock screen. Also used by [ReviewNotifications].
+     * Appends a "Rule: <label>" line to a notification body, in both the detailed and the generic
+     * text (the user's own call: the rule name is what tells which rule matched, even with financial
+     * info hidden). A rule label can name the account or bank, so it is the user's choice of rule
+     * names that decides what a lock screen shows. Also used by [ReviewNotifications].
      */
     fun withRuleLine(context: Context, text: String, ruleLabel: String?): String =
         if (ruleLabel.isNullOrBlank()) text else text + "\n" + context.getString(R.string.notification_rule_line, ruleLabel)

@@ -122,7 +122,7 @@ object ReviewNotifications {
         val text = if (notificationPrefs.isShowFinancialInfoEnabled()) {
             AutoCreateNotifications.withRuleLine(context, context.getString(R.string.review_match_text, message.appLabel, amount.toPlainString(), currencyCode, description), draft.ruleLabel)
         } else {
-            context.getString(R.string.review_match_text_generic, message.appLabel)
+            AutoCreateNotifications.withRuleLine(context, context.getString(R.string.review_match_text_generic, message.appLabel), draft.ruleLabel)
         }
         val action = createTransactionIntent(context, message)
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
