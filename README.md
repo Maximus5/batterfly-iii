@@ -77,6 +77,8 @@ One more case: for a payment in a foreign currency, the app can ask a public
 exchange-rate service for a rate. It sends only the two currency codes and the
 date. It never sends your notification text or any amounts.
 
+The full text is in the [privacy policy](docs/privacy.md).
+
 ## License
 
 Butterfly III is free software, released under the
