@@ -20,3 +20,6 @@ AGENTS.local.md
 /keystore.properties
 *.jks
 *.keystore
+
+# Local drafts, not part of the project
+/posts/
