@@ -3517,6 +3517,12 @@ ffnotifyimporter`) is deliberately unchanged: it is not visible to users and
 does not affect Play. A build with the new id installs as a different app next
 to the old one (no data is carried over; use Backup & restore). The consent screen's intro paragraph hardcodes the name per locale.
 
+**Release signing**: `app/build.gradle.kts` signs the `release` build with the Play *upload key*
+when the gitignored `keystore.properties` (template: `keystore.properties.example`) exists in the
+repo root and names the keystore (`storeFile`, passwords, alias); the keystore itself lives outside
+the repo. Without that file the release build is left unsigned, so a fresh checkout still builds.
+Play App Signing re-signs with Google's own key. `./gradlew bundleRelease` produces the AAB.
+
 The status-bar small icon of the app's notifications (`AutoCreateNotifications`,
 `ReviewNotifications`) is `drawable/ic_notification_app.xml`, a flat
 coin-stack silhouette (the system masks small icons to one colour, so the

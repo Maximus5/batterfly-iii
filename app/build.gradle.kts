@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -16,9 +18,30 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    // Upload key for Google Play (Play App Signing re-signs with its own key). The keystore and
+    // its passwords live outside the repo; keystore.properties (gitignored, template in
+    // keystore.properties.example) only points at them. Without that file the release build
+    // is simply left unsigned, so a fresh checkout still builds.
+    val keystoreProperties = Properties().apply {
+        val file = rootProject.file("keystore.properties")
+        if (file.exists()) file.inputStream().use { load(it) }
+    }
+    val hasUploadKey = keystoreProperties.containsKey("storeFile")
+    if (hasUploadKey) {
+        signingConfigs {
+            create("upload") {
+                storeFile = file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
+            if (hasUploadKey) signingConfig = signingConfigs.getByName("upload")
         }
     }
 

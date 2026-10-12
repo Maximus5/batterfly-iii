@@ -15,3 +15,8 @@ build/
 # Agent-local, machine-specific overrides (see AGENTS.md)
 AGENTS.local.md
 .env.local
+
+# Release signing (see keystore.properties.example)
+/keystore.properties
+*.jks
+*.keystore
