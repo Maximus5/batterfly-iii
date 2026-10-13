@@ -12,9 +12,10 @@ import java.time.OffsetDateTime
  * plain-Kotlin unit testable, same reasoning as [FireflyUrl].
  */
 
-/** `GET /v1/accounts`'s body is `{"data": [{"id": "...", "attributes": {"name": "...", ...}},
- * ...], "meta": {...}}` - pulls out just id+name, skipping any entry missing either (malformed
- * rather than failing the whole list). */
+/** `GET /v1/accounts`'s body is `{"data": [{"id": "...", "attributes": {"name": "...", "active":
+ * true, ...}}, ...], "meta": {...}}` - pulls out just id+name, skipping any entry missing either
+ * (malformed rather than failing the whole list) and any account deactivated in Firefly
+ * (`"active": false`; a missing flag counts as active). */
 fun parseAccountList(body: String): List<FireflyAccount> = try {
     val data = JSONObject(body).optJSONArray("data")
     if (data == null) {
@@ -23,8 +24,9 @@ fun parseAccountList(body: String): List<FireflyAccount> = try {
         (0 until data.length()).mapNotNull { i ->
             val entry = data.optJSONObject(i) ?: return@mapNotNull null
             val id = entry.optString("id").takeIf { it.isNotBlank() } ?: return@mapNotNull null
-            val name = entry.optJSONObject("attributes")?.optString("name")?.takeIf { it.isNotBlank() }
-                ?: return@mapNotNull null
+            val attributes = entry.optJSONObject("attributes")
+            val name = attributes?.optString("name")?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+            if (!attributes.optBoolean("active", true)) return@mapNotNull null
             FireflyAccount(id, name)
         }
     }

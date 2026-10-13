@@ -798,7 +798,9 @@ Single `:app` module, packages under
     `testConnection()` (`GET /api/v1/about`), `listAssetAccounts()`
     (`GET /api/v1/accounts?type=asset`, follows `meta.pagination.
     total_pages` across every page rather than assuming the first 50
-    is everything), and `createTransaction(FireflyTransactionRequest)`
+    is everything; `parseAccountList` drops accounts deactivated in
+    Firefly, `attributes.active == false`, so pickers and the defaults
+    autofill never offer them), and `createTransaction(FireflyTransactionRequest)`
     (`POST /v1/transactions`) all exist now - nothing in the UI calls
     the latter two yet (see TODO.md for what still has to exist first:
     an asset-account picker, a dedup log, the "Создать" button).

@@ -38,6 +38,22 @@ class FireflyJsonTest {
     }
 
     @Test
+    fun `parseAccountList skips accounts deactivated in Firefly`() {
+        val body = """
+            {"data": [
+                {"id": "2", "attributes": {"name": "Bank Account A", "active": true}},
+                {"id": "7", "attributes": {"name": "Closed Account", "active": false}},
+                {"id": "9", "attributes": {"name": "No flag"}}
+            ]}
+        """.trimIndent()
+
+        assertEquals(
+            listOf(FireflyAccount("2", "Bank Account A"), FireflyAccount("9", "No flag")),
+            parseAccountList(body),
+        )
+    }
+
+    @Test
     fun `parseAccountList returns empty for malformed input instead of throwing`() {
         assertTrue(parseAccountList("not json").isEmpty())
         assertTrue(parseAccountList("""{"nope": true}""").isEmpty())
