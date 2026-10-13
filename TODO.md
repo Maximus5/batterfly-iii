@@ -5,6 +5,19 @@ identified but deliberately not done now (out of scope, needs a
 decision, etc.); remove the entry in the same commit that finishes the
 work. Finished work is documented in ARCHITECTURE.md, not here.
 
+- Turn on R8 (code shrinking + obfuscation) for the release build. Play Console
+  flags "DEX code optimization is below our threshold" (obfuscation 2%, under
+  the 25% bar), fix by Feb 2027. Plan: do it on a separate `obfuscation` branch
+  and ship that branch only to Internal testing until it is proven. Steps:
+  `isMinifyEnabled = true` + `isShrinkResources = true` in `release`, a
+  `proguard-rules.pro`, keep rules for whatever uses reflection or is named
+  only in XML/manifest (rules JSON via `org.json`, WorkManager workers,
+  notification listener/receivers, Room if present), then exercise a real
+  device: notifications, create/review flow, auto-create worker, backup &
+  restore, dialogs. A missing keep rule only breaks the release build, never
+  the debug build or the JVM tests. Play takes the mapping file from the AAB
+  automatically (also clears the old "no deobfuscation file" warning).
+
 - Release/Play listing prep for the "Butterfly III" rename and new icon (not done yet):
   - Store description + subtitle that say what the app does (the name alone
     doesn't), with a "unofficial, not affiliated with the Firefly III project"
