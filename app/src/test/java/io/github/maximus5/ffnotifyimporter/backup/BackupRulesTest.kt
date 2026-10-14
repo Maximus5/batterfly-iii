@@ -39,6 +39,27 @@ class BackupRulesTest {
     }
 
     @Test
+    fun `the secure settings file is explicitly excluded in every rule set`() {
+        val exclude = Regex("""<exclude\s+domain="sharedpref"\s+path="firefly_connection\.xml"""")
+        val legacy = File(resXml, "backup_rules.xml").readText()
+        val modern = File(resXml, "data_extraction_rules.xml").readText()
+        assertEquals(1, exclude.findAll(legacy).count())
+        assertEquals(1, exclude.findAll(modern.substringAfter("<cloud-backup>").substringBefore("</cloud-backup>")).count())
+        assertEquals(1, exclude.findAll(modern.substringAfter("<device-transfer>").substringBefore("</device-transfer>")).count())
+    }
+
+    @Test
+    fun `backup code never touches the secure settings`() {
+        val comments = Regex("""/\*.*?\*/|//[^\n]*""", RegexOption.DOT_MATCHES_ALL)
+        val forbidden = Regex("""SecureSettings|KeystoreCipher|\.(getToken|setToken|getBaseUrl|setBaseUrl|apiClient|isAllowCleartext|setAllowCleartext)""")
+        val offenders = File("src/main/java").walkTopDown()
+            .filter { it.extension == "kt" && it.path.replace('\\', '/').contains("/backup/") }
+            .filter { forbidden.containsMatchIn(it.readText().replace(comments, "")) }
+            .map { it.name }.toList()
+        assertTrue("backup/ must not read the secure settings: $offenders", offenders.isEmpty())
+    }
+
+    @Test
     fun `every database and prefs file in the code is classified`() {
         val declared = Regex("""(?:DB_NAME|PREFS_NAME)\s*=\s*"([^"]+)"|getSharedPreferences\("([^"]+)"""")
         val found = File("src/main/java").walkTopDown().filter { it.extension == "kt" }
@@ -52,6 +73,6 @@ class BackupRulesTest {
 
     private companion object {
         val SENSITIVE = listOf("message_history.db", "created_transactions.db", "firefly_connection", "diagnostic_log")
-        val EXCLUDED = SENSITIVE + listOf("currencies.db", "startup_migrations")
+        val EXCLUDED = SENSITIVE + listOf("currencies.db", "startup_migrations", "firefly_settings")
     }
 }

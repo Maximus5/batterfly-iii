@@ -8,6 +8,7 @@
         <include domain="sharedpref" path="notifications.xml" />
         <include domain="sharedpref" path="retention.xml" />
         <include domain="sharedpref" path="setup_checklist.xml" />
+        <exclude domain="sharedpref" path="firefly_connection.xml" />
     </cloud-backup>
     <device-transfer>
         <include domain="database" path="rules.db" />
@@ -15,5 +16,6 @@
         <include domain="sharedpref" path="notifications.xml" />
         <include domain="sharedpref" path="retention.xml" />
         <include domain="sharedpref" path="setup_checklist.xml" />
+        <exclude domain="sharedpref" path="firefly_connection.xml" />
     </device-transfer>
 </data-extraction-rules>

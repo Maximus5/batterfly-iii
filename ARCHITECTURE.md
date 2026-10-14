@@ -707,8 +707,16 @@ Single `:app` module, packages under
     instead (`isShowFinancialInfoEnabled`, default **off** - the user's
     own choice, for Google Play's financial-app content guidelines).
     `ui.NotificationSettingsFragment` is the UI.
+  - `SecureSettings` (file `firefly_connection`) - the Firefly III
+    connection only: base URL, token, cleartext opt-in. **Never backed up**
+    (manual or Auto Backup; see the Auto Backup note below - explicit
+    `<exclude>`, enforced by `BackupRulesTest`). `FireflyPrefs` (file
+    `firefly_settings`, since v0.241) holds everything else and *delegates*
+    the connection accessors to it so existing call sites didn't change; the
+    9 plain settings were moved over from `firefly_connection` once
+    (`migrateFromConnectionFile`, `FireflyPrefsMigrationTest`).
   - `FireflyPrefs` - the Firefly III connection + posting-behavior
-    settings, one prefs class for both even though its UI is now split
+    settings, one facade class for both even though its UI is now split
     across two screens (`ui.FireflyConnectionFragment` - base URL,
     personal access token; `ui.TransactionCreationFragment` - the
     default account currency, all-transactions tags, approximate-
@@ -1063,9 +1071,10 @@ Single `:app` module, packages under
   storage added later is excluded until someone opts it in. Deliberately
   left out: `message_history.db` and `created_transactions.db` (captured
   bank-notification text and created-transaction records must not leave the
-  device through the user's cloud account), `firefly_connection` (server URL +
-  token - Keystore-encrypted, so unreadable on another device anyway - plus
-  the dedup/tag settings that share that file), `currencies.db` (a cache of
+  device through the user's cloud account), `firefly_connection`
+  (`SecureSettings`: server URL + token - Keystore-encrypted, so unreadable on
+  another device anyway - explicitly `<exclude>`d; the plain settings that used
+  to share that file moved to `firefly_settings` in v0.241, not yet opted in), `currencies.db` (a cache of
   the user's Firefly instance, refetched) and `startup_migrations`.
   `BackupRulesTest` checks the two XML files agree, the sensitive stores are
   absent, and every `DB_NAME`/`PREFS_NAME`/`getSharedPreferences("...")` in

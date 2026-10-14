@@ -2,45 +2,64 @@ package io.github.maximus5.ffnotifyimporter.prefs
 
 import android.content.Context
 import io.github.maximus5.ffnotifyimporter.network.FireflyApiClient
-import io.github.maximus5.ffnotifyimporter.network.isCleartextUrl
 
 /**
- * Firefly III connection + posting-behavior settings. Base URL and personal access token are the
- * only genuinely secret values in this app (see AGENTS.md's Secrets section) - encrypted via
- * [KeystoreCipher] before being stored in an otherwise-plain `SharedPreferences` (not
- * `EncryptedSharedPreferences` - deprecated, see [KeystoreCipher]'s KDoc). Every other field here
- * is a plain, unencrypted value, same as every other prefs class in this app.
+ * Posting-behavior settings (tags, default account/currency, auto-create, dedup, built-in rules).
+ * Plain, unencrypted values with no secrets - they are part of both the manual JSON backup and
+ * Android Auto Backup (own file, [PREFS_NAME]).
+ *
+ * The connection (base URL, token, cleartext opt-in) is [SecureSettings] and is never backed up.
+ * The accessors for it below only *delegate*, so the many call sites that already hold a
+ * `FireflyPrefs` (and pass it on to `apiClient()` consumers) did not have to change; they add no
+ * storage of their own. Anything backup-related must read the settings accessors here, never the
+ * connection ones.
+ *
+ * Until v0.241 these settings shared the `firefly_connection` file with the secrets (so the whole
+ * file had to stay out of every backup); [migrateFromConnectionFile] moves them over once.
  */
 class FireflyPrefs(context: Context) {
 
+    private val secure = SecureSettings(context)
     private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
-    fun getBaseUrl(): String = decryptedString(KEY_BASE_URL)
-    fun setBaseUrl(url: String) = putEncrypted(KEY_BASE_URL, url)
-
-    fun getToken(): String = decryptedString(KEY_TOKEN)
-    fun setToken(token: String) = putEncrypted(KEY_TOKEN, token)
-    fun clearToken() = prefs.edit().remove(KEY_TOKEN).apply()
-
-    fun isConfigured(): Boolean = getBaseUrl().isNotBlank() && getToken().isNotBlank()
-
-    /** Off by default: the bearer token is never sent over plain `http://` unless the user opts in
-     * on the connection screen. Installs that already had an `http://` URL saved before this
-     * existed are migrated to on once ([migrateAllowCleartext]), so they keep working. */
-    fun isAllowCleartext(): Boolean = prefs.getBoolean(KEY_ALLOW_CLEARTEXT, false)
-    fun setAllowCleartext(allow: Boolean) = prefs.edit().putBoolean(KEY_ALLOW_CLEARTEXT, allow).apply()
-
-    /** The one way to build an API client from saved settings, so no call site can forget the
-     * cleartext opt-in. */
-    fun apiClient(): FireflyApiClient = FireflyApiClient(getBaseUrl(), getToken(), isAllowCleartext())
-
     init {
-        migrateAllowCleartext()
+        migrateFromConnectionFile(context)
     }
 
-    private fun migrateAllowCleartext() {
-        if (prefs.contains(KEY_ALLOW_CLEARTEXT)) return
-        setAllowCleartext(isCleartextUrl(getBaseUrl()))
+    fun getBaseUrl(): String = secure.getBaseUrl()
+    fun setBaseUrl(url: String) = secure.setBaseUrl(url)
+
+    fun getToken(): String = secure.getToken()
+    fun setToken(token: String) = secure.setToken(token)
+    fun clearToken() = secure.clearToken()
+
+    fun isConfigured(): Boolean = secure.isConfigured()
+
+    fun isAllowCleartext(): Boolean = secure.isAllowCleartext()
+    fun setAllowCleartext(allow: Boolean) = secure.setAllowCleartext(allow)
+
+    fun apiClient(): FireflyApiClient = secure.apiClient()
+
+    /** Copies the settings that used to live next to the secrets into this file, then removes
+     * them from the old one. Idempotent and crash-safe: a key already present here is never
+     * overwritten, and leftovers in the old file are removed on the next run. */
+    private fun migrateFromConnectionFile(context: Context) {
+        val old = context.getSharedPreferences(SecureSettings.PREFS_NAME, Context.MODE_PRIVATE)
+        val toMove = settingsToMigrate(old.all.mapValues { it.value })
+        if (toMove.isEmpty()) return
+        val target = prefs.edit()
+        for ((key, value) in toMove) {
+            if (prefs.contains(key)) continue
+            when (value) {
+                is String -> target.putString(key, value)
+                is Boolean -> target.putBoolean(key, value)
+                is Int -> target.putInt(key, value)
+            }
+        }
+        target.commit()
+        val source = old.edit()
+        toMove.keys.forEach { source.remove(it) }
+        source.apply()
     }
 
     /** Tag applied to a transaction whose amount was computed from a fetched exchange rate
@@ -121,22 +140,10 @@ class FireflyPrefs(context: Context) {
     fun setBuiltInRulesEnabled(enabled: Boolean) =
         prefs.edit().putBoolean(KEY_BUILT_IN_RULES_ENABLED, enabled).apply()
 
-    private fun decryptedString(key: String): String {
-        val stored = prefs.getString(key, null) ?: return ""
-        return KeystoreCipher.decrypt(stored).orEmpty()
-    }
-
-    private fun putEncrypted(key: String, value: String) {
-        prefs.edit().putString(key, KeystoreCipher.encrypt(value)).apply()
-    }
-
     companion object {
         const val DEFAULT_DEDUP_WINDOW_MINUTES = 5
 
-        private const val PREFS_NAME = "firefly_connection"
-        private const val KEY_BASE_URL = "base_url"
-        private const val KEY_TOKEN = "token"
-        private const val KEY_ALLOW_CLEARTEXT = "allow_cleartext"
+        private const val PREFS_NAME = "firefly_settings"
         private const val KEY_APPROX_TAG = "approx_conversion_tag"
         private const val KEY_ALL_TRANSACTIONS_TAGS = "all_transactions_tag"
         private const val KEY_DEFAULT_ACCOUNT_CURRENCY = "default_account_currency"
@@ -146,5 +153,19 @@ class FireflyPrefs(context: Context) {
         private const val KEY_DEDUP_INCLUDE_DESCRIPTION = "dedup_include_description"
         private const val KEY_DEDUP_WINDOW_MINUTES = "dedup_window_minutes"
         private const val KEY_BUILT_IN_RULES_ENABLED = "built_in_rules_enabled"
+
+        /** Every key this class stores - also what [migrateFromConnectionFile] lifts out of the
+         * old, secrets-bearing file. Anything else in that file (URL, token, cleartext flag)
+         * stays where it is. */
+        internal val MIGRATED_KEYS = setOf(
+            KEY_APPROX_TAG, KEY_ALL_TRANSACTIONS_TAGS, KEY_DEFAULT_ACCOUNT_CURRENCY,
+            KEY_DEFAULT_SOURCE_ACCOUNT, KEY_AUTO_CREATE, KEY_DEDUP_ENABLED,
+            KEY_DEDUP_INCLUDE_DESCRIPTION, KEY_DEDUP_WINDOW_MINUTES, KEY_BUILT_IN_RULES_ENABLED,
+        )
+
+        /** The entries of the old `firefly_connection` file that belong in the settings file.
+         * Pure, so the secrets-never-move rule is unit tested. */
+        internal fun settingsToMigrate(oldFile: Map<String, Any?>): Map<String, Any> =
+            oldFile.filterKeys { it in MIGRATED_KEYS }.mapNotNull { (k, v) -> v?.let { k to it } }.toMap()
     }
 }
