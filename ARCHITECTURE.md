@@ -1115,7 +1115,11 @@ Single `:app` module, packages under
     `fullBackupFromJson`, `FullBackupJsonTest`) + `BackupManager`
     (Android-dependent orchestration, not unit tested, same reason
     `RulesDb` isn't) - the new "Backup & restore" Settings row
-    (`BackupFragment`), covering monitored apps, currencies, rules,
+    (`BackupFragment`), covering monitored apps, currencies, rules, the
+    plain settings (`BackupSettings`: the 9 `FireflyPrefs` settings + the 3
+    `NotificationPrefs` flags, in an optional `settings` section - an older
+    file without it restores *no* settings rather than resetting them; never
+    the connection, `SecureSettings`),
     message history (plus its `persistHistory`/`retentionDays`
     setting; an old file with only `retentionDays`, 0 = off, still
     maps correctly, and restore re-applies the setting through

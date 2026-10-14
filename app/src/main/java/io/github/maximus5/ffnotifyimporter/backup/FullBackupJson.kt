@@ -39,6 +39,9 @@ data class FullBackupData(
     val rules: List<ParseRule>,
     val messages: List<CapturedMessage>,
     val createdTransactions: List<CreatedTransactionRecord> = emptyList(),
+    /** Null for a file written before settings were backed up: restore then leaves the current
+     * settings alone instead of resetting them to defaults. */
+    val settings: BackupSettings? = null,
 )
 
 fun fullBackupToJson(data: FullBackupData): String {
@@ -90,6 +93,7 @@ fun fullBackupToJson(data: FullBackupData): String {
             }
         },
     )
+    data.settings?.let { root.put("settings", it.toJson()) }
     return root.toString(2)
 }
 
@@ -172,6 +176,7 @@ fun fullBackupFromJson(json: String): FullBackupData? {
         rules = rules,
         messages = messages,
         createdTransactions = createdTransactions,
+        settings = root.optJSONObject("settings")?.let(BackupSettings::fromJson),
     )
 }
 

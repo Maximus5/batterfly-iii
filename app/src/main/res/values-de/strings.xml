@@ -313,7 +313,7 @@
 
     <string name="settings_backup_title">Sicherung &amp; Wiederherstellung</string>
     <string name="settings_backup_subtitle">Alles außer der Firefly-III-Verbindung sichern oder wiederherstellen</string>
-    <string name="backup_explanation">Enthält überwachte Apps, Währungen, Regeln und den Nachrichtenverlauf.\n\nDie Sicherung enthält NICHT die Verbindungsdaten zu Firefly III (Basisadresse/Token)! Geben Sie sie nach einer Wiederherstellung erneut ein.\n\n⚠ Der Nachrichtenverlauf enthält den vollständigen Text der Benachrichtigungen - Beträge, Kartenziffern, Händlernamen. Die Sicherungsdatei ist nicht verschlüsselt: Bewahren Sie sie an einem privaten Ort auf und geben Sie sie nicht weiter.</string>
+    <string name="backup_explanation">Enthält überwachte Apps, Währungen, Regeln, Einstellungen und den Nachrichtenverlauf.\n\nDie Sicherung enthält NICHT die Verbindungsdaten zu Firefly III (Basisadresse/Token)! Geben Sie sie nach einer Wiederherstellung erneut ein.\n\n⚠ Der Nachrichtenverlauf enthält den vollständigen Text der Benachrichtigungen - Beträge, Kartenziffern, Händlernamen. Die Sicherungsdatei ist nicht verschlüsselt: Bewahren Sie sie an einem privaten Ort auf und geben Sie sie nicht weiter.</string>
     <string name="backup_export_button">Sicherung erstellen…</string>
     <string name="backup_restore_button">Sicherung wiederherstellen…</string>
     <string name="backup_export_rules_button">Regeln exportieren…</string>

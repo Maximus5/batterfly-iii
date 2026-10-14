@@ -25,6 +25,7 @@ object BackupManager {
         rules = RulesDb.getInstance(context).loadAllOrdered(),
         messages = MessageStore.shared.snapshot(),
         createdTransactions = CreatedTransactionsDb.getInstance(context).loadAll(),
+        settings = BackupSettings.read(context),
     )
 
     /**
@@ -37,6 +38,8 @@ object BackupManager {
     fun restore(context: Context, data: FullBackupData) {
         MonitoredAppsPrefs(context).setMonitoredPackages(data.monitoredPackages)
         RetentionPrefs(context).set(data.retention)
+        // Null = a file from before settings were backed up: keep whatever is set now.
+        data.settings?.let { BackupSettings.apply(context, it) }
 
         val currenciesDb = CurrenciesDb.getInstance(context)
         currenciesDb.loadAll().forEach { currenciesDb.delete(it.code) }

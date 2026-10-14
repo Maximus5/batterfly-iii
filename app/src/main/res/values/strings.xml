@@ -313,7 +313,7 @@
 
     <string name="settings_backup_title">Backup &amp; restore</string>
     <string name="settings_backup_subtitle">Save or restore everything except the Firefly III connection</string>
-    <string name="backup_explanation">Includes monitored apps, currencies, rules, and message history.\n\nBackup does not include the Firefly III connection parameters (base URL/token)! Re-enter them after a restore.\n\n⚠ The message history holds the full text of the notifications - amounts, card digits, merchant names. The backup file is not encrypted: keep it somewhere private and don\'t share it.</string>
+    <string name="backup_explanation">Includes monitored apps, currencies, rules, settings, and message history.\n\nBackup does not include the Firefly III connection parameters (base URL/token)! Re-enter them after a restore.\n\n⚠ The message history holds the full text of the notifications - amounts, card digits, merchant names. The backup file is not encrypted: keep it somewhere private and don\'t share it.</string>
     <string name="backup_export_button">Create backup…</string>
     <string name="backup_restore_button">Restore backup…</string>
     <string name="backup_export_rules_button">Export rules…</string>
