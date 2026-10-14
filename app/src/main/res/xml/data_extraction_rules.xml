@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Auto Backup / device-transfer rules for Android 12+ (android:dataExtractionRules). Same
      allowlist as backup_rules.xml, see the reasoning there. -->
-<data-extraction-rules>
+<data-extraction-rules xmlns:tools="http://schemas.android.com/tools" tools:ignore="FullBackupContent">
     <cloud-backup>
         <include domain="database" path="rules.db" />
         <include domain="sharedpref" path="monitored_apps.xml" />
