@@ -1067,14 +1067,15 @@ Single `:app` module, packages under
   `res/xml/backup_rules.xml` (Android 11 and older, `fullBackupContent`) and
   `res/xml/data_extraction_rules.xml` (Android 12+, cloud backup *and*
   device transfer) are an **allowlist**: only `rules.db`, `monitored_apps`,
-  `notifications`, `retention` and `setup_checklist` are included, so any
+  `notifications`, `retention`, `setup_checklist` and `firefly_settings` (the
+  plain posting settings, no secrets) are included, so any
   storage added later is excluded until someone opts it in. Deliberately
   left out: `message_history.db` and `created_transactions.db` (captured
   bank-notification text and created-transaction records must not leave the
   device through the user's cloud account), `firefly_connection`
   (`SecureSettings`: server URL + token - Keystore-encrypted, so unreadable on
   another device anyway - explicitly `<exclude>`d; the plain settings that used
-  to share that file moved to `firefly_settings` in v0.241, not yet opted in), `currencies.db` (a cache of
+  to share that file moved to `firefly_settings` in v0.241 and are included), `currencies.db` (a cache of
   the user's Firefly instance, refetched) and `startup_migrations`.
   `BackupRulesTest` checks the two XML files agree, the sensitive stores are
   absent, and every `DB_NAME`/`PREFS_NAME`/`getSharedPreferences("...")` in

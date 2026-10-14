@@ -73,6 +73,6 @@ class BackupRulesTest {
 
     private companion object {
         val SENSITIVE = listOf("message_history.db", "created_transactions.db", "firefly_connection", "diagnostic_log")
-        val EXCLUDED = SENSITIVE + listOf("currencies.db", "startup_migrations", "firefly_settings")
+        val EXCLUDED = SENSITIVE + listOf("currencies.db", "startup_migrations")
     }
 }
