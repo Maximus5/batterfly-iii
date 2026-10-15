@@ -124,6 +124,10 @@
     <string name="rule_field_kind">Тип</string>
     <string name="rule_field_source_account">Счёт-источник</string>
     <string name="rule_field_destination_account">Счёт назначения</string>
+    <string name="rule_field_source_asset_account">Asset-счёт источника</string>
+    <string name="rule_field_destination_asset_account">Asset-счёт назначения</string>
+    <string name="rule_section_accounts">Счета</string>
+    <string name="rule_asset_account_unknown">Это не один из ваших asset-счетов Firefly — выберите счёт значком справа.</string>
     <string name="rule_field_home_currency">Валюта счёта</string>
     <string name="rule_field_date_format">Формат даты для макроса date</string>
     <string name="rule_field_pattern">Регулярное выражение</string>

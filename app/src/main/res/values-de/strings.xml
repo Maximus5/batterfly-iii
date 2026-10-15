@@ -122,6 +122,10 @@
     <string name="rule_field_kind">Typ</string>
     <string name="rule_field_source_account">Quellkonto</string>
     <string name="rule_field_destination_account">Zielkonto</string>
+    <string name="rule_field_source_asset_account">Quell-Bestandskonto</string>
+    <string name="rule_field_destination_asset_account">Ziel-Bestandskonto</string>
+    <string name="rule_section_accounts">Konten</string>
+    <string name="rule_asset_account_unknown">Keines Ihrer Firefly-Bestandskonten - wählen Sie eines mit dem Symbol rechts.</string>
     <string name="rule_field_home_currency">Kontowährung</string>
     <string name="rule_field_date_format">Datumsformat für das Makro date</string>
     <string name="rule_field_pattern">Regulärer Ausdruck</string>

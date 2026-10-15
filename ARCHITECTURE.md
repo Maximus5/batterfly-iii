@@ -2548,7 +2548,15 @@ Single `:app` module, packages under
     Transactions settings' default source account and default account
     currency, and the create/edit screen's two currency codes (Firefly's
     *enabled* currencies via `FireflySuggestions.enabledCurrencies`, the
-    same cache family). The date-format field is left out: its five
+    same cache family). **Rule editor accounts block (v0.242)**: Type now
+    sits in one "Accounts" group directly above Source/Destination, whose
+    labels follow the kind ("Source asset account" on an asset side,
+    "Source account" on a counterparty side; `setAccountFieldMode`), and
+    an asset-side field whose text is not one of the loaded asset
+    accounts - typically the `{counterparty}` template a copied rule
+    still carries after Withdrawal -> Transfer - gets a soft helper-text
+    note (`updateAssetAccountHints`; never an error, saving is not
+    blocked, nothing shown until the account list is known). The date-format field is left out: its five
     presets are a picker only, nothing to complete.
     `PickedAccount(id, name)` + `pick?.takeIf { it.name == currentText }
     ?.id` at build time (not a live `TextWatcher`) is the exact same

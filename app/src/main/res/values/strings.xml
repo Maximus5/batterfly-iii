@@ -122,6 +122,10 @@
     <string name="rule_field_kind">Type</string>
     <string name="rule_field_source_account">Source account</string>
     <string name="rule_field_destination_account">Destination account</string>
+    <string name="rule_field_source_asset_account">Source asset account</string>
+    <string name="rule_field_destination_asset_account">Destination asset account</string>
+    <string name="rule_section_accounts">Accounts</string>
+    <string name="rule_asset_account_unknown">Not one of your Firefly asset accounts - pick one with the icon on the right.</string>
     <string name="rule_field_home_currency">Account currency</string>
     <string name="rule_field_date_format">Date format for the date macro</string>
     <string name="rule_field_pattern">Regular expression</string>

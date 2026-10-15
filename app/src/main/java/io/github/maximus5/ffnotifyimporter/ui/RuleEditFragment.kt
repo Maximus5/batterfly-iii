@@ -14,6 +14,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
+import androidx.core.widget.doAfterTextChanged
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.textfield.TextInputLayout
@@ -86,6 +87,21 @@ class RuleEditFragment : Fragment() {
         }
     }
 
+    /** A soft note (helper text, not an error - saving is never blocked) under an asset-side account
+     * field whose text is not one of Firefly's asset accounts, e.g. the `{counterparty}` template a
+     * copied rule still carries after its kind was switched. Only once the account list is known;
+     * without a server there is nothing to compare with. */
+    private fun updateAssetAccountHints() {
+        val binding = binding ?: return
+        val names = assetAccounts?.map { it.name }?.toSet() ?: return
+        listOf(binding.sourceAccountLayout to binding.sourceAccountInput, binding.destinationAccountLayout to binding.destinationAccountInput)
+            .forEach { (layout, input) ->
+                val text = input.text?.toString().orEmpty().trim()
+                val unknown = input in assetSideInputs && text.isNotEmpty() && text !in names
+                layout.helperText = if (unknown) getString(R.string.rule_asset_account_unknown) else null
+            }
+    }
+
     /** Best-effort and silent: the category and tags template fields offer Firefly's existing names
      * while typing (the shared [FireflySuggestions] cache), and the asset-side account fields offer
      * Firefly's asset accounts. A template may also hold `{macros}`, so the lists are only a
@@ -97,6 +113,7 @@ class RuleEditFragment : Fragment() {
             (FireflySuggestions.assetAccounts(prefs) as? FireflyApiClient.Result.Success)?.value?.let {
                 assetAccounts = it
                 applyAccountSuggestions()
+                updateAssetAccountHints()
             }
             val categories = (FireflySuggestions.categories(prefs) as? FireflyApiClient.Result.Success)?.value
             val tags = (FireflySuggestions.tags(prefs) as? FireflyApiClient.Result.Success)?.value
@@ -140,6 +157,8 @@ class RuleEditFragment : Fragment() {
         setupMacroInsertButtons()
         updateAvailableMacros()
         updateAccountFieldModes()
+        binding.sourceAccountInput.doAfterTextChanged { updateAssetAccountHints() }
+        binding.destinationAccountInput.doAfterTextChanged { updateAssetAccountHints() }
     }
 
     /** Picks from the user-maintained code<->symbol table (Settings -> Currencies) instead of
@@ -216,7 +235,19 @@ class RuleEditFragment : Fragment() {
     private fun setAccountFieldMode(layout: TextInputLayout, input: EditText, isAsset: Boolean) {
         val context = requireContext()
         if (isAsset) assetSideInputs += input else assetSideInputs -= input
+        // The label says which role the side plays *now*, so a kind switch is visible right at the
+        // field (a copied Withdrawal rule turned into a Transfer used to give no sign that the
+        // destination had become an asset account).
+        layout.hint = getString(
+            when {
+                layout === binding?.sourceAccountLayout && isAsset -> R.string.rule_field_source_asset_account
+                layout === binding?.sourceAccountLayout -> R.string.rule_field_source_account
+                isAsset -> R.string.rule_field_destination_asset_account
+                else -> R.string.rule_field_destination_account
+            },
+        )
         applyAccountSuggestions()
+        updateAssetAccountHints()
         if (isAsset) {
             layout.endIconDrawable = ContextCompat.getDrawable(context, R.drawable.ic_dropdown)
             layout.endIconContentDescription = getString(R.string.rule_pick_account)
@@ -253,6 +284,7 @@ class RuleEditFragment : Fragment() {
             when (val result = prefs.apiClient().listAssetAccounts()) {
                 is FireflyApiClient.Result.Success -> {
                     assetAccounts = result.value
+                    updateAssetAccountHints()
                     showAccountPickerDialog(target, result.value)
                 }
                 is FireflyApiClient.Result.Failure ->
