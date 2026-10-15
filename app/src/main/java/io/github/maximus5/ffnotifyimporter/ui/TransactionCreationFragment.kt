@@ -166,8 +166,8 @@ class TransactionCreationFragment : Fragment() {
             dedupWindow = binding.dedupWindowInput.text?.toString()?.trim().orEmpty(),
             defaultAccountCurrency = binding.defaultAccountCurrencyInput.text?.toString()?.trim().orEmpty(),
             defaultSourceAccount = binding.defaultSourceAccountInput.text?.toString()?.trim().orEmpty(),
-            allTransactionsTags = binding.allTransactionsTagInput.text?.toString()?.trim().orEmpty(),
-            approxTag = binding.approxTagInput.text?.toString()?.trim().orEmpty(),
+            allTransactionsTags = normalizeTagList(binding.allTransactionsTagInput.text?.toString().orEmpty()),
+            approxTag = normalizeTagList(binding.approxTagInput.text?.toString().orEmpty()),
         )
     }
 
@@ -294,8 +294,8 @@ class TransactionCreationFragment : Fragment() {
         prefs.setDedupWindowMinutes(dedupWindow)
         prefs.setDefaultAccountCurrency(binding.defaultAccountCurrencyInput.text?.toString().orEmpty().trim())
         prefs.setDefaultSourceAccount(binding.defaultSourceAccountInput.text?.toString().orEmpty().trim())
-        prefs.setAllTransactionsTags(binding.allTransactionsTagInput.text?.toString().orEmpty().trim())
-        prefs.setApproxConversionTag(binding.approxTagInput.text?.toString().orEmpty().trim())
+        prefs.setAllTransactionsTags(normalizeTagList(binding.allTransactionsTagInput.text?.toString().orEmpty()))
+        prefs.setApproxConversionTag(normalizeTagList(binding.approxTagInput.text?.toString().orEmpty()))
 
         initialSnapshot = buildSnapshot()
         Toast.makeText(requireContext(), R.string.firefly_settings_saved, Toast.LENGTH_SHORT).show()

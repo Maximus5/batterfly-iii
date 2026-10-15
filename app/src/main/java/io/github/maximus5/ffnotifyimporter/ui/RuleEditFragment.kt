@@ -566,7 +566,7 @@ class RuleEditFragment : Fragment() {
             descriptionTemplate = binding.descriptionTemplateInput.text?.toString().orEmpty().trim(),
             notesTemplate = binding.notesTemplateInput.text?.toString().orEmpty().trim(),
             categoryTemplate = binding.categoryTemplateInput.text?.toString().orEmpty().trim(),
-            tagsTemplate = binding.tagsTemplateInput.text?.toString().orEmpty().trim(),
+            tagsTemplate = normalizeTagList(binding.tagsTemplateInput.text?.toString().orEmpty()),
             enabled = binding.enabledSwitch.isChecked,
             dateFormat = binding.dateFormatInput.text?.toString().orEmpty().trim(),
             accountApproximate = binding.accountApproximateSwitch.isChecked,

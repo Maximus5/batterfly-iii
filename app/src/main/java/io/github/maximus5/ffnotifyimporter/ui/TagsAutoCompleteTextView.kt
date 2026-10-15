@@ -4,6 +4,14 @@ import android.content.Context
 import android.util.AttributeSet
 
 /**
+ * A saved tag list without the leftovers of typing: each tag trimmed, empty entries (a trailing
+ * ", " that picking a suggestion leaves behind, a doubled comma) dropped, joined with ", ". Pure,
+ * so it is unit-tested.
+ */
+fun normalizeTagList(text: String): String =
+    text.split(',').map { it.trim() }.filter { it.isNotEmpty() }.joinToString(", ")
+
+/**
  * A comma-separated list field that suggests matches for the tag being typed (the text after the
  * last comma), like `MultiAutoCompleteTextView` with a comma tokenizer - but built on
  * [MaterialAutoCompleteTextView], so it gets the same outlined-box look inside a `TextInputLayout`
