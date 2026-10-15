@@ -261,7 +261,13 @@ class CreateTransactionFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             val categoryList = (FireflySuggestions.categories(prefs) as? FireflyApiClient.Result.Success)?.value
             val tagList = (FireflySuggestions.tags(prefs) as? FireflyApiClient.Result.Success)?.value
+            val currencyList = (FireflySuggestions.enabledCurrencies(prefs) as? FireflyApiClient.Result.Success)?.value
             val binding = binding ?: return@launch
+            if (currencyList != null) {
+                val codes = currencyList.map { it.code }
+                binding.currencyCodeInput.setAdapter(SuggestionAdapter(context, codes))
+                binding.foreignCurrencyCodeInput.setAdapter(SuggestionAdapter(context, codes))
+            }
             if (categoryList != null) {
                 binding.categoryInput.setAdapter(SuggestionAdapter(context, categoryList.map { it.name }))
             }

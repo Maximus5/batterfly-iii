@@ -71,12 +71,14 @@
                 app:endIconDrawable="@drawable/ic_dropdown"
                 app:endIconContentDescription="@string/rule_pick_currency">
 
-                <com.google.android.material.textfield.TextInputEditText
+                <io.github.maximus5.ffnotifyimporter.ui.SuggestAutoCompleteTextView
                     android:id="@+id/currencyCodeInput"
+                    style="@style/Widget.Material3.AutoCompleteTextView.OutlinedBox"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:inputType="textCapCharacters"
-                    android:maxLines="1" />
+                    android:maxLines="1"
+                    android:completionThreshold="1" />
 
             </com.google.android.material.textfield.TextInputLayout>
 
@@ -115,12 +117,14 @@
                 app:endIconDrawable="@drawable/ic_dropdown"
                 app:endIconContentDescription="@string/rule_pick_currency">
 
-                <com.google.android.material.textfield.TextInputEditText
+                <io.github.maximus5.ffnotifyimporter.ui.SuggestAutoCompleteTextView
                     android:id="@+id/foreignCurrencyCodeInput"
+                    style="@style/Widget.Material3.AutoCompleteTextView.OutlinedBox"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:inputType="textCapCharacters"
-                    android:maxLines="1" />
+                    android:maxLines="1"
+                    android:completionThreshold="1" />
 
             </com.google.android.material.textfield.TextInputLayout>
 

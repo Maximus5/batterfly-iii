@@ -3,6 +3,7 @@ package io.github.maximus5.ffnotifyimporter.posting
 import io.github.maximus5.ffnotifyimporter.network.FireflyAccount
 import io.github.maximus5.ffnotifyimporter.network.FireflyApiClient
 import io.github.maximus5.ffnotifyimporter.network.FireflyCategory
+import io.github.maximus5.ffnotifyimporter.network.FireflyCurrency
 import io.github.maximus5.ffnotifyimporter.prefs.FireflyPrefs
 
 /**
@@ -26,10 +27,20 @@ object FireflySuggestions {
     @Volatile private var categoryEntry: Entry<FireflyCategory>? = null
     @Volatile private var tagEntry: Entry<String>? = null
     @Volatile private var assetAccountEntry: Entry<FireflyAccount>? = null
+    @Volatile private var currencyEntry: Entry<FireflyCurrency>? = null
 
     /** Asset accounts only (`listAssetAccounts`) - the ones a transaction can be booked from/to. */
     suspend fun assetAccounts(prefs: FireflyPrefs): FireflyApiClient.Result<List<FireflyAccount>> =
         load(prefs, assetAccountEntry, { it.listAssetAccounts() }, { assetAccountEntry = it })
+
+    /** Only the currencies switched on in the user's Firefly (the API has no server-side filter). */
+    suspend fun enabledCurrencies(prefs: FireflyPrefs): FireflyApiClient.Result<List<FireflyCurrency>> =
+        load(prefs, currencyEntry, { client ->
+            when (val result = client.listCurrencies()) {
+                is FireflyApiClient.Result.Success -> FireflyApiClient.Result.Success(result.value.filter { it.enabled })
+                is FireflyApiClient.Result.Failure -> result
+            }
+        }, { currencyEntry = it })
 
     suspend fun categories(prefs: FireflyPrefs): FireflyApiClient.Result<List<FireflyCategory>> =
         load(prefs, categoryEntry, { it.listCategories() }, { categoryEntry = it })

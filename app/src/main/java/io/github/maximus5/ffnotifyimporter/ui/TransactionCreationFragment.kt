@@ -106,15 +106,26 @@ class TransactionCreationFragment : Fragment() {
         return binding!!.root
     }
 
-    /** Best-effort and silent: the two tag fields offer Firefly's existing tags while typing (the
+    /** Best-effort and silent: the two tag fields offer Firefly's existing tags, the default
+     * account its asset accounts and the default currency its enabled currencies while typing (the
      * shared [FireflySuggestions] cache); without a server they stay plain text fields. */
-    private fun loadTagSuggestions() {
+    private fun loadSuggestions() {
         if (!prefs.isConfigured()) return
         viewLifecycleOwner.lifecycleScope.launch {
-            val tags = (FireflySuggestions.tags(prefs) as? FireflyApiClient.Result.Success)?.value ?: return@launch
+            val tags = (FireflySuggestions.tags(prefs) as? FireflyApiClient.Result.Success)?.value
+            val accounts = (FireflySuggestions.assetAccounts(prefs) as? FireflyApiClient.Result.Success)?.value
+            val currencies = (FireflySuggestions.enabledCurrencies(prefs) as? FireflyApiClient.Result.Success)?.value
             val binding = binding ?: return@launch
-            binding.allTransactionsTagInput.setSuggestions(tags)
-            binding.approxTagInput.setSuggestions(tags)
+            if (tags != null) {
+                binding.allTransactionsTagInput.setSuggestions(tags)
+                binding.approxTagInput.setSuggestions(tags)
+            }
+            if (accounts != null) {
+                binding.defaultSourceAccountInput.setAdapter(SuggestionAdapter(requireContext(), accounts.map { it.name }))
+            }
+            if (currencies != null) {
+                binding.defaultAccountCurrencyInput.setAdapter(SuggestionAdapter(requireContext(), currencies.map { it.code }))
+            }
         }
     }
 
@@ -131,7 +142,7 @@ class TransactionCreationFragment : Fragment() {
         binding.defaultSourceAccountInput.setText(prefs.getDefaultSourceAccount())
         binding.allTransactionsTagInput.setText(prefs.getAllTransactionsTags())
         binding.approxTagInput.setText(prefs.getApproxConversionTag())
-        loadTagSuggestions()
+        loadSuggestions()
 
         binding.defaultAccountCurrencyLayout.setEndIconOnClickListener { showCurrencyPicker(binding.defaultAccountCurrencyInput) }
         binding.defaultSourceAccountLayout.setEndIconOnClickListener { showAccountPicker(binding.defaultSourceAccountInput) }

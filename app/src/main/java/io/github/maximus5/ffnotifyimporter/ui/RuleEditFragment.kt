@@ -73,13 +73,31 @@ class RuleEditFragment : Fragment() {
         return binding!!.root
     }
 
+    /** The account fields that are on the asset side right now (see [updateAccountFieldModes]) -
+     * only those suggest Firefly's own accounts; the counterparty side is a free-text/macro
+     * template. Same rule as the transaction editor's account fields. */
+    private val assetSideInputs = mutableSetOf<EditText>()
+
+    private fun applyAccountSuggestions() {
+        val binding = binding ?: return
+        val names = assetAccounts?.map { it.name }.orEmpty()
+        listOf(binding.sourceAccountInput, binding.destinationAccountInput).forEach { input ->
+            input.setAdapter(if (input in assetSideInputs && names.isNotEmpty()) SuggestionAdapter(requireContext(), names) else null)
+        }
+    }
+
     /** Best-effort and silent: the category and tags template fields offer Firefly's existing names
-     * while typing (the shared [FireflySuggestions] cache). A template may also hold `{macros}`, so
-     * the list is only a convenience; without a server the fields stay plain text. */
+     * while typing (the shared [FireflySuggestions] cache), and the asset-side account fields offer
+     * Firefly's asset accounts. A template may also hold `{macros}`, so the lists are only a
+     * convenience; without a server the fields stay plain text. */
     private fun loadSuggestions() {
         val prefs = FireflyPrefs(requireContext())
         if (!prefs.isConfigured()) return
         viewLifecycleOwner.lifecycleScope.launch {
+            (FireflySuggestions.assetAccounts(prefs) as? FireflyApiClient.Result.Success)?.value?.let {
+                assetAccounts = it
+                applyAccountSuggestions()
+            }
             val categories = (FireflySuggestions.categories(prefs) as? FireflyApiClient.Result.Success)?.value
             val tags = (FireflySuggestions.tags(prefs) as? FireflyApiClient.Result.Success)?.value
             val binding = binding ?: return@launch
@@ -114,6 +132,9 @@ class RuleEditFragment : Fragment() {
         binding.testAgainstHistoryButton.setOnClickListener { testAgainstHistory() }
         addSaveMenu(onDelete = if (existingRule != null) ::confirmDelete else null, onSave = ::save)
         binding.homeCurrencyLayout.setEndIconOnClickListener { showCurrencyPicker() }
+        // The same list the picker above offers: the user's own code<->symbol table.
+        val homeCodes = CurrenciesDb.getInstance(requireContext()).loadAll().map { it.code }
+        if (homeCodes.isNotEmpty()) binding.homeCurrencyInput.setAdapter(SuggestionAdapter(requireContext(), homeCodes))
         binding.dateFormatLayout.setEndIconOnClickListener { showDateFormatPicker() }
 
         setupMacroInsertButtons()
@@ -194,6 +215,8 @@ class RuleEditFragment : Fragment() {
 
     private fun setAccountFieldMode(layout: TextInputLayout, input: EditText, isAsset: Boolean) {
         val context = requireContext()
+        if (isAsset) assetSideInputs += input else assetSideInputs -= input
+        applyAccountSuggestions()
         if (isAsset) {
             layout.endIconDrawable = ContextCompat.getDrawable(context, R.drawable.ic_dropdown)
             layout.endIconContentDescription = getString(R.string.rule_pick_account)

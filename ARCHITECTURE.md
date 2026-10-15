@@ -2540,7 +2540,16 @@ Single `:app` module, packages under
     counterparty side gets none, by the user's own decision. Tapping a
     suggestion goes through the same `onPicked` as the modal picker
     (`SuggestAutoCompleteTextView.onSuggestionPicked`), so the account id
-    is remembered and `inferKindFromAccounts` runs.
+    is remembered and `inferKindFromAccounts` runs. **Everywhere a field
+    has a picker, it also suggests (v0.242)**: the rule editor's
+    asset-side source/destination account (same `assetSideInputs` rule;
+    the counterparty side stays a macro template) and home currency (the
+    codes of the local `CurrenciesDb`, what its picker lists), the
+    Transactions settings' default source account and default account
+    currency, and the create/edit screen's two currency codes (Firefly's
+    *enabled* currencies via `FireflySuggestions.enabledCurrencies`, the
+    same cache family). The date-format field is left out: its five
+    presets are a picker only, nothing to complete.
     `PickedAccount(id, name)` + `pick?.takeIf { it.name == currentText }
     ?.id` at build time (not a live `TextWatcher`) is the exact same
     stale-id-after-manual-edit handling `RuleEditFragment.buildDraft`

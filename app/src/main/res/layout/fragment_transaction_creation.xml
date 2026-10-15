@@ -21,10 +21,13 @@
             app:endIconDrawable="@drawable/ic_dropdown"
             app:endIconContentDescription="@string/rule_pick_currency">
 
-            <com.google.android.material.textfield.TextInputEditText
+            <io.github.maximus5.ffnotifyimporter.ui.SuggestAutoCompleteTextView
                 android:id="@+id/defaultAccountCurrencyInput"
+                style="@style/Widget.Material3.AutoCompleteTextView.OutlinedBox"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content" />
+                android:layout_height="wrap_content"
+                android:inputType="text"
+                android:completionThreshold="1" />
 
         </com.google.android.material.textfield.TextInputLayout>
 
@@ -47,10 +50,13 @@
             app:endIconDrawable="@drawable/ic_dropdown"
             app:endIconContentDescription="@string/rule_pick_account">
 
-            <com.google.android.material.textfield.TextInputEditText
+            <io.github.maximus5.ffnotifyimporter.ui.SuggestAutoCompleteTextView
                 android:id="@+id/defaultSourceAccountInput"
+                style="@style/Widget.Material3.AutoCompleteTextView.OutlinedBox"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content" />
+                android:layout_height="wrap_content"
+                android:inputType="text"
+                android:completionThreshold="1" />
 
         </com.google.android.material.textfield.TextInputLayout>
 
