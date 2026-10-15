@@ -110,7 +110,7 @@ class RuleEditFragment : Fragment() {
         val prefs = FireflyPrefs(requireContext())
         if (!prefs.isConfigured()) return
         viewLifecycleOwner.lifecycleScope.launch {
-            (FireflySuggestions.assetAccounts(prefs) as? FireflyApiClient.Result.Success)?.value?.let {
+            (FireflySuggestions.assetAccounts(prefs, forceRefresh = true) as? FireflyApiClient.Result.Success)?.value?.let {
                 assetAccounts = it
                 applyAccountSuggestions()
                 updateAssetAccountHints()

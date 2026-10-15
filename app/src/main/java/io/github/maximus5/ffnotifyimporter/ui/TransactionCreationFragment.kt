@@ -113,7 +113,7 @@ class TransactionCreationFragment : Fragment() {
         if (!prefs.isConfigured()) return
         viewLifecycleOwner.lifecycleScope.launch {
             val tags = (FireflySuggestions.tags(prefs) as? FireflyApiClient.Result.Success)?.value
-            val accounts = (FireflySuggestions.assetAccounts(prefs) as? FireflyApiClient.Result.Success)?.value
+            val accounts = (FireflySuggestions.assetAccounts(prefs, forceRefresh = true) as? FireflyApiClient.Result.Success)?.value
             val currencies = (FireflySuggestions.enabledCurrencies(prefs) as? FireflyApiClient.Result.Success)?.value
             val binding = binding ?: return@launch
             if (tags != null) {

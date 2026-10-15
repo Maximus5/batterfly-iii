@@ -29,9 +29,14 @@ object FireflySuggestions {
     @Volatile private var assetAccountEntry: Entry<FireflyAccount>? = null
     @Volatile private var currencyEntry: Entry<FireflyCurrency>? = null
 
-    /** Asset accounts only (`listAssetAccounts`) - the ones a transaction can be booked from/to. */
-    suspend fun assetAccounts(prefs: FireflyPrefs): FireflyApiClient.Result<List<FireflyAccount>> =
-        load(prefs, assetAccountEntry, { it.listAssetAccounts() }, { assetAccountEntry = it })
+    /** Asset accounts only (`listAssetAccounts`) - the ones a transaction can be booked from/to.
+     * Accounts are created outside this app (unlike categories and tags, which [remember] keeps
+     * current), so a screen that offers them passes [forceRefresh] = true when it opens: the list
+     * is fetched anew every time, and the cached one is only the fallback if that fails. The
+     * process outlives the visible app (the notification listener keeps it alive), so the TTL
+     * alone left a just-added account missing for up to 10 minutes. */
+    suspend fun assetAccounts(prefs: FireflyPrefs, forceRefresh: Boolean = false): FireflyApiClient.Result<List<FireflyAccount>> =
+        load(prefs, assetAccountEntry, { it.listAssetAccounts() }, { assetAccountEntry = it }, forceRefresh)
 
     /** Only the currencies switched on in the user's Firefly (the API has no server-side filter). */
     suspend fun enabledCurrencies(prefs: FireflyPrefs): FireflyApiClient.Result<List<FireflyCurrency>> =
@@ -53,10 +58,11 @@ object FireflySuggestions {
         current: Entry<T>?,
         fetch: suspend (FireflyApiClient) -> FireflyApiClient.Result<List<T>>,
         store: (Entry<T>) -> Unit,
+        forceRefresh: Boolean = false,
     ): FireflyApiClient.Result<List<T>> {
         val baseUrl = prefs.getBaseUrl()
         val cached = current?.takeIf { it.baseUrl == baseUrl }
-        if (cached != null && System.currentTimeMillis() - cached.fetchedAt < TTL_MILLIS) {
+        if (!forceRefresh && cached != null && System.currentTimeMillis() - cached.fetchedAt < TTL_MILLIS) {
             return FireflyApiClient.Result.Success(cached.values)
         }
         return when (val result = fetch(prefs.apiClient())) {

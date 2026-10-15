@@ -485,7 +485,7 @@ class CreateTransactionFragment : Fragment() {
         val prefs = FireflyPrefs(context)
         if (!prefs.isConfigured()) return
         viewLifecycleOwner.lifecycleScope.launch {
-            val result = FireflySuggestions.assetAccounts(prefs)
+            val result = FireflySuggestions.assetAccounts(prefs, forceRefresh = true)
             if (result is FireflyApiClient.Result.Success) {
                 assetAccounts = result.value
                 applyAccountSuggestions()

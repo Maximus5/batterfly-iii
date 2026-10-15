@@ -2551,7 +2551,14 @@ Single `:app` module, packages under
     Transactions settings' default source account and default account
     currency, and the create/edit screen's two currency codes (Firefly's
     *enabled* currencies via `FireflySuggestions.enabledCurrencies`, the
-    same cache family). **Rule editor accounts block (v0.242)**: Type now
+    same cache family). **Asset accounts are refetched on every screen
+    open (v0.242)**: they are created outside the app, so the 10-minute
+    TTL (and the process outliving the visible app - the notification
+    listener keeps it alive) left a just-added account out of the
+    suggestions and pickers; `FireflySuggestions.assetAccounts(prefs,
+    forceRefresh = true)` is called by the rule editor, the Transactions
+    settings and the create/edit screen, the cached list being only the
+    fallback when the request fails. **Rule editor accounts block (v0.242)**: Type now
     sits in one "Accounts" group directly above Source/Destination, whose
     labels follow the kind ("Source asset account" on an asset side,
     "Source account" on a counterparty side; `setAccountFieldMode`), and
