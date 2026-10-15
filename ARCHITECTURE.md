@@ -2511,7 +2511,10 @@ Single `:app` module, packages under
     tag and "tags for all transactions"). Matching is
     `suggestionMatches` (the entry or any word of it starts with what is
     typed, case-insensitive, unit-tested); `TagsAutoCompleteTextView`
-    leaves out tags already in the field. **Calmer list
+    leaves out tags already in the field; the tag fields of the
+    Transactions settings and the rule editor are saved through
+    `normalizeTagList` (each tag trimmed, empty entries such as the
+    trailing ", " a picked suggestion leaves are dropped). **Calmer list
     (v0.234/0.235)**, in `SuggestAutoCompleteTextView` (the base of both
     field kinds): it appears only after typing has paused for 500 ms, and
     a list longer than 3 rows only from 2 typed characters on (so one
